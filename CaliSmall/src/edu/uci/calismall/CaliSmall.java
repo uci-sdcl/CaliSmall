@@ -1,3 +1,9 @@
+/**
+ * CaliSmall.java
+ * Created on July 11, 2012
+ * Copyright 2012 Michele Bonazza
+ * <michele.bonazza@gmail.com>
+ */
 package edu.uci.calismall;
 
 import java.util.ArrayList;
@@ -534,7 +540,7 @@ public class CaliSmall extends Activity {
 			mTranslateY = scaledCenterY - scaledPreviousScaleCenterY;
 			mCanvasOffsetX += mTranslateX;
 			mCanvasOffsetY += mTranslateY;
-			// translate, move to (x,y) origin to zoom center
+			// translate, move origin to (x,y) to center zooming
 			matrix.preTranslate(mTranslateX + dScaleCenterX, mTranslateY
 					+ dScaleCenterY);
 			// scale and move origin back to (0,0)
@@ -591,7 +597,7 @@ public class CaliSmall extends Activity {
 	 */
 	static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 160;
 	/**
-	 * Wheere to put the center of the landing zone on a path (to be rescaled by
+	 * Where to put the center of the landing zone on a path (to be rescaled by
 	 * scaleFactor).
 	 */
 	static final float ABS_LANDING_ZONE_PATH_OFFSET = 50;
