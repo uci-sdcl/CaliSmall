@@ -37,3 +37,6 @@ local.properties
 
 # generated files
 gen/
+/assets
+/bin
+/apk
