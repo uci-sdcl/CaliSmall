@@ -90,7 +90,7 @@ public class CaliSmall extends Activity {
 		private static final int INVALID_POINTER_ID = -1;
 		private final Thread worker;
 		private final PathMeasure pathMeasure;
-		private float lastX, lastY;
+		private float lastX, lastY, touchSize;
 		private final List<Stroke> strokes;
 		private final List<Scrap> scraps;
 		private Scrap selected, newScrap, toBeRemoved, tempSelStrokes;
@@ -291,8 +291,24 @@ public class CaliSmall extends Activity {
 			if (bubbleMenuShown) {
 				onTouchBubbleMenuShown(action, adjusted);
 			} else {
-				if (!drawing)
+				if (!drawing) {
 					scaleDetector.onTouchEvent(event);
+					if (zooming) {
+						switch (action) {
+						case MotionEvent.ACTION_UP:
+							// last finger lifted
+							onUp(event);
+							// delete stroke if one was accidentally created
+							stroke.getPath().reset();
+							break;
+						case MotionEvent.ACTION_POINTER_UP:
+							// first finger lifted (only when pinching)
+							onPointerUp(event);
+							break;
+						}
+						return true;
+					}
+				}
 				switch (action) {
 				case MotionEvent.ACTION_DOWN:
 					// first touch with one finger
@@ -307,17 +323,56 @@ public class CaliSmall extends Activity {
 					// last finger lifted
 					onUp(event);
 					break;
-				case MotionEvent.ACTION_POINTER_UP:
-					// first finger lifted (only when pinching)
-					onPointerUp(event);
-					break;
 				case MotionEvent.ACTION_POINTER_DOWN:
 					// first touch with second finger
 					if (!drawing)
 						zooming = true;
+					break;
 				}
 			}
 			return true;
+		}
+
+		/**
+		 * Returns a string that represents the symbolic name of the specified
+		 * action such as "ACTION_DOWN", "ACTION_POINTER_DOWN(3)" or an
+		 * equivalent numeric constant such as "35" if unknown.
+		 * 
+		 * @param action
+		 *            The action.
+		 * @return The symbolic name of the specified action.
+		 * @hide
+		 */
+		public String actionToString(int action) {
+			switch (action) {
+			case MotionEvent.ACTION_DOWN:
+				return "ACTION_DOWN";
+			case MotionEvent.ACTION_UP:
+				return "ACTION_UP";
+			case MotionEvent.ACTION_CANCEL:
+				return "ACTION_CANCEL";
+			case MotionEvent.ACTION_OUTSIDE:
+				return "ACTION_OUTSIDE";
+			case MotionEvent.ACTION_MOVE:
+				return "ACTION_MOVE";
+			case MotionEvent.ACTION_HOVER_MOVE:
+				return "ACTION_HOVER_MOVE";
+			case MotionEvent.ACTION_SCROLL:
+				return "ACTION_SCROLL";
+			case MotionEvent.ACTION_HOVER_ENTER:
+				return "ACTION_HOVER_ENTER";
+			case MotionEvent.ACTION_HOVER_EXIT:
+				return "ACTION_HOVER_EXIT";
+			}
+			int index = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+			switch (action & MotionEvent.ACTION_MASK) {
+			case MotionEvent.ACTION_POINTER_DOWN:
+				return "ACTION_POINTER_DOWN(" + index + ")";
+			case MotionEvent.ACTION_POINTER_UP:
+				return "ACTION_POINTER_UP(" + index + ")";
+			default:
+				return Integer.toString(action);
+			}
 		}
 
 		private void onTouchBubbleMenuShown(int action, PointF touchPoint) {
@@ -338,15 +393,24 @@ public class CaliSmall extends Activity {
 			mustShowLandingZone = false;
 			lastX = adjusted.x;
 			lastY = adjusted.y;
+			touchSize = event.getTouchMajor() / (2 * scaleFactor);
 			stroke.setStart(adjusted);
 			stroke.getPath().moveTo(lastX, lastY);
 			mActivePointerId = event.getPointerId(0);
 		}
 
 		private void onMove(MotionEvent event) {
-			drawing = true;
-			if (!moved)
-				moved = true;
+			drawing = mustShowLandingZone;
+			final int pointerIndex = event.findPointerIndex(mActivePointerId);
+			final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
+					event.getY(pointerIndex));
+			final float x = adjusted.x;
+			final float y = adjusted.y;
+			final float dx = Math.abs(x - lastX);
+			final float dy = Math.abs(y - lastY);
+			if (!moved) {
+				moved = hasMovedEnough();
+			}
 			if (!mustShowLandingZone) {
 				mustShowLandingZone = mustShowLandingZone();
 				if (mustShowLandingZone) {
@@ -356,13 +420,6 @@ public class CaliSmall extends Activity {
 					landingZoneCenter = new PointF(position[0], position[1]);
 				}
 			}
-			final int pointerIndex = event.findPointerIndex(mActivePointerId);
-			final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
-					event.getY(pointerIndex));
-			final float x = adjusted.x;
-			final float y = adjusted.y;
-			final float dx = Math.abs(x - lastX);
-			final float dy = Math.abs(y - lastY);
 			if (dx >= TOUCH_TOLERANCE || dy >= TOUCH_TOLERANCE) {
 				stroke.getPath().quadTo(lastX, lastY, (x + lastX) / 2,
 						(y + lastY) / 2);
@@ -380,6 +437,7 @@ public class CaliSmall extends Activity {
 						event.getY(pointerIndex));
 				if (!moved) {
 					// a single touch inside a scrap selects it
+					stroke.getPath().reset();
 					Scrap selected = getSelectedScrap(adjusted);
 					if (selected != null) {
 						setSelected(selected);
@@ -442,6 +500,11 @@ public class CaliSmall extends Activity {
 			stroke.getPath().computeBounds(rect, true);
 			final float minSize = (BubbleMenu.ABS_B_SIZE / scaleFactor) * 2;
 			return rect.height() >= minSize;
+		}
+
+		private boolean hasMovedEnough() {
+			pathMeasure.setPath(stroke.getPath(), false);
+			return pathMeasure.getLength() > touchSize;
 		}
 
 		private boolean mustShowLandingZone() {
@@ -600,7 +663,7 @@ public class CaliSmall extends Activity {
 	 * Where to put the center of the landing zone on a path (to be rescaled by
 	 * scaleFactor).
 	 */
-	static final float ABS_LANDING_ZONE_PATH_OFFSET = 50;
+	static final float ABS_LANDING_ZONE_PATH_OFFSET = 40;
 	/**
 	 * The amount of pixels that a touch needs to cover before it is considered
 	 * a move action.
