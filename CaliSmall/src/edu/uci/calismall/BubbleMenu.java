@@ -107,7 +107,7 @@ public class BubbleMenu {
 	 * buttons have this height AND width (i.e. they're contained in a square).
 	 */
 	public static final int ABS_B_SIZE = 48;
-	private static final int ABS_MIN_SIZE = ABS_B_SIZE * 2;
+	private static final int MIN_BUTTON_DISTANCE = 3;
 	private final Context parentContext;
 	private final Button[] buttons;
 	private final Button topLeft;
@@ -117,7 +117,8 @@ public class BubbleMenu {
 	private final CaliView view;
 	private PointF lastPosition;
 	private Button touched;
-	private float bSize, minSize, selWidth, selHeight, scaleFactor;
+	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
+			selWidth, selHeight, scaleFactor;
 
 	/**
 	 * Initializes a new BubbleMenu that will pick image files from the
@@ -140,17 +141,18 @@ public class BubbleMenu {
 
 	private List<Button> initButtons(Resources resources) {
 		List<Button> tmpButtons = new ArrayList<Button>();
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.shrinkwrapped)),
-				new ClickableButtonListener() {
+		BitmapDrawable shrinkButton = new BitmapDrawable(resources,
+				BitmapFactory.decodeResource(resources,
+						R.drawable.shrinkwrapped));
+		buttonDisplaySize = shrinkButton.getIntrinsicWidth();
+		tmpButtons.add(new Button(shrinkButton, new ClickableButtonListener() {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return super.touched(action, touchPoint, selected)
-								|| shrinkWrapped(action, touchPoint, selected);
-					}
-				}));
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return super.touched(action, touchPoint, selected)
+						|| shrinkWrapped(action, touchPoint, selected);
+			}
+		}));
 		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
 				.decodeResource(resources, R.drawable.scrap)),
 				new ClickableButtonListener() {
@@ -377,8 +379,9 @@ public class BubbleMenu {
 	public void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
 		this.scaleFactor = scaleFactor;
 		this.bounds.set(bounds);
-		bSize = ABS_B_SIZE / scaleFactor;
-		minSize = ABS_MIN_SIZE / scaleFactor;
+		bSize = buttonDisplaySize / scaleFactor;
+		minSize = bSize * MIN_BUTTON_DISTANCE;
+		padding = bSize / 2;
 		if (selectionPath != null) {
 			selectionPath.computeBounds(sel, true);
 			selWidth = sel.right - sel.left;
@@ -412,20 +415,20 @@ public class BubbleMenu {
 	private void updateNonPivotButtonsPositions() {
 		// second button on the left
 		updateBounds(buttons[1].position, topLeft.position.left,
-				topLeft.position.bottom, topLeft.position.right,
-				topLeft.position.bottom + bSize);
+				topLeft.position.bottom + padding, topLeft.position.right,
+				topLeft.position.bottom + padding + bSize);
 		// button in the bottom-left position
 		updateBounds(buttons[2].position, topLeft.position.left,
 				bottomRight.position.top, topLeft.position.right,
 				bottomRight.position.bottom);
 		// second button on the right
 		updateBounds(buttons[4].position, topRight.position.left,
-				topRight.position.bottom, topRight.position.left + bSize,
-				topRight.position.bottom + bSize);
+				topRight.position.bottom + padding, topRight.position.left
+						+ bSize, topRight.position.bottom + padding + bSize);
 		// second-to-last button on the right
 		updateBounds(buttons[5].position, bottomRight.position.left,
-				bottomRight.position.top - bSize, bottomRight.position.right,
-				bottomRight.position.top);
+				bottomRight.position.top - bSize - padding,
+				bottomRight.position.right, bottomRight.position.top - padding);
 	}
 
 	private PointF updateButtonsPositions(float dx, float dy) {

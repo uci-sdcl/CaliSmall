@@ -393,7 +393,8 @@ public class CaliSmall extends Activity {
 			mustShowLandingZone = false;
 			lastX = adjusted.x;
 			lastY = adjusted.y;
-			touchSize = event.getTouchMajor() / (2 * scaleFactor);
+			touchSize = ((event.getTouchMajor() + event.getTouchMinor()) / 2)
+					/ (8 * scaleFactor);
 			stroke.setStart(adjusted);
 			stroke.getPath().moveTo(lastX, lastY);
 			mActivePointerId = event.getPointerId(0);
@@ -408,9 +409,6 @@ public class CaliSmall extends Activity {
 			final float y = adjusted.y;
 			final float dx = Math.abs(x - lastX);
 			final float dy = Math.abs(y - lastY);
-			if (!moved) {
-				moved = hasMovedEnough();
-			}
 			if (!mustShowLandingZone) {
 				mustShowLandingZone = mustShowLandingZone();
 				if (mustShowLandingZone) {
@@ -425,6 +423,9 @@ public class CaliSmall extends Activity {
 						(y + lastY) / 2);
 				lastX = x;
 				lastY = y;
+			}
+			if (!moved) {
+				moved = hasMovedEnough();
 			}
 		}
 
@@ -446,7 +447,8 @@ public class CaliSmall extends Activity {
 					}
 					// draw a point (a small circle)
 					stroke.setStyle(Paint.Style.FILL);
-					stroke.getPath().addCircle(adjusted.x, adjusted.y,
+					PointF center = stroke.getStartPoint();
+					stroke.getPath().addCircle(center.x, center.y,
 							stroke.getStrokeWidth() / 2, Direction.CW);
 				}
 				// last stroke ended, compute its boundaries
