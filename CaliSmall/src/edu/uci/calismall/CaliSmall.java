@@ -22,6 +22,7 @@ import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.Path.Direction;
 import android.graphics.PathMeasure;
+import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.os.Bundle;
@@ -88,11 +89,11 @@ public class CaliSmall extends Activity {
 	public class CaliView extends SurfaceView implements SurfaceHolder.Callback {
 
 		private static final int INVALID_POINTER_ID = -1;
-		private final Thread worker;
 		private final PathMeasure pathMeasure;
 		private float lastX, lastY, touchSize;
 		private final List<Stroke> strokes;
 		private final List<Scrap> scraps;
+		private Thread worker;
 		private Scrap selected, newScrap, toBeRemoved, tempSelStrokes;
 		private boolean zooming, drawing, moved, running, mustShowLandingZone,
 				strokeAdded, clearStrokes, bubbleMenuShown, mustShowBubbleMenu,
@@ -104,7 +105,6 @@ public class CaliSmall extends Activity {
 		private CaliView(Context c) {
 			super(c);
 			getHolder().addCallback(this);
-			worker = new Thread(new Worker(getHolder(), this));
 			strokes = new ArrayList<Stroke>();
 			scraps = new ArrayList<Scrap>();
 			scaleDetector = new ScaleGestureDetector(c, new ScaleListener());
@@ -288,6 +288,7 @@ public class CaliSmall extends Activity {
 		public boolean onTouchEvent(MotionEvent event) {
 			final int action = event.getAction() & MotionEvent.ACTION_MASK;
 			PointF adjusted = adjustForZoom(event.getX(), event.getY());
+			// Log.d(TAG, actionToString(action) + pointToString(adjusted));
 			if (bubbleMenuShown) {
 				onTouchBubbleMenuShown(action, adjusted);
 			} else {
@@ -327,6 +328,10 @@ public class CaliSmall extends Activity {
 					// first touch with second finger
 					if (!drawing)
 						zooming = true;
+					break;
+				case MotionEvent.ACTION_POINTER_UP:
+					// first finger lifted (only when pinching)
+					onPointerUp(event);
 					break;
 				}
 			}
@@ -398,6 +403,11 @@ public class CaliSmall extends Activity {
 			stroke.setStart(adjusted);
 			stroke.getPath().moveTo(lastX, lastY);
 			mActivePointerId = event.getPointerId(0);
+			// FIXME getToolType is only supported by API 14+
+			// Log.d(TAG,
+			// "touch (" + event.getTouchMajor() + ") pressure ("
+			// + event.getPressure() + "), type("
+			// + event.getToolType(mActivePointerId) + ")");
 		}
 
 		private void onMove(MotionEvent event) {
@@ -542,6 +552,7 @@ public class CaliSmall extends Activity {
 		@Override
 		public void surfaceCreated(SurfaceHolder holder) {
 			if (!running) {
+				worker = new Thread(new Worker(getHolder(), this));
 				running = true;
 				worker.start();
 			}
@@ -798,6 +809,35 @@ public class CaliSmall extends Activity {
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+
+	/**
+	 * Returns what <tt>PointF.toString()</tt> should have returned, but Android
+	 * developers were too lazy to implement.
+	 * 
+	 * @param point
+	 *            the point of which a String representation must be returned
+	 * @return a String containing the point's coordinates enclosed within
+	 *         parentheses
+	 */
+	public static String pointToString(PointF point) {
+		return new StringBuilder("(").append(point.x).append(",")
+				.append(point.y).append(")").toString();
+	}
+
+	/**
+	 * Returns what <tt>Point.toString()</tt> should have returned (without the
+	 * initial <tt>"Point"</tt> that the <tt>toString()</tt> default
+	 * implementation returns).
+	 * 
+	 * @param point
+	 *            the point of which a String representation must be returned
+	 * @return a String containing the point's coordinates enclosed within
+	 *         parentheses
+	 */
+	public static String pointToString(Point point) {
+		return new StringBuilder("(").append(point.x).append(",")
+				.append(point.y).append(")").toString();
 	}
 
 }

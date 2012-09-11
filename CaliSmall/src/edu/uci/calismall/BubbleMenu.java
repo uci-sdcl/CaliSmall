@@ -6,9 +6,6 @@
  */
 package edu.uci.calismall;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
@@ -35,14 +32,21 @@ public class BubbleMenu {
 
 	private abstract class ClickableButtonListener implements ButtonListener {
 
+		private final Button parent;
 		private boolean moved = false;
+
+		private ClickableButtonListener(Button parent) {
+			this.parent = parent;
+		}
 
 		/**
 		 * Returns <code>true</code> only when the user has clicked this button.
 		 * 
 		 * <p>
 		 * A button is considered clicked when no
-		 * {@link MotionEvent#ACTION_MOVE} events are detected by this listener.
+		 * {@link MotionEvent#ACTION_MOVE} events are detected by this listener
+		 * or when they are detected by the touch point doesn't exit the button
+		 * area.
 		 * 
 		 * <p>
 		 * Subclasses should override this method like this: <blockquote>
@@ -63,7 +67,9 @@ public class BubbleMenu {
 		 */
 		@Override
 		public boolean touched(int action, PointF touchPoint, Scrap selected) {
-			if (action == MotionEvent.ACTION_MOVE)
+			if (action == MotionEvent.ACTION_MOVE
+					&& !parent.contains(Math.round(touchPoint.x),
+							Math.round(touchPoint.y)))
 				moved = true;
 			boolean returnMe = moved || action != MotionEvent.ACTION_UP;
 			if (action == MotionEvent.ACTION_UP) {
@@ -84,12 +90,11 @@ public class BubbleMenu {
 
 		private final BitmapDrawable scaledButton;
 		private final Rect position;
-		private final ButtonListener listener;
+		private ButtonListener listener;
 
-		private Button(BitmapDrawable bitmap, ButtonListener listener) {
+		private Button(BitmapDrawable bitmap) {
 			scaledButton = bitmap;
 			position = new Rect();
-			this.listener = listener;
 		}
 
 		private void draw(Canvas canvas) {
@@ -132,91 +137,87 @@ public class BubbleMenu {
 		view = parent.getView();
 		sel = new RectF();
 		bounds = new RectF();
-		buttons = initButtons(parent.getResources()).toArray(new Button[0]);
+		buttons = initButtons(parent.getResources());
 		topLeft = buttons[0];
 		topRight = buttons[3];
 		bottomRight = buttons[6];
 		lastPosition = new PointF();
 	}
 
-	private List<Button> initButtons(Resources resources) {
-		List<Button> tmpButtons = new ArrayList<Button>();
+	private Button[] initButtons(Resources resources) {
+		// TODO check whether the shrink button size is good for every button
 		BitmapDrawable shrinkButton = new BitmapDrawable(resources,
 				BitmapFactory.decodeResource(resources,
 						R.drawable.shrinkwrapped));
 		buttonDisplaySize = shrinkButton.getIntrinsicWidth();
-		tmpButtons.add(new Button(shrinkButton, new ClickableButtonListener() {
+		Button shrink = new Button(shrinkButton);
+		shrink.listener = new ClickableButtonListener(shrink) {
 
 			@Override
 			public boolean touched(int action, PointF touchPoint, Scrap selected) {
 				return super.touched(action, touchPoint, selected)
 						|| shrinkWrapped(action, touchPoint, selected);
 			}
-		}));
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.scrap)),
-				new ClickableButtonListener() {
+		};
+		Button scrap = createButton(resources, R.drawable.scrap);
+		Button erase = createButton(resources, R.drawable.scrap_erase);
+		Button move = createButton(resources, R.drawable.scrap_move);
+		Button copy = createButton(resources, R.drawable.scrap_copy);
+		Button rotate = createButton(resources, R.drawable.scrap_rotate);
+		Button resize = createButton(resources, R.drawable.scrap_resize);
+		Button[] tmpButtons = new Button[] { shrink, scrap, erase, move, copy,
+				rotate, resize };
+		scrap.listener = new ClickableButtonListener(scrap) {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return super.touched(action, touchPoint, selected)
-								|| scrap(action, touchPoint, selected);
-					}
-				}));
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.scrap_erase)),
-				new ClickableButtonListener() {
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return super.touched(action, touchPoint, selected)
+						|| scrap(action, touchPoint, selected);
+			}
+		};
+		erase.listener = new ClickableButtonListener(erase) {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return super.touched(action, touchPoint, selected)
-								|| scrapErase(action, touchPoint, selected);
-					}
-				}));
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.scrap_move)),
-				new ButtonListener() {
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return super.touched(action, touchPoint, selected)
+						|| scrapErase(action, touchPoint, selected);
+			}
+		};
+		move.listener = new ButtonListener() {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return scrapMove(action, touchPoint, selected);
-					}
-				}));
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.scrap_copy)),
-				new ClickableButtonListener() {
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return scrapMove(action, touchPoint, selected);
+			}
+		};
+		copy.listener = new ClickableButtonListener(copy) {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return super.touched(action, touchPoint, selected)
-								|| scrapCopy(action, touchPoint, selected);
-					}
-				}));
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.scrap_rotate)),
-				new ButtonListener() {
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return super.touched(action, touchPoint, selected)
+						|| scrapCopy(action, touchPoint, selected);
+			}
+		};
+		rotate.listener = new ButtonListener() {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return scrapRotate(action, touchPoint, selected);
-					}
-				}));
-		tmpButtons.add(new Button(new BitmapDrawable(resources, BitmapFactory
-				.decodeResource(resources, R.drawable.scrap_resize)),
-				new ButtonListener() {
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return scrapRotate(action, touchPoint, selected);
+			}
+		};
+		resize.listener = new ButtonListener() {
 
-					@Override
-					public boolean touched(int action, PointF touchPoint,
-							Scrap selected) {
-						return scrapResize(action, touchPoint, selected);
-					}
-				}));
+			@Override
+			public boolean touched(int action, PointF touchPoint, Scrap selected) {
+				return scrapResize(action, touchPoint, selected);
+			}
+		};
 		return tmpButtons;
+	}
+
+	private Button createButton(Resources resources, int buttonID) {
+		return new Button(new BitmapDrawable(resources,
+				BitmapFactory.decodeResource(resources, buttonID)));
 	}
 
 	private boolean scrap(int action, PointF touchPoint, Scrap selected) {
