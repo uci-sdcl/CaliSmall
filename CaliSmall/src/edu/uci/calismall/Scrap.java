@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -47,13 +49,13 @@ public class Scrap {
 	private static final int SCRAP_REGION_COLOR = 0x44d0e4f0;
 	private static final int TEMP_SCRAP_REGION_COLOR = 0x55bcdbbc;
 	private static final int HIGHLIGHTED_STROKE_COLOR = 0xffb2b2ff;
-	private static final int UNSELECTED_BORDER_COLOR = 0xff6a899c;
+	private static final int DESELECTED_BORDER_COLOR = 0xff6a899c;
 	private static final int SELECTED_BORDER_COLOR = 0xffabb5fa;
 	private static final float HIGHLIGHTED_STROKE_WIDTH_MUL = 2.5f;
 	private static final float ABS_SHRINK_BORDER_MARGIN = 20;
 	private static final float ABS_SHRINK_BORDER_RADIUS = 10;
 	private static final Paint PAINT = new Paint(), BORDER_PAINT = new Paint(),
-			TEMP_BORDER_PAINT = new Paint();
+			TEMP_BORDER_PAINT = new Paint(), SNAPSHOT_PAINT = new Paint();
 	/**
 	 * The transformation matrix in use when modifying a scrap through bubble
 	 * menu.
@@ -84,8 +86,10 @@ public class Scrap {
 	 * The direct parent of this scrap.
 	 */
 	protected Scrap parent;
-
 	private boolean isInScrap, locked;
+	private Canvas snapshotCanvas;
+	private Bitmap snapshot;
+	private float snapOffsetX, snapOffsetY;
 
 	static {
 		BORDER_PAINT.setAntiAlias(true);
@@ -171,7 +175,8 @@ public class Scrap {
 	 */
 	public void copyContent(Scrap copy) {
 		for (Scrap scrap : copy.scraps) {
-			this.scraps.add(new Scrap(scrap, true));
+			Scrap newCopy = new Scrap(scrap, true);
+			this.scraps.add(newCopy);
 		}
 		for (Stroke stroke : copy.strokes) {
 			this.strokes.add(new Stroke(stroke).setInScrap(true)
@@ -342,7 +347,7 @@ public class Scrap {
 		if (selected) {
 			highlightBorder(canvas, scaleFactor);
 		}
-		BORDER_PAINT.setColor(UNSELECTED_BORDER_COLOR);
+		BORDER_PAINT.setColor(DESELECTED_BORDER_COLOR);
 		BORDER_PAINT
 				.setStrokeWidth((CaliSmall.ABS_STROKE_WIDTH / scaleFactor) / 2);
 		canvas.drawPath(outerBorder.getPath(), BORDER_PAINT);
@@ -446,19 +451,47 @@ public class Scrap {
 	 *            the X-axis translation
 	 * @param dy
 	 *            the Y-axis translation
+	 * @param scaleFactor
+	 *            the scale factor that is currently applied to the canvas
 	 */
-	public void moveBy(float dx, float dy) {
-		matrix.postTranslate(dx, dy);
-		if (!matrix.isIdentity()) {
-			outerBorder.transform(matrix);
-			for (Stroke stroke : strokes) {
-				stroke.transform(matrix);
-			}
-			for (Scrap scrap : scraps) {
-				scrap.moveBy(dx, dy);
-			}
+	public void moveBy(float dx, float dy, float scaleFactor) {
+		if (snapshot == null) {
+			outerBorder.setBoundaries();
+			Rect size = getBounds();
+			snapshot = Bitmap.createBitmap(size.width(), size.height(),
+					Config.ARGB_8888);
+			snapshotCanvas = new Canvas(snapshot);
+			snapOffsetX = size.left;
+			snapOffsetY = size.top;
+			matrix.postTranslate(snapOffsetX, snapOffsetY);
+			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
 		}
-		matrix.reset();
+		translate(dx, dy);
+		// if (!matrix.isIdentity()) {
+		// outerBorder.transform(matrix);
+		// for (Stroke stroke : strokes) {
+		// stroke.transform(matrix);
+		// }
+		// for (Scrap scrap : scraps) {
+		// scrap.moveBy(dx, dy, scaleFactor);
+		// }
+		// }
+		// matrix.reset();
+	}
+
+	/**
+	 * Translates this scrap by the argument values.
+	 * 
+	 * @param dx
+	 *            the X-offset
+	 * @param dy
+	 *            the Y-offset
+	 */
+	public void translate(float dx, float dy) {
+		matrix.postTranslate(dx, dy);
+		for (Scrap scrap : scraps) {
+			scrap.translate(dx, dy);
+		}
 	}
 
 	/**
@@ -481,13 +514,43 @@ public class Scrap {
 	 *            the current scale factor applied to the canvas
 	 */
 	public void draw(CaliSmall.CaliView parent, Canvas canvas, float scaleFactor) {
+		if (snapshot == null) {
+			drawShadedRegion(canvas, SCRAP_REGION_COLOR);
+			drawBorder(canvas, scaleFactor);
+			for (Scrap scrap : scraps) {
+				scrap.draw(parent, canvas, scaleFactor);
+			}
+			for (Stroke stroke : strokes) {
+				parent.drawStroke(stroke, canvas);
+			}
+		} else {
+			canvas.drawBitmap(snapshot, matrix, null);
+		}
+	}
+
+	/**
+	 * Draws this scrap onto the argument <tt>bitmap</tt>.
+	 * 
+	 * Used to take snapshots of a scrap when editing it.
+	 * 
+	 * @param canvas
+	 *            the canvas onto which this scrap has to be drawn
+	 * @param bitmap
+	 *            the bitmap onto which this scrap has to be drawn
+	 * @param scaleFactor
+	 *            the scale factor that is currently applied to the canvas
+	 */
+	public void drawOnBitmap(Canvas canvas, Bitmap bitmap, float scaleFactor) {
 		drawShadedRegion(canvas, SCRAP_REGION_COLOR);
 		drawBorder(canvas, scaleFactor);
-		for (Scrap scrap : scraps) {
-			scrap.draw(parent, canvas, scaleFactor);
-		}
 		for (Stroke stroke : strokes) {
-			parent.drawStroke(stroke, canvas);
+			SNAPSHOT_PAINT.setColor(stroke.getColor());
+			SNAPSHOT_PAINT.setStrokeWidth(stroke.getStrokeWidth());
+			SNAPSHOT_PAINT.setStyle(stroke.getStyle());
+			canvas.drawPath(stroke.getPath(), SNAPSHOT_PAINT);
+		}
+		for (Scrap scrap : scraps) {
+			scrap.drawOnBitmap(canvas, bitmap, scaleFactor);
 		}
 	}
 
@@ -511,15 +574,33 @@ public class Scrap {
 	 * Applies the transformations set for this scrap to all of its contents.
 	 */
 	public void applyTransform() {
-		// update boundaries according to new position
-		outerBorder.setBoundaries();
-		for (Stroke stroke : strokes) {
-			stroke.setBoundaries();
+		snapshot = null;
+		if (!isInScrap) {
+			// only translate the root scrap
+			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
 		}
-		for (Scrap scrap : scraps) {
-			scrap.applyTransform();
+		// update boundaries according to new position
+		if (!matrix.isIdentity()) {
+			outerBorder.transform(matrix);
+			outerBorder.setBoundaries();
+			for (Stroke stroke : strokes) {
+				stroke.transform(matrix);
+				stroke.setBoundaries();
+			}
+			for (Scrap scrap : scraps) {
+				scrap.applyTransform();
+			}
+			matrix.reset();
 		}
 		computeArea();
+		// outerBorder.setBoundaries();
+		// for (Stroke stroke : strokes) {
+		// stroke.setBoundaries();
+		// }
+		// for (Scrap scrap : scraps) {
+		// scrap.applyTransform();
+		// }
+		// computeArea();
 	}
 
 	/**

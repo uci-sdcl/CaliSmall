@@ -45,7 +45,7 @@ public class BubbleMenu {
 		 * <p>
 		 * A button is considered clicked when no
 		 * {@link MotionEvent#ACTION_MOVE} events are detected by this listener
-		 * or when they are detected by the touch point doesn't exit the button
+		 * or when they are detected but the touch point doesn't exit the button
 		 * area.
 		 * 
 		 * <p>
@@ -255,7 +255,7 @@ public class BubbleMenu {
 	private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
 		PointF quantizedMove = moveMenu(selected,
 				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
-		selected.moveBy(quantizedMove.x, quantizedMove.y);
+		selected.moveBy(quantizedMove.x, quantizedMove.y, scaleFactor);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform();
 			touched = null;
