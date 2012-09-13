@@ -454,18 +454,23 @@ public class BubbleMenu {
 				- topRight.position.bottom;
 		if (curWidth < minSize) {
 			if (topLeft.position.right > bounds.right - bSize - minSize) {
+				// a small scrap on the right of the screen
 				atMostThisRight(topLeft.position, topRight.position.left
 						- minSize);
 			} else {
+				// a small scrap on the left or user is dragging a scrap all the
+				// way to the left beyond the dislay limit
 				atLeastThisRight(topRight.position, topLeft.position.right
 						+ minSize);
 			}
 		}
 		if (curHeight < minSize) {
 			if (topRight.position.bottom > bounds.bottom - bSize - minSize) {
+				// a small scrap on the bottom of the screen
 				atMostThisDown(topRight.position, bottomRight.position.top
 						- minSize);
 			} else {
+				// a small scrap on the top
 				atLeastThisDown(bottomRight.position, topRight.position.bottom
 						+ minSize);
 			}

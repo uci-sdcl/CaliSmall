@@ -90,12 +90,12 @@ public class CaliSmall extends Activity {
 
 		private static final int INVALID_POINTER_ID = -1;
 		private final PathMeasure pathMeasure;
-		private float lastX, lastY, touchSize;
+		private float lastX, lastY;
 		private final List<Stroke> strokes;
 		private final List<Scrap> scraps;
 		private Thread worker;
 		private Scrap selected, newScrap, toBeRemoved, tempSelStrokes;
-		private boolean zooming, drawing, moved, running, mustShowLandingZone,
+		private boolean zooming, drawing, running, mustShowLandingZone,
 				strokeAdded, clearStrokes, bubbleMenuShown, mustShowBubbleMenu,
 				tempSelectionCreated;
 		private PointF landingZoneCenter;
@@ -218,7 +218,7 @@ public class CaliSmall extends Activity {
 		 *            if there shouldn't be any scrap selected
 		 */
 		public void setSelected(Scrap selected) {
-			if (this.selected != null)
+			if (this.selected != null && selected != this.selected)
 				this.selected.deselect();
 			if (selected != null) {
 				bubbleMenu.setBounds(selected.getBorder(), scaleFactor, bounds);
@@ -398,16 +398,9 @@ public class CaliSmall extends Activity {
 			mustShowLandingZone = false;
 			lastX = adjusted.x;
 			lastY = adjusted.y;
-			touchSize = ((event.getTouchMajor() + event.getTouchMinor()) / 2)
-					/ (8 * scaleFactor);
 			stroke.setStart(adjusted);
 			stroke.getPath().moveTo(lastX, lastY);
 			mActivePointerId = event.getPointerId(0);
-			// FIXME getToolType is only supported by API 14+
-			// Log.d(TAG,
-			// "touch (" + event.getTouchMajor() + ") pressure ("
-			// + event.getPressure() + "), type("
-			// + event.getToolType(mActivePointerId) + ")");
 		}
 
 		private void onMove(MotionEvent event) {
@@ -434,9 +427,6 @@ public class CaliSmall extends Activity {
 				lastX = x;
 				lastY = y;
 			}
-			if (!moved) {
-				moved = hasMovedEnough();
-			}
 		}
 
 		private void onUp(MotionEvent event) {
@@ -446,21 +436,6 @@ public class CaliSmall extends Activity {
 						.findPointerIndex(mActivePointerId);
 				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 						event.getY(pointerIndex));
-				if (!moved) {
-					// a single touch inside a scrap selects it
-					stroke.getPath().reset();
-					Scrap selected = getSelectedScrap(adjusted);
-					if (selected != null) {
-						setSelected(selected);
-						mActivePointerId = INVALID_POINTER_ID;
-						return;
-					}
-					// draw a point (a small circle)
-					stroke.setStyle(Paint.Style.FILL);
-					PointF center = stroke.getStartPoint();
-					stroke.getPath().addCircle(center.x, center.y,
-							stroke.getStrokeWidth() / 2, Direction.CW);
-				}
 				// last stroke ended, compute its boundaries
 				stroke.setBoundaries();
 				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
@@ -468,14 +443,45 @@ public class CaliSmall extends Activity {
 					mustShowBubbleMenu = true;
 					tempSelectionCreated = true;
 				} else {
-					// create a new stroke
-					stroke = new Stroke(new Path(), stroke);
-					strokeAdded = false;
+					Scrap selected = getSelectedScrap(adjusted);
+					if (this.selected == selected) {
+						if (!hasMovedEnough()) {
+							// draw a point (a small circle)
+							stroke.setStyle(Paint.Style.FILL);
+							PointF center = stroke.getStartPoint();
+							stroke.getPath().addCircle(center.x, center.y,
+									stroke.getStrokeWidth() / 2, Direction.CW);
+						} else {
+							if (false) {
+								// TODO check if the whole stroke is within
+								// selected
+							} else {
+								setSelected(selected);
+								// create a new stroke, no selection change
+								stroke = new Stroke(new Path(), stroke);
+								strokeAdded = false;
+							}
+						}
+					} else {
+						if (this.selected == null) {
+							// TODO check if the whole stroke is within
+							// selected
+							setSelected(selected);
+							if (!hasMovedEnough()) {
+								// a single tap selects the scrap w/o being
+								// drawn
+								stroke.getPath().reset();
+							} else {
+								// create a new stroke
+								stroke = new Stroke(new Path(), stroke);
+								strokeAdded = false;
+							}
+						}
+					}
 				}
 			}
 			mustShowLandingZone = false;
 			zooming = false;
-			moved = false;
 			mActivePointerId = INVALID_POINTER_ID;
 		}
 
@@ -516,7 +522,7 @@ public class CaliSmall extends Activity {
 
 		private boolean hasMovedEnough() {
 			pathMeasure.setPath(stroke.getPath(), false);
-			return pathMeasure.getLength() > touchSize;
+			return pathMeasure.getLength() > touchThreshold;
 		}
 
 		private boolean mustShowLandingZone() {
@@ -642,6 +648,7 @@ public class CaliSmall extends Activity {
 			minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
 					/ scaleFactor;
 			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET / scaleFactor;
+			touchThreshold = ABS_TOUCH_THRESHOLD / scaleFactor;
 			final float newInterval = ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 			landingZonePaint.setPathEffect(new DashPathEffect(new float[] {
 					newInterval, newInterval }, (float) 1.0));
@@ -678,6 +685,11 @@ public class CaliSmall extends Activity {
 	 */
 	static final float ABS_LANDING_ZONE_PATH_OFFSET = 40;
 	/**
+	 * The length over which a Path is no longer considered as a potential tap,
+	 * but is viewed as a stroke instead (to be rescaled by scaleFactor).
+	 */
+	static final float ABS_TOUCH_THRESHOLD = 4;
+	/**
 	 * The amount of pixels that a touch needs to cover before it is considered
 	 * a move action.
 	 */
@@ -700,7 +712,8 @@ public class CaliSmall extends Activity {
 			mCanvasOffsetX, mCanvasOffsetY,
 			landingZoneRadius = ABS_LANDING_ZONE_RADIUS,
 			minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE,
-			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET;
+			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET,
+			touchThreshold = ABS_TOUCH_THRESHOLD;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
