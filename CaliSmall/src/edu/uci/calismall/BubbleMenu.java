@@ -289,7 +289,8 @@ public class BubbleMenu {
 
 	/**
 	 * Calls <tt>touched()</tt> on the listener set for the button that contains
-	 * <tt>touchPoint</tt>.
+	 * <tt>touchPoint</tt> if any does and returns whether the bubble menu
+	 * should keep being displayed.
 	 * 
 	 * <p>
 	 * If <tt>touchPoint</tt> is outside this method does nothing and returns
@@ -302,8 +303,8 @@ public class BubbleMenu {
 	 *            the point that was touched by the user
 	 * @param selection
 	 *            the current selected scrap
-	 * @return whethere the bubble menu should still be displayed on the
-	 *         argument <tt>selection</tt> after this method returns
+	 * @return whether the bubble menu should still be displayed on the argument
+	 *         <tt>selection</tt> after this method returns
 	 */
 	public boolean onTouch(int action, PointF touchPoint, Scrap selection) {
 		if (selection == null)
@@ -330,7 +331,7 @@ public class BubbleMenu {
 	 * @return <code>true</code> if <tt>touchPoint</tt> is within any of the
 	 *         buttons
 	 */
-	public boolean touched(PointF touchPoint) {
+	public boolean buttonTouched(PointF touchPoint) {
 		if (touched != null)
 			return true;
 		int x = Math.round(touchPoint.x);

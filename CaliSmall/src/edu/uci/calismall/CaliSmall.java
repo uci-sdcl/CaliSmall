@@ -26,6 +26,7 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
@@ -95,9 +96,9 @@ public class CaliSmall extends Activity {
 		private final List<Scrap> scraps;
 		private Thread worker;
 		private Scrap selected, newScrap, toBeRemoved, tempSelStrokes;
-		private boolean zooming, drawing, running, mustShowLandingZone,
-				strokeAdded, clearStrokes, bubbleMenuShown, mustShowBubbleMenu,
-				tempSelectionCreated;
+		private boolean zooming, running, mustShowLandingZone, strokeAdded,
+				clearStrokes, bubbleMenuShown, mustShowBubbleMenu,
+				tempSelectionCreated, redirectingToBubbleMenu;
 		private PointF landingZoneCenter;
 		private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
 				screenHeight;
@@ -124,7 +125,7 @@ public class CaliSmall extends Activity {
 					maybeDrawLandingZone(canvas);
 					maybeCreateBubbleMenu();
 					deleteSelectedStrokes();
-					if (bubbleMenuShown) {
+					if (selected != null) {
 						selected.draw(this, canvas, scaleFactor);
 					}
 					maybeCreateScrap();
@@ -226,11 +227,6 @@ public class CaliSmall extends Activity {
 				selected.select();
 			} else {
 				bubbleMenuShown = false;
-				if (!stroke.isEmpty()) {
-					// create a new stroke
-					stroke = new Stroke(new Path(), stroke);
-					strokeAdded = false;
-				}
 			}
 			this.selected = selected;
 		}
@@ -287,26 +283,26 @@ public class CaliSmall extends Activity {
 		@Override
 		public boolean onTouchEvent(MotionEvent event) {
 			final int action = event.getAction() & MotionEvent.ACTION_MASK;
-			PointF adjusted = adjustForZoom(event.getX(), event.getY());
 			// Log.d(TAG, actionToString(action) + pointToString(adjusted));
-			if (bubbleMenuShown) {
-				onTouchBubbleMenuShown(action, adjusted);
+			if (zooming) {
+				scaleDetector.onTouchEvent(event);
+				switch (action) {
+				case MotionEvent.ACTION_UP:
+					// last finger lifted
+					onUp(event);
+					// delete stroke if one was accidentally created
+					stroke.getPath().reset();
+					zooming = false;
+					break;
+				case MotionEvent.ACTION_POINTER_UP:
+					// first finger lifted (only when pinching)
+					onPointerUp(event);
+					break;
+				}
 			} else {
-				if (!drawing) {
-					scaleDetector.onTouchEvent(event);
-					if (zooming) {
-						switch (action) {
-						case MotionEvent.ACTION_UP:
-							// last finger lifted
-							onUp(event);
-							// delete stroke if one was accidentally created
-							stroke.getPath().reset();
-							break;
-						case MotionEvent.ACTION_POINTER_UP:
-							// first finger lifted (only when pinching)
-							onPointerUp(event);
-							break;
-						}
+				if (redirectingToBubbleMenu) {
+					if (onTouchBubbleMenuShown(action,
+							adjustForZoom(event.getX(), event.getY()))) {
 						return true;
 					}
 				}
@@ -314,11 +310,10 @@ public class CaliSmall extends Activity {
 				case MotionEvent.ACTION_DOWN:
 					// first touch with one finger
 					onDown(event);
+					scaleDetector.onTouchEvent(event);
 					break;
 				case MotionEvent.ACTION_MOVE:
-					// move only if using 1 finger
-					if (!zooming)
-						onMove(event);
+					onMove(event);
 					break;
 				case MotionEvent.ACTION_UP:
 					// last finger lifted
@@ -326,12 +321,9 @@ public class CaliSmall extends Activity {
 					break;
 				case MotionEvent.ACTION_POINTER_DOWN:
 					// first touch with second finger
-					if (!drawing)
-						zooming = true;
-					break;
-				case MotionEvent.ACTION_POINTER_UP:
-					// first finger lifted (only when pinching)
-					onPointerUp(event);
+					bubbleMenuShown = false;
+					scaleDetector.onTouchEvent(event);
+					zooming = true;
 					break;
 				}
 			}
@@ -380,31 +372,37 @@ public class CaliSmall extends Activity {
 			}
 		}
 
-		private void onTouchBubbleMenuShown(int action, PointF touchPoint) {
-			if (bubbleMenu.touched(touchPoint)) {
-				if (!bubbleMenu.onTouch(action, touchPoint, selected)) {
-					setSelected(null);
-				}
-			} else {
-				Scrap newSelection = getSelectedScrap(touchPoint);
-				if (action == MotionEvent.ACTION_UP) {
-					setSelected(newSelection == selected ? null : newSelection);
-				}
+		/**
+		 * Checks whether the argument <tt>touchPoint</tt> is within any of the
+		 * buttons in the bubble menu, and if so it forwards the action to the
+		 * bubble menu. Returns whether <tt>touchPoint</tt> is within any of the
+		 * bubble menu buttons.
+		 */
+		private boolean onTouchBubbleMenuShown(int action, PointF touchPoint) {
+			if (bubbleMenu.buttonTouched(touchPoint)) {
+				bubbleMenu.onTouch(action, touchPoint, selected);
+				return true;
 			}
+			return false;
 		}
 
 		private void onDown(MotionEvent event) {
 			PointF adjusted = adjustForZoom(event.getX(), event.getY());
 			mustShowLandingZone = false;
-			lastX = adjusted.x;
-			lastY = adjusted.y;
-			stroke.setStart(adjusted);
-			stroke.getPath().moveTo(lastX, lastY);
-			mActivePointerId = event.getPointerId(0);
+			mActivePointerId = event.findPointerIndex(0);
+			if (bubbleMenuShown
+					&& onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
+				// a button was touched, redirect actions to bubble menu
+				redirectingToBubbleMenu = true;
+			} else {
+				lastX = adjusted.x;
+				lastY = adjusted.y;
+				stroke.setStart(adjusted);
+				stroke.getPath().moveTo(lastX, lastY);
+			}
 		}
 
 		private void onMove(MotionEvent event) {
-			drawing = mustShowLandingZone;
 			final int pointerIndex = event.findPointerIndex(mActivePointerId);
 			final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 					event.getY(pointerIndex));
@@ -430,10 +428,11 @@ public class CaliSmall extends Activity {
 		}
 
 		private void onUp(MotionEvent event) {
-			drawing = false;
+			mustShowLandingZone = false;
 			if (!zooming) {
 				final int pointerIndex = event
 						.findPointerIndex(mActivePointerId);
+				mActivePointerId = INVALID_POINTER_ID;
 				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 						event.getY(pointerIndex));
 				// last stroke ended, compute its boundaries
@@ -444,6 +443,8 @@ public class CaliSmall extends Activity {
 					tempSelectionCreated = true;
 				} else {
 					Scrap selected = getSelectedScrap(adjusted);
+					Log.d(TAG, "selected = " + selected + ", old selected = "
+							+ this.selected);
 					if (this.selected == selected) {
 						if (!hasMovedEnough()) {
 							// draw a point (a small circle)
@@ -457,32 +458,30 @@ public class CaliSmall extends Activity {
 								// selected
 							} else {
 								setSelected(selected);
-								// create a new stroke, no selection change
-								stroke = new Stroke(new Path(), stroke);
-								strokeAdded = false;
 							}
 						}
 					} else {
 						if (this.selected == null) {
+							setSelected(selected);
 							// TODO check if the whole stroke is within
 							// selected
-							setSelected(selected);
 							if (!hasMovedEnough()) {
 								// a single tap selects the scrap w/o being
 								// drawn
 								stroke.getPath().reset();
-							} else {
-								// create a new stroke
-								stroke = new Stroke(new Path(), stroke);
-								strokeAdded = false;
+								return;
 							}
+						} else {
+							// new selection is null
+							setSelected(selected);
 						}
 					}
+					stroke = new Stroke(new Path(), stroke);
+					strokeAdded = false;
 				}
+			} else {
+				setSelected(this.selected);
 			}
-			mustShowLandingZone = false;
-			zooming = false;
-			mActivePointerId = INVALID_POINTER_ID;
 		}
 
 		private Scrap getSelectedScrap(PointF adjusted) {
