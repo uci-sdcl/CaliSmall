@@ -92,12 +92,15 @@ public class CaliSmall extends Activity {
 		private static final int INVALID_POINTER_ID = -1;
 		private final PathMeasure pathMeasure;
 		private float lastX, lastY;
+		// a list of strokes kept in chronological order (oldest first)
 		private final List<Stroke> strokes;
+		// a list of scraps kept in chronological order (oldest first)
 		private final List<Scrap> scraps;
+
 		private Thread worker;
 		private Scrap selected, newScrap, toBeRemoved, tempSelStrokes;
 		private boolean zooming, running, mustShowLandingZone, strokeAdded,
-				clearStrokes, bubbleMenuShown, mustShowBubbleMenu,
+				mustClearCanvas, bubbleMenuShown, mustShowBubbleMenu,
 				tempSelectionCreated, redirectingToBubbleMenu;
 		private PointF landingZoneCenter;
 		private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
@@ -117,10 +120,8 @@ public class CaliSmall extends Activity {
 			if (canvas != null) {
 				canvas.drawColor(Color.WHITE);
 				canvas.concat(matrix);
-				if (clearStrokes) {
-					strokes.clear();
-					scraps.clear();
-					clearStrokes = false;
+				if (mustClearCanvas) {
+					clearCanvas();
 				} else {
 					maybeDrawLandingZone(canvas);
 					maybeCreateBubbleMenu();
@@ -137,6 +138,12 @@ public class CaliSmall extends Activity {
 					drawNewStroke(canvas);
 				}
 			}
+		}
+
+		private void clearCanvas() {
+			strokes.clear();
+			scraps.clear();
+			mustClearCanvas = false;
 		}
 
 		private void drawScraps(Canvas canvas) {
@@ -816,7 +823,7 @@ public class CaliSmall extends Activity {
 			dialog.show();
 			return true;
 		case CLEAR_MENU_ID:
-			view.clearStrokes = true;
+			view.mustClearCanvas = true;
 			view.strokeAdded = false;
 			return true;
 		}

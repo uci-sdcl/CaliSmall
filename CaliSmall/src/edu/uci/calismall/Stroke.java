@@ -30,7 +30,7 @@ import android.view.View;
  * 
  * @author Michele Bonazza
  */
-class Stroke implements Parcelable {
+class Stroke extends CaliSmallElement implements Parcelable {
 
 	private static final int DEFAULT_COLOR = Color.BLACK;
 	private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
@@ -262,6 +262,8 @@ class Stroke implements Parcelable {
 	public Stroke setBoundaries() {
 		RectF rect = new RectF();
 		path.computeBounds(rect, true);
+		// FIXME update with the list of strokes as soon as we have it
+		setArea(rect, null);
 		boundaries.setPath(
 				path,
 				new Region(new Rect(Math.round(rect.left),

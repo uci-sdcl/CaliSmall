@@ -44,7 +44,7 @@ import android.view.View;
  * 
  * @author Michele Bonazza
  */
-public class Scrap {
+public class Scrap extends CaliSmallElement {
 
 	private static final int SCRAP_REGION_COLOR = 0x44d0e4f0;
 	private static final int TEMP_SCRAP_REGION_COLOR = 0x55bcdbbc;
@@ -563,6 +563,8 @@ public class Scrap {
 		testPath.setFillType(FillType.WINDING);
 		RectF rect = new RectF();
 		testPath.computeBounds(rect, true);
+		// FIXME update with the list of scraps as soon as we have it
+		setArea(rect, null);
 		scrapArea.setPath(
 				testPath,
 				new Region(new Rect(Math.round(rect.left),
