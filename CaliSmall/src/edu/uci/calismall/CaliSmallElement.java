@@ -53,7 +53,9 @@ public abstract class CaliSmallElement {
 		 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
 		 */
 		@Override
-		public int compare(CaliSmallElement lhs, CaliSmallElement rhs) {
+		public int compare(T lhs, T rhs) {
+			// if (lhs.id.equals(rhs.id))
+			// return 0;
 			int whichFirst = Float.compare(lhs.topLeftPoint.x,
 					rhs.topLeftPoint.x);
 			if (whichFirst == 0) {
@@ -65,14 +67,15 @@ public abstract class CaliSmallElement {
 	}
 
 	/**
-	 * A comparator to sort elements by their position along the Y coordinate.
+	 * A comparator to find elements whose position along the X coordinate has
+	 * just changed.
 	 * 
 	 * @param <T>
-	 *            the actual type of element to be sorted
+	 *            the actual type of element to be found
 	 * @author Michele Bonazza
 	 */
-	public static class YComparator<T extends CaliSmallElement> implements
-			Comparator<T> {
+	public static class XFinderComparator<T extends CaliSmallElement>
+			implements Comparator<T> {
 
 		/*
 		 * (non-Javadoc)
@@ -80,11 +83,13 @@ public abstract class CaliSmallElement {
 		 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
 		 */
 		@Override
-		public int compare(CaliSmallElement lhs, CaliSmallElement rhs) {
-			int whichFirst = Float.compare(lhs.topLeftPoint.y,
-					rhs.topLeftPoint.y);
+		public int compare(T lhs, T rhs) {
+			// if (lhs.id.equals(rhs.id))
+			// return 0;
+			int whichFirst = Float.compare(lhs.previousTopLeftPoint.x,
+					rhs.previousTopLeftPoint.x);
 			if (whichFirst == 0) {
-				return lhs.height < rhs.height ? -1 : 1;
+				return lhs.width < rhs.width ? -1 : 1;
 			}
 			return whichFirst;
 		}
@@ -96,12 +101,12 @@ public abstract class CaliSmallElement {
 	/**
 	 * The top-left corner of the {@link RectF} enclosing this element.
 	 */
-	private PointF topLeftPoint = new PointF();
+	protected PointF topLeftPoint = new PointF();
 	/**
 	 * The top-left corner of the {@link RectF} that was enclosing this element
 	 * before the last call to {@link #setArea(RectF)}.
 	 */
-	private PointF previousTopLeftPoint = topLeftPoint;
+	protected PointF previousTopLeftPoint = topLeftPoint;
 	/**
 	 * The width of the {@link RectF} enclosing this element.
 	 */
@@ -116,30 +121,62 @@ public abstract class CaliSmallElement {
 	 * extracting it by the argument <tt>enclosingRect</tt>.
 	 * 
 	 * <p>
-	 * This method also stores the previous values associated with this element
-	 * so that they can be retrieved in the {@link SpaceOccupationList} and
-	 * updates the argument <tt>list</tt> to mirror the changes that happened to
-	 * this element
-	 * 
-	 * @param <T>
-	 *            the actual type of elements within the argument <tt>list</tt>
+	 * After this method is called, a call to {@link #updateSpaceOccupation()}
+	 * is performed to update the list of space occupations of all elements of
+	 * this kind.
 	 * 
 	 * @param enclosingRect
 	 *            the rectangle enclosing this element
-	 * @param list
-	 *            the list containing all elements of type <tt>T</tt>
 	 */
-	@SuppressWarnings("unchecked")
-	protected <T extends CaliSmallElement> void setArea(RectF enclosingRect,
-			SpaceOccupationList<T> list) {
+	protected void setArea(RectF enclosingRect) {
 		previousTopLeftPoint.x = topLeftPoint.x;
 		previousTopLeftPoint.y = topLeftPoint.y;
 		topLeftPoint.x = enclosingRect.left;
 		topLeftPoint.y = enclosingRect.top;
 		width = enclosingRect.width();
 		height = enclosingRect.height();
-		list.update((T) this);
+		updateSpaceOccupation();
 	}
+
+	/**
+	 * Tests whether this element's X occupation intersect that of the argument
+	 * element.
+	 * 
+	 * @param other
+	 *            the element to be tested against this element for
+	 *            one-dimensional intersection
+	 * @return <code>true</code> if the topmost side of the two rectangles
+	 *         enclosing the two elements overlap
+	 */
+	public boolean intersectsX(CaliSmallElement other) {
+		return (topLeftPoint.x < other.topLeftPoint.x && topLeftPoint.x + width > other.topLeftPoint.x)
+				|| (topLeftPoint.x > other.topLeftPoint.x && other.topLeftPoint.x
+						+ other.width > topLeftPoint.x);
+	}
+
+	/**
+	 * Tests whether this element's Y occupation intersect that of the argument
+	 * element.
+	 * 
+	 * @param other
+	 *            the element to be tested against this element for
+	 *            one-dimensional intersection
+	 * @return <code>true</code> if the left side of the two rectangles
+	 *         enclosing the two elements overlap
+	 */
+	public boolean intersectsY(CaliSmallElement other) {
+		return (topLeftPoint.y < other.topLeftPoint.y && topLeftPoint.y
+				+ height > other.topLeftPoint.y)
+				|| (topLeftPoint.y > other.topLeftPoint.y && other.topLeftPoint.y
+						+ other.height > topLeftPoint.y);
+	}
+
+	/**
+	 * Updates the space occupation list containing this type of
+	 * <tt>CaliSmallElement</tt>'s to mirror the changes that this element
+	 * underwent.
+	 */
+	protected abstract void updateSpaceOccupation();
 
 	/*
 	 * (non-Javadoc)
@@ -188,8 +225,7 @@ public abstract class CaliSmallElement {
 
 	/**
 	 * Returns the X-coordinate of the top left point of the rectangle that was
-	 * enclosing this element before the last call to
-	 * {@link #setArea(RectF, SpaceOccupationList)}.
+	 * enclosing this element before the last call to {@link #setArea(RectF)}.
 	 * 
 	 * @return the X position of the top left point
 	 */
@@ -199,8 +235,7 @@ public abstract class CaliSmallElement {
 
 	/**
 	 * Returns the Y-coordinate of the top left point of the rectangle that was
-	 * enclosing this element before the last call to
-	 * {@link #setArea(RectF, SpaceOccupationList)}.
+	 * enclosing this element before the last call to {@link #setArea(RectF)}.
 	 * 
 	 * @return the Y position of the top left point
 	 */
@@ -224,5 +259,9 @@ public abstract class CaliSmallElement {
 	 */
 	public float getHeight() {
 		return height;
+	}
+
+	public String toString() {
+		return getClass().getSimpleName() + " " + id.toString();
 	}
 }

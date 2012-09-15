@@ -32,6 +32,11 @@ import android.view.View;
  */
 class Stroke extends CaliSmallElement implements Parcelable {
 
+	/**
+	 * A list containing all created strokes sorted by their position in the
+	 * canvas.
+	 */
+	static final SpaceOccupationList SPACE_OCCUPATION_LIST = new SpaceOccupationList();
 	private static final int DEFAULT_COLOR = Color.BLACK;
 	private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
 	private final Path path;
@@ -262,8 +267,7 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	public Stroke setBoundaries() {
 		RectF rect = new RectF();
 		path.computeBounds(rect, true);
-		// FIXME update with the list of strokes as soon as we have it
-		setArea(rect, null);
+		setArea(rect);
 		boundaries.setPath(
 				path,
 				new Region(new Rect(Math.round(rect.left),
@@ -344,5 +348,17 @@ class Stroke extends CaliSmallElement implements Parcelable {
 			this.inScrap = inScrap;
 		}
 		return this;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see edu.uci.calismall.CaliSmallElement#updateSpaceOccupation()
+	 */
+	@Override
+	protected void updateSpaceOccupation() {
+		SPACE_OCCUPATION_LIST.update(this);
+		previousTopLeftPoint.x = topLeftPoint.x;
+		previousTopLeftPoint.y = topLeftPoint.y;
 	}
 }

@@ -143,6 +143,8 @@ public class CaliSmall extends Activity {
 		private void clearCanvas() {
 			strokes.clear();
 			scraps.clear();
+			Stroke.SPACE_OCCUPATION_LIST.clear();
+			Scrap.SPACE_OCCUPATION_LIST.clear();
 			mustClearCanvas = false;
 		}
 
@@ -193,9 +195,13 @@ public class CaliSmall extends Activity {
 
 		private void deleteSelectedStrokes() {
 			if (toBeRemoved != null) {
-				scraps.removeAll(toBeRemoved.erase());
-				scraps.remove(toBeRemoved);
-				strokes.removeAll(toBeRemoved.getStrokes());
+				List<Scrap> remove = toBeRemoved.erase();
+				remove.add(toBeRemoved);
+				scraps.removeAll(remove);
+				Scrap.SPACE_OCCUPATION_LIST.removeAll(remove);
+				List<Stroke> removeThese = toBeRemoved.getStrokes();
+				strokes.removeAll(removeThese);
+				Stroke.SPACE_OCCUPATION_LIST.removeAll(removeThese);
 				toBeRemoved = null;
 			}
 		}
@@ -671,6 +677,13 @@ public class CaliSmall extends Activity {
 	 * Absolute stroke width (to be rescaled by scaleFactor).
 	 */
 	public static final int ABS_STROKE_WIDTH = 6;
+
+	/**
+	 * A list containing all created scraps sorted by their position in the
+	 * canvas.
+	 */
+	static final SpaceOccupationList SPACE_OCCUPATION_LIST = new SpaceOccupationList();
+
 	/**
 	 * Absolute radius for landing zones (to be rescaled by scaleFactor).
 	 */

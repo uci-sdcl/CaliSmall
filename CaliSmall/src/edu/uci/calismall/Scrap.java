@@ -27,6 +27,7 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -46,6 +47,11 @@ import android.view.View;
  */
 public class Scrap extends CaliSmallElement {
 
+	/**
+	 * A list containing all created scraps sorted by their position in the
+	 * canvas.
+	 */
+	static final SpaceOccupationList SPACE_OCCUPATION_LIST = new SpaceOccupationList();
 	private static final int SCRAP_REGION_COLOR = 0x44d0e4f0;
 	private static final int TEMP_SCRAP_REGION_COLOR = 0x55bcdbbc;
 	private static final int HIGHLIGHTED_STROKE_COLOR = 0xffb2b2ff;
@@ -417,6 +423,7 @@ public class Scrap extends CaliSmallElement {
 			parent.removeChild(this);
 			parent = null;
 		}
+		SPACE_OCCUPATION_LIST.remove(this);
 		return Collections.emptyList();
 	}
 
@@ -563,8 +570,7 @@ public class Scrap extends CaliSmallElement {
 		testPath.setFillType(FillType.WINDING);
 		RectF rect = new RectF();
 		testPath.computeBounds(rect, true);
-		// FIXME update with the list of scraps as soon as we have it
-		setArea(rect, null);
+		setArea(rect);
 		scrapArea.setPath(
 				testPath,
 				new Region(new Rect(Math.round(rect.left),
@@ -691,7 +697,13 @@ public class Scrap extends CaliSmallElement {
 
 		private void findSelected(List<Stroke> canvasStrokes,
 				List<Scrap> canvasScraps) {
-			for (Stroke stroke : canvasStrokes) {
+			List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
+					.findIntersectionCandidates(this);
+			Log.d(CaliSmall.TAG, "found " + candidates.size()
+					+ " candidates...");
+			for (CaliSmallElement element : candidates) {
+				// for (Stroke stroke : canvasStrokes) {
+				Stroke stroke = (Stroke) element;
 				if (!stroke.isInScrap()) {
 					Region boundaries = stroke.getBoundaries();
 					if (boundaries.op(scrapArea, Op.INTERSECT)) {
@@ -746,6 +758,8 @@ public class Scrap extends CaliSmallElement {
 			}
 			outerBorder.setInScrap(false);
 			toBeDestroyed = true;
+			SPACE_OCCUPATION_LIST.remove(this);
+			SPACE_OCCUPATION_LIST.remove(outerBorder);
 		}
 
 		private void highlight(Canvas canvas, float scaleFactor) {
@@ -791,6 +805,18 @@ public class Scrap extends CaliSmallElement {
 			canvas.drawPath(outerBorder.getPath(), TEMP_BORDER_PAINT);
 		}
 
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see edu.uci.calismall.CaliSmallElement#updateSpaceOccupation()
+	 */
+	@Override
+	public void updateSpaceOccupation() {
+		SPACE_OCCUPATION_LIST.update(this);
+		previousTopLeftPoint.x = topLeftPoint.x;
+		previousTopLeftPoint.y = topLeftPoint.y;
 	}
 
 }
