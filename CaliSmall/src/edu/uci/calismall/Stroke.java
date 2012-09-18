@@ -46,7 +46,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	private Paint.Style style = DEFAULT_STYLE;
 	private float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
 	private int color = DEFAULT_COLOR;
-	private boolean inScrap, locked;
 	private MaskFilter maskFilter;
 
 	/**
@@ -124,22 +123,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	public Paint.Style getStyle() {
 		return style;
-	}
-
-	/**
-	 * Locks this stroke, making calls to {@link #setInScrap(boolean)}
-	 * ineffective unless preceeded by a call to {@link #unlock()}.
-	 */
-	public void lock() {
-		this.locked = true;
-	}
-
-	/**
-	 * Unlocks this stroke, making calls to {@link #setInScrap(boolean)}
-	 * effective again.
-	 */
-	public void unlock() {
-		this.locked = false;
 	}
 
 	/**
@@ -311,45 +294,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 
 	}
 
-	/**
-	 * Returns whether this stroke is part of a scrap.
-	 * 
-	 * <p>
-	 * If a stroke is part of a scrap its drawing is handled by {@link Scrap}
-	 * <tt>draw*</tt> methods, so that overlay effects can be correctly
-	 * displayed.
-	 * 
-	 * @return <code>true</code> if this stroke is within a scrap
-	 */
-	public boolean isInScrap() {
-		return inScrap;
-	}
-
-	/**
-	 * Sets whether this stroke is part of a scrap.
-	 * 
-	 * <p>
-	 * If a stroke is part of a scrap its drawing is handled by {@link Scrap}
-	 * <tt>draw*</tt> methods, so that overlay effects can be correctly
-	 * displayed.
-	 * 
-	 * <p>
-	 * If {@link #lock()} has been called on this stroke, calls to this method
-	 * won't alter the internal state of this object unless {@link #unlock()} is
-	 * called.
-	 * 
-	 * @param inScrap
-	 *            <code>true</code> if this stroke is now part of a scrap,
-	 *            <code>false</code> if it's been removed from a scrap
-	 * @return a reference to this object, so calls can be chained
-	 */
-	public Stroke setInScrap(boolean inScrap) {
-		if (!locked) {
-			this.inScrap = inScrap;
-		}
-		return this;
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -360,5 +304,15 @@ class Stroke extends CaliSmallElement implements Parcelable {
 		SPACE_OCCUPATION_LIST.update(this);
 		previousTopLeftPoint.x = topLeftPoint.x;
 		previousTopLeftPoint.y = topLeftPoint.y;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see edu.uci.calismall.CaliSmallElement#contains(android.graphics.PointF)
+	 */
+	@Override
+	public boolean contains(PointF point) {
+		return false;
 	}
 }

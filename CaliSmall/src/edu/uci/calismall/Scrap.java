@@ -7,7 +7,6 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import android.graphics.Bitmap;
@@ -38,10 +37,10 @@ import android.view.View;
  * rotated together.
  * 
  * <p>
- * Once a {@link Stroke} is added to a <tt>Scrap</tt> it is removed from the
- * list of strokes in the canvas, to avoid duplicate <tt>draw()</tt> calls. A
- * <tt>Scrap</tt> is therefore "responsible" for drawing all of the strokes it
- * contains. This also applies to other scraps contained within this scrap.
+ * Scraps keep a list of all {@link Stroke}'s that make part of them, and they
+ * also store a list of all scraps inside of them. To speed up the drawing
+ * process, strokes and children scraps are always kept inside the lists stored
+ * in the parent {@link CaliSmall} object.
  * 
  * @author Michele Bonazza
  */
@@ -92,7 +91,6 @@ public class Scrap extends CaliSmallElement {
 	 * The direct parent of this scrap.
 	 */
 	protected Scrap parent;
-	private boolean isInScrap, locked;
 	private Canvas snapshotCanvas;
 	private Bitmap snapshot;
 	private float snapOffsetX, snapOffsetY;
@@ -147,8 +145,9 @@ public class Scrap extends CaliSmallElement {
 	 *            by this scrap
 	 */
 	public Scrap(Scrap copy, boolean deepCopy) {
-		this.outerBorder = new Stroke(new Path(copy.outerBorder.getPath()),
-				copy.outerBorder);
+		// this.outerBorder = new Stroke(new Path(copy.outerBorder.getPath()),
+		// copy.outerBorder);
+		this.outerBorder = copy.outerBorder;
 		if (deepCopy) {
 			this.scraps = new ArrayList<Scrap>(copy.scraps.size());
 			this.strokes = new ArrayList<Stroke>(copy.strokes.size());
@@ -160,13 +159,8 @@ public class Scrap extends CaliSmallElement {
 			this.scrapArea = copy.scrapArea;
 			this.outerBorder.getPath().close();
 			// all strokes are now in this scrap
-			this.outerBorder.lock();
-			for (Stroke stroke : strokes) {
-				stroke.lock();
-			}
 			for (Scrap scrap : scraps) {
 				scrap.parent = this;
-				scrap.lock();
 			}
 		}
 		matrix = new Matrix();
@@ -185,8 +179,7 @@ public class Scrap extends CaliSmallElement {
 			this.scraps.add(newCopy);
 		}
 		for (Stroke stroke : copy.strokes) {
-			this.strokes.add(new Stroke(stroke).setInScrap(true)
-					.setBoundaries());
+			this.strokes.add(new Stroke(stroke).setBoundaries());
 		}
 	}
 
@@ -299,49 +292,6 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Returns whether this scrap is inside another scrap.
-	 * 
-	 * @return <code>true</code> if this scrap has a parent
-	 */
-	protected boolean isInScrap() {
-		return isInScrap;
-	}
-
-	/**
-	 * Locks this scrap, making calls to {@link #setInScrap(boolean)}
-	 * ineffective unless preceeded by a call to {@link #unlock()}.
-	 */
-	private void lock() {
-		locked = true;
-	}
-
-	/**
-	 * Unlocks this scrap, making calls to {@link #setInScrap(boolean)}
-	 * effective again.
-	 */
-	private void unlock() {
-		locked = false;
-	}
-
-	/**
-	 * Sets whether this scrap is part of another scrap.
-	 * 
-	 * <p>
-	 * If {@link #lock()} has been called on this scrap, calls to this method
-	 * won't alter the internal state of this object unless {@link #unlock()} is
-	 * called.
-	 * 
-	 * @param inScrap
-	 *            <code>true</code> if this scrap is part of a larger scrap,
-	 *            <code>false</code> if it's been removed from a scrap
-	 */
-	public void setInScrap(boolean inScrap) {
-		if (!locked) {
-			this.isInScrap = inScrap;
-		}
-	}
-
-	/**
 	 * Draws the border of this scrap.
 	 * 
 	 * @param canvas
@@ -411,20 +361,23 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Recursively removes all links to the descendants of this scrap and
-	 * returns a list of scraps that must be removed from canvas.
-	 * 
-	 * @return a list containing all scraps that should be removed from the
-	 *         canvas
+	 * Removes the link to this scrap from the parent scrap and marks all
+	 * strokes and children scraps as <tt>toBeDeleted</tt>, so that the drawing
+	 * thread can remove them from the lists.
 	 */
-	public List<Scrap> erase() {
-		unlock();
+	public void erase() {
 		if (parent != null) {
 			parent.removeChild(this);
 			parent = null;
 		}
-		SPACE_OCCUPATION_LIST.remove(this);
-		return Collections.emptyList();
+		toBeDeleted = true;
+		outerBorder.toBeDeleted = true;
+		for (Stroke stroke : strokes) {
+			stroke.toBeDeleted = true;
+		}
+		for (Scrap scrap : scraps) {
+			scrap.erase();
+		}
 	}
 
 	/**
@@ -472,6 +425,7 @@ public class Scrap extends CaliSmallElement {
 			snapOffsetY = size.top;
 			matrix.postTranslate(snapOffsetX, snapOffsetY);
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
+			changeDrawingStatus(false);
 		}
 		translate(dx, dy);
 		// if (!matrix.isIdentity()) {
@@ -484,6 +438,17 @@ public class Scrap extends CaliSmallElement {
 		// }
 		// }
 		// matrix.reset();
+	}
+
+	private void changeDrawingStatus(boolean mustBeDrawn) {
+		mustBeDrawn(mustBeDrawn);
+		outerBorder.mustBeDrawn(mustBeDrawn);
+		for (Stroke stroke : strokes) {
+			stroke.mustBeDrawn(mustBeDrawn);
+		}
+		for (Scrap scrap : scraps) {
+			scrap.changeDrawingStatus(mustBeDrawn);
+		}
 	}
 
 	/**
@@ -510,8 +475,12 @@ public class Scrap extends CaliSmallElement {
 	 * <li>the border delimiting the scrap</li>
 	 * <li>the shaded region that highlights the content of the scrap</li>
 	 * <li>all {@link Scrap}'s within this scrap</li>
-	 * <li>all {@link Stroke}'s within this scrap</li>
-	 * </ol>
+	 * </ol>.
+	 * 
+	 * <p>
+	 * Strokes are <i>always</i> taken by the list in the parent
+	 * {@link CaliSmall} object, <b>except</b> for the outer borders, which are
+	 * always kept inside scraps.
 	 * 
 	 * @param parent
 	 *            the main {@link View} of the application
@@ -524,12 +493,6 @@ public class Scrap extends CaliSmallElement {
 		if (snapshot == null) {
 			drawShadedRegion(canvas, SCRAP_REGION_COLOR);
 			drawBorder(canvas, scaleFactor);
-			for (Scrap scrap : scraps) {
-				scrap.draw(parent, canvas, scaleFactor);
-			}
-			for (Stroke stroke : strokes) {
-				parent.drawStroke(stroke, canvas);
-			}
 		} else {
 			canvas.drawBitmap(snapshot, matrix, null);
 		}
@@ -583,32 +546,25 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void applyTransform() {
 		snapshot = null;
-		if (!isInScrap) {
+		if (parent == null) {
 			// only translate the root scrap
 			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
 		}
 		// update boundaries according to new position
-		if (!matrix.isIdentity()) {
-			outerBorder.transform(matrix);
-			outerBorder.setBoundaries();
-			for (Stroke stroke : strokes) {
-				stroke.transform(matrix);
-				stroke.setBoundaries();
-			}
-			for (Scrap scrap : scraps) {
-				scrap.applyTransform();
-			}
-			matrix.reset();
+		outerBorder.transform(matrix);
+		outerBorder.setBoundaries();
+		outerBorder.mustBeDrawn(true);
+		for (Stroke stroke : strokes) {
+			stroke.transform(matrix);
+			stroke.setBoundaries();
+			stroke.mustBeDrawn(true);
 		}
+		mustBeDrawn(true);
+		for (Scrap scrap : scraps) {
+			scrap.applyTransform();
+		}
+		matrix.reset();
 		computeArea();
-		// outerBorder.setBoundaries();
-		// for (Stroke stroke : strokes) {
-		// stroke.setBoundaries();
-		// }
-		// for (Scrap scrap : scraps) {
-		// scrap.applyTransform();
-		// }
-		// computeArea();
 	}
 
 	/**
@@ -688,10 +644,6 @@ public class Scrap extends CaliSmallElement {
 		 */
 		public Temp(Scrap copy, float scaleFactor) {
 			super(copy, true);
-			for (Stroke stroke : copy.strokes) {
-				// back to the canvas
-				stroke.setInScrap(false);
-			}
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 		}
 
@@ -702,44 +654,25 @@ public class Scrap extends CaliSmallElement {
 			Log.d(CaliSmall.TAG, "found " + candidates.size()
 					+ " candidates...");
 			for (CaliSmallElement element : candidates) {
-				// for (Stroke stroke : canvasStrokes) {
 				Stroke stroke = (Stroke) element;
-				if (!stroke.isInScrap()) {
-					Region boundaries = stroke.getBoundaries();
-					if (boundaries.op(scrapArea, Op.INTERSECT)) {
-						// stroke intersects selection
-						if (!stroke.getBoundaries().op(boundaries,
-								Op.DIFFERENCE)) {
-							// stroke is contained within selection
-							strokes.add(stroke);
-							stroke.setInScrap(true);
-						}
+				Region boundaries = stroke.getBoundaries();
+				if (boundaries.op(scrapArea, Op.INTERSECT)) {
+					// stroke intersects selection
+					if (!stroke.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
+						// stroke is contained within selection
+						strokes.add(stroke);
 					}
 				}
 			}
 			for (Scrap scrap : canvasScraps) {
-				if (!scrap.isInScrap()) {
-					Region boundaries = scrap.getBoundaries();
-					if (boundaries.op(scrapArea, Op.INTERSECT)) {
-						if (!scrap.getBoundaries()
-								.op(boundaries, Op.DIFFERENCE)) {
-							scraps.add(scrap);
-							scrap.parent = this;
-							scrap.setInScrap(true);
-						}
+				Region boundaries = scrap.getBoundaries();
+				if (boundaries.op(scrapArea, Op.INTERSECT)) {
+					if (!scrap.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
+						scraps.add(scrap);
+						scrap.parent = this;
 					}
 				}
 			}
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see edu.uci.calismall.Scrap#erase()
-		 */
-		@Override
-		public List<Scrap> erase() {
-			return scraps;
 		}
 
 		/*
@@ -750,32 +683,23 @@ public class Scrap extends CaliSmallElement {
 		@Override
 		public void deselect() {
 			selected = false;
-			for (Stroke stroke : strokes) {
-				stroke.setInScrap(false);
-			}
-			for (Scrap scrap : scraps) {
-				scrap.setInScrap(false);
-			}
-			outerBorder.setInScrap(false);
 			toBeDestroyed = true;
-			SPACE_OCCUPATION_LIST.remove(this);
-			SPACE_OCCUPATION_LIST.remove(outerBorder);
+			// SPACE_OCCUPATION_LIST.remove(this);
+			// Stroke.SPACE_OCCUPATION_LIST.remove(outerBorder);
 		}
 
 		private void highlight(Canvas canvas, float scaleFactor) {
 			for (Stroke stroke : strokes) {
-				if (stroke.isInScrap()) {
-					if (stroke.getStyle() == Style.FILL) {
-						HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
-								* HIGHLIGHTED_STROKE_WIDTH_MUL);
-						PointF startPoint = stroke.getStartPoint();
-						canvas.drawCircle(startPoint.x, startPoint.y,
-								stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
-					} else {
-						HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
-								* HIGHLIGHTED_STROKE_WIDTH_MUL);
-						canvas.drawPath(stroke.getPath(), HIGHLIGHT_PAINT);
-					}
+				if (stroke.getStyle() == Style.FILL) {
+					HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
+							* HIGHLIGHTED_STROKE_WIDTH_MUL);
+					PointF startPoint = stroke.getStartPoint();
+					canvas.drawCircle(startPoint.x, startPoint.y,
+							stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
+				} else {
+					HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
+							* HIGHLIGHTED_STROKE_WIDTH_MUL);
+					canvas.drawPath(stroke.getPath(), HIGHLIGHT_PAINT);
 				}
 			}
 			for (Scrap scrap : getScraps()) {
@@ -785,16 +709,10 @@ public class Scrap extends CaliSmallElement {
 
 		public void draw(CaliSmall.CaliView parent, Canvas canvas,
 				float scaleFactor) {
-			if (!toBeDestroyed) {
+			if (hasToBeDrawn() && !toBeDestroyed) {
 				highlight(canvas, scaleFactor);
 				drawShadedRegion(canvas, TEMP_SCRAP_REGION_COLOR);
 				drawBorder(canvas, scaleFactor);
-				for (Scrap scrap : scraps) {
-					scrap.draw(parent, canvas, scaleFactor);
-				}
-				for (Stroke stroke : strokes) {
-					parent.drawStroke(stroke, canvas);
-				}
 			}
 		}
 

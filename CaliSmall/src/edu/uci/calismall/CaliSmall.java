@@ -7,6 +7,7 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
@@ -76,6 +77,7 @@ public class CaliSmall extends Activity {
 						Thread.sleep(20 - timer);
 					} catch (InterruptedException e) {
 						// don't care, it'll be less fluid, big deal
+						Log.d(TAG, "interrupted!");
 					}
 				}
 			}
@@ -125,12 +127,12 @@ public class CaliSmall extends Activity {
 				} else {
 					maybeDrawLandingZone(canvas);
 					maybeCreateBubbleMenu();
-					deleteSelectedStrokes();
+					deleteSelected();
 					if (selected != null) {
 						selected.draw(this, canvas, scaleFactor);
 					}
 					maybeCreateScrap();
-					addTmpSelectionStrokes();
+					// addTmpSelectionStrokes();
 					drawScraps(canvas);
 					drawStrokes(canvas);
 					if (bubbleMenuShown)
@@ -150,26 +152,24 @@ public class CaliSmall extends Activity {
 
 		private void drawScraps(Canvas canvas) {
 			for (Scrap scrap : scraps) {
-				// only draw top-level scraps
-				if (!scrap.isInScrap())
+				if (scrap.hasToBeDrawn())
 					scrap.draw(this, canvas, scaleFactor);
 			}
 		}
 
 		private void drawStrokes(Canvas canvas) {
 			for (Stroke stroke : strokes) {
-				if (!stroke.isInScrap())
+				if (stroke.hasToBeDrawn())
 					drawStroke(stroke, canvas);
 			}
 		}
 
 		private void drawNewStroke(Canvas canvas) {
 			if (!strokeAdded) {
-				if (!stroke.isInScrap()) {
-					drawStroke(stroke, canvas);
-					strokes.add(stroke);
-					strokeAdded = true;
-				}
+				drawStroke(stroke, canvas);
+				strokes.add(stroke);
+				Stroke.SPACE_OCCUPATION_LIST.add(stroke);
+				strokeAdded = true;
 			}
 		}
 
@@ -184,32 +184,28 @@ public class CaliSmall extends Activity {
 			if (mustShowBubbleMenu) {
 				mustShowBubbleMenu = false;
 				if (tempSelectionCreated) {
-					selected = new Scrap.Temp(
-							strokes.remove(strokes.size() - 1), scraps,
-							strokes, scaleFactor);
+					Stroke border = strokes.remove(strokes.size() - 1);
+					Stroke.SPACE_OCCUPATION_LIST.remove(border);
+					selected = new Scrap.Temp(border, scraps, strokes,
+							scaleFactor);
 					tempSelectionCreated = false;
 				}
 				bubbleMenuShown = true;
 			}
 		}
 
-		private void deleteSelectedStrokes() {
+		private void deleteSelected() {
 			if (toBeRemoved != null) {
-				List<Scrap> remove = toBeRemoved.erase();
-				remove.add(toBeRemoved);
-				scraps.removeAll(remove);
-				Scrap.SPACE_OCCUPATION_LIST.removeAll(remove);
-				List<Stroke> removeThese = toBeRemoved.getStrokes();
-				strokes.removeAll(removeThese);
-				Stroke.SPACE_OCCUPATION_LIST.removeAll(removeThese);
+				toBeRemoved.erase();
+				CaliSmallElement.deleteMarkedFromList(strokes,
+						Stroke.SPACE_OCCUPATION_LIST);
+
 				toBeRemoved = null;
 			}
 		}
 
 		private void maybeCreateScrap() {
 			if (newScrap != null) {
-				scraps.removeAll(newScrap.getScraps());
-				strokes.removeAll(newScrap.getStrokes());
 				scraps.add(newScrap);
 				newScrap = null;
 			}
@@ -240,6 +236,7 @@ public class CaliSmall extends Activity {
 				selected.select();
 			} else {
 				bubbleMenuShown = false;
+				redirectingToBubbleMenu = false;
 			}
 			this.selected = selected;
 		}
@@ -296,7 +293,7 @@ public class CaliSmall extends Activity {
 		@Override
 		public boolean onTouchEvent(MotionEvent event) {
 			final int action = event.getAction() & MotionEvent.ACTION_MASK;
-			// Log.d(TAG, actionToString(action) + pointToString(adjusted));
+			// Log.d(TAG, actionToString(action));
 			if (zooming) {
 				scaleDetector.onTouchEvent(event);
 				switch (action) {
@@ -311,6 +308,8 @@ public class CaliSmall extends Activity {
 					// first finger lifted (only when pinching)
 					onPointerUp(event);
 					break;
+				default:
+					Log.d(TAG, actionToString(action));
 				}
 			} else {
 				if (redirectingToBubbleMenu) {
@@ -338,6 +337,8 @@ public class CaliSmall extends Activity {
 					scaleDetector.onTouchEvent(event);
 					zooming = true;
 					break;
+				default:
+					Log.d(TAG, actionToString(action));
 				}
 			}
 			return true;
@@ -412,6 +413,7 @@ public class CaliSmall extends Activity {
 				lastY = adjusted.y;
 				stroke.setStart(adjusted);
 				stroke.getPath().moveTo(lastX, lastY);
+				setSelected(getSelectedScrap(adjusted));
 			}
 		}
 
@@ -437,6 +439,10 @@ public class CaliSmall extends Activity {
 						(y + lastY) / 2);
 				lastX = x;
 				lastY = y;
+				Scrap selected = getSelectedScrap(adjusted);
+				if (selected != this.selected) {
+					setSelected(selected);
+				}
 			}
 		}
 
@@ -474,23 +480,20 @@ public class CaliSmall extends Activity {
 							}
 						}
 					} else {
-						if (this.selected == null) {
-							setSelected(selected);
-							// TODO check if the whole stroke is within
-							// selected
-							if (!hasMovedEnough()) {
-								// a single tap selects the scrap w/o being
-								// drawn
-								stroke.getPath().reset();
-								return;
-							}
-						} else {
-							// new selection is null
-							setSelected(selected);
+						setSelected(selected);
+						// TODO check if the whole stroke is within
+						// selected
+						if (!hasMovedEnough()) {
+							// a single tap selects the scrap w/o being
+							// drawn
+							stroke.getPath().reset();
 						}
 					}
-					stroke = new Stroke(new Path(), stroke);
-					strokeAdded = false;
+					if (!stroke.getPath().isEmpty()) {
+						// otherwise don't create useless strokes
+						stroke = new Stroke(new Path(), stroke);
+						strokeAdded = false;
+					}
 				}
 			} else {
 				setSelected(this.selected);
@@ -498,13 +501,22 @@ public class CaliSmall extends Activity {
 		}
 
 		private Scrap getSelectedScrap(PointF adjusted) {
-			for (int i = scraps.size() - 1; i > -1; i--) {
-				// reverse loop because older scraps are behind
-				Scrap scrap = scraps.get(i);
-				if (scrap.contains(adjusted)) {
-					return scrap.getSmallestTouched(adjusted);
+			List<CaliSmallElement> candidates = Scrap.SPACE_OCCUPATION_LIST
+					.findIntersectionCandidates(stroke);
+			Collections.sort(candidates);
+			for (CaliSmallElement element : candidates) {
+				if (element.contains(adjusted)) {
+					return Scrap.class.cast(element).getSmallestTouched(
+							adjusted);
 				}
 			}
+			// for (int i = scraps.size() - 1; i > -1; i--) {
+			// // reverse loop because older scraps are behind
+			// Scrap scrap = scraps.get(i);
+			// if (scrap.contains(adjusted)) {
+			// return scrap.getSmallestTouched(adjusted);
+			// }
+			// }
 			return null;
 		}
 

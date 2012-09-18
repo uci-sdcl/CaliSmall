@@ -6,13 +6,18 @@
  */
 package edu.uci.calismall;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 
 import android.graphics.Canvas;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.graphics.Region;
+import android.util.Log;
 
 /**
  * A graphical item used in CaliSmall.
@@ -35,7 +40,7 @@ import android.graphics.Region;
  * @author Michele Bonazza
  * 
  */
-public abstract class CaliSmallElement {
+public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 
 	/**
 	 * A comparator to sort elements by their position along the X coordinate.
@@ -66,36 +71,6 @@ public abstract class CaliSmallElement {
 
 	}
 
-	/**
-	 * A comparator to find elements whose position along the X coordinate has
-	 * just changed.
-	 * 
-	 * @param <T>
-	 *            the actual type of element to be found
-	 * @author Michele Bonazza
-	 */
-	public static class XFinderComparator<T extends CaliSmallElement>
-			implements Comparator<T> {
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
-		 */
-		@Override
-		public int compare(T lhs, T rhs) {
-			// if (lhs.id.equals(rhs.id))
-			// return 0;
-			int whichFirst = Float.compare(lhs.previousTopLeftPoint.x,
-					rhs.previousTopLeftPoint.x);
-			if (whichFirst == 0) {
-				return lhs.width < rhs.width ? -1 : 1;
-			}
-			return whichFirst;
-		}
-
-	}
-
 	private final UUID id = UUID.randomUUID();
 
 	/**
@@ -108,6 +83,12 @@ public abstract class CaliSmallElement {
 	 */
 	protected PointF previousTopLeftPoint = topLeftPoint;
 	/**
+	 * Whether this element must be deleted. Elements are only removed from
+	 * lists by the drawing thread, to avoid
+	 * {@link ConcurrentModificationException}'s while drawing.
+	 */
+	protected boolean toBeDeleted;
+	/**
 	 * The width of the {@link RectF} enclosing this element.
 	 */
 	private float width;
@@ -115,6 +96,8 @@ public abstract class CaliSmallElement {
 	 * The height of the {@link RectF} enclosing this element.
 	 */
 	private float height;
+
+	private boolean mustBeDrawn = true;
 
 	/**
 	 * Updates the information about the area occupied by this element
@@ -135,7 +118,14 @@ public abstract class CaliSmallElement {
 		topLeftPoint.y = enclosingRect.top;
 		width = enclosingRect.width();
 		height = enclosingRect.height();
-		updateSpaceOccupation();
+		try {
+			updateSpaceOccupation();
+		} catch (IndexOutOfBoundsException e) {
+			Log.e(CaliSmall.TAG,
+					"following are the two space occupation lists", e);
+			Log.e(CaliSmall.TAG, "Strokes: " + Stroke.SPACE_OCCUPATION_LIST);
+			Log.e(CaliSmall.TAG, "Scraps: " + Scrap.SPACE_OCCUPATION_LIST);
+		}
 	}
 
 	/**
@@ -149,9 +139,10 @@ public abstract class CaliSmallElement {
 	 *         enclosing the two elements overlap
 	 */
 	public boolean intersectsX(CaliSmallElement other) {
-		return (topLeftPoint.x < other.topLeftPoint.x && topLeftPoint.x + width > other.topLeftPoint.x)
-				|| (topLeftPoint.x > other.topLeftPoint.x && other.topLeftPoint.x
-						+ other.width > topLeftPoint.x);
+		return (topLeftPoint.x <= other.topLeftPoint.x && topLeftPoint.x
+				+ width >= other.topLeftPoint.x)
+				|| (topLeftPoint.x >= other.topLeftPoint.x && other.topLeftPoint.x
+						+ other.width >= topLeftPoint.x);
 	}
 
 	/**
@@ -165,10 +156,10 @@ public abstract class CaliSmallElement {
 	 *         enclosing the two elements overlap
 	 */
 	public boolean intersectsY(CaliSmallElement other) {
-		return (topLeftPoint.y < other.topLeftPoint.y && topLeftPoint.y
-				+ height > other.topLeftPoint.y)
-				|| (topLeftPoint.y > other.topLeftPoint.y && other.topLeftPoint.y
-						+ other.height > topLeftPoint.y);
+		return (topLeftPoint.y <= other.topLeftPoint.y && topLeftPoint.y
+				+ height >= other.topLeftPoint.y)
+				|| (topLeftPoint.y >= other.topLeftPoint.y && other.topLeftPoint.y
+						+ other.height >= topLeftPoint.y);
 	}
 
 	/**
@@ -178,16 +169,114 @@ public abstract class CaliSmallElement {
 	 */
 	protected abstract void updateSpaceOccupation();
 
+	/**
+	 * Returns whether this element is smaller (-1) or bigger (1) than the
+	 * argument element. If the two elements have the same ID, 0 is returned; if
+	 * they're the same size but have different IDs, this method returns -1.
+	 */
+	@Override
+	public int compareTo(CaliSmallElement another) {
+		if (another == null)
+			return -1;
+		if (id.equals(another.id))
+			return 0;
+		if (width + height > another.width + another.width)
+			return 1;
+		return -1;
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * 
 	 * @see java.lang.Object#equals(java.lang.Object)
 	 */
 	@Override
-	public boolean equals(Object o) {
+	public final boolean equals(Object o) {
 		if (o == null || !(o instanceof CaliSmallElement))
 			return false;
 		return id.equals(((CaliSmallElement) o).id);
+	}
+
+	/**
+	 * Tests whether the argument point is within the area of this element.
+	 * 
+	 * @param point
+	 *            the point to be tested
+	 * @return <code>true</code> if the point is within this element's area
+	 */
+	public abstract boolean contains(PointF point);
+
+	/**
+	 * Returns whether this element must be deleted.
+	 * 
+	 * <p>
+	 * Only the drawing thread can delete elements, otherwise
+	 * {@link ConcurrentModificationException}'s may be thrown.
+	 * 
+	 * @return <code>true</code> if this element must be deleted
+	 */
+	public boolean hasToBeDeleted() {
+		return toBeDeleted;
+	}
+
+	/**
+	 * Returns whether this element must be drawn.
+	 * 
+	 * <p>
+	 * While being edited (moved, scaled, rotated) elements should not be drawn
+	 * using their vector data format, but a "snapshot" bitmap should be
+	 * preferred to speed up the drawing of the Canvas.
+	 * 
+	 * @return <code>true</code> if this element shall be drawn using its vector
+	 *         data format
+	 */
+	public boolean hasToBeDrawn() {
+		return mustBeDrawn;
+	}
+
+	/**
+	 * Sets whether this element must be drawn.
+	 * 
+	 * <p>
+	 * While being edited (moved, scaled, rotated) elements should not be drawn
+	 * using their vector data format, but a "snapshot" bitmap should be
+	 * preferred to speed up the drawing of the Canvas.
+	 * 
+	 * @param mustBeDrawn
+	 *            <code>true</code> if this element shall be drawn using its
+	 *            vector data format
+	 */
+	public void mustBeDrawn(boolean mustBeDrawn) {
+		this.mustBeDrawn = mustBeDrawn;
+	}
+
+	/**
+	 * Removes all elements marked for deletion from the argument lists.
+	 * 
+	 * <p>
+	 * An element is marked for deletion when {@link #hasToBeDeleted()} returns
+	 * <code>true</code>. This method removes the elements from both lists.
+	 * 
+	 * @param <T>
+	 *            the type of elements that the two lists store
+	 * @param deleteList
+	 *            the list containing all elements of type <tt>T</tt>, including
+	 *            elements that are not to be deleted
+	 * @param spaceOccupationList
+	 *            the space occupation list from which elements are also to be
+	 *            deleted
+	 */
+	public static <T extends CaliSmallElement> void deleteMarkedFromList(
+			List<T> deleteList, SpaceOccupationList spaceOccupationList) {
+		List<T> elementsToRemove = new ArrayList<T>();
+		for (Iterator<T> iterator = deleteList.iterator(); iterator.hasNext();) {
+			T next = iterator.next();
+			if (next.hasToBeDeleted()) {
+				iterator.remove();
+				elementsToRemove.add(next);
+			}
+		}
+		spaceOccupationList.removeAll(elementsToRemove);
 	}
 
 	/**
@@ -262,6 +351,8 @@ public abstract class CaliSmallElement {
 	}
 
 	public String toString() {
-		return getClass().getSimpleName() + " " + id.toString();
+		return getClass().getSimpleName() + " " + id.toString() + " "
+				+ CaliSmall.pointToString(topLeftPoint) + " ["
+				+ Math.round(width) + "x" + Math.round(height) + "]";
 	}
 }
