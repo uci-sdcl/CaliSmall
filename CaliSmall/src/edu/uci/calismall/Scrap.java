@@ -80,10 +80,6 @@ public class Scrap extends CaliSmallElement {
 	 */
 	protected final Stroke outerBorder;
 	/**
-	 * The area of this scrap.
-	 */
-	protected final Region scrapArea;
-	/**
 	 * Whether this scrap is currently selected.
 	 */
 	protected boolean selected;
@@ -130,7 +126,7 @@ public class Scrap extends CaliSmallElement {
 				outerBorder);
 		this.scraps = scraps;
 		this.strokes = strokes;
-		this.scrapArea = scrapArea;
+		this.boundaries.set(scrapArea);
 		matrix = new Matrix();
 	}
 
@@ -151,18 +147,19 @@ public class Scrap extends CaliSmallElement {
 		if (deepCopy) {
 			this.scraps = new ArrayList<Scrap>(copy.scraps.size());
 			this.strokes = new ArrayList<Stroke>(copy.strokes.size());
-			this.scrapArea = new Region(copy.scrapArea);
+			// this.boundaries.set(copy.getBoundaries());
 			copyContent(copy);
 		} else {
 			this.scraps = new ArrayList<Scrap>(copy.scraps);
 			this.strokes = new ArrayList<Stroke>(copy.strokes);
-			this.scrapArea = copy.scrapArea;
+			// this.boundaries.set(copy.boundaries);
 			this.outerBorder.getPath().close();
 			// all strokes are now in this scrap
 			for (Scrap scrap : scraps) {
 				scrap.parent = this;
 			}
 		}
+		setBoundaries(copy.getBorder());
 		matrix = new Matrix();
 	}
 
@@ -191,16 +188,7 @@ public class Scrap extends CaliSmallElement {
 	 * @return <code>true</code> if the point is within this scrap's area
 	 */
 	public boolean contains(PointF point) {
-		return scrapArea.contains(Math.round(point.x), Math.round(point.y));
-	}
-
-	/**
-	 * Returns the region enclosing this scrap.
-	 * 
-	 * @return a new copy of the region enclosing this scrap
-	 */
-	public Region getBoundaries() {
-		return new Region(scrapArea);
+		return boundaries.contains(Math.round(point.x), Math.round(point.y));
 	}
 
 	/**
@@ -275,7 +263,7 @@ public class Scrap extends CaliSmallElement {
 				area.bottom + margin);
 		collage.addRoundRect(area, radius, radius, Direction.CW);
 		outerBorder.setPath(collage);
-		computeArea();
+		setBoundaries();
 	}
 
 	/**
@@ -371,6 +359,7 @@ public class Scrap extends CaliSmallElement {
 			parent = null;
 		}
 		toBeDeleted = true;
+		mustBeDrawn(false);
 		outerBorder.toBeDeleted = true;
 		for (Stroke stroke : strokes) {
 			stroke.toBeDeleted = true;
@@ -491,8 +480,10 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void draw(CaliSmall.CaliView parent, Canvas canvas, float scaleFactor) {
 		if (snapshot == null) {
-			drawShadedRegion(canvas, SCRAP_REGION_COLOR);
-			drawBorder(canvas, scaleFactor);
+			if (hasToBeDrawn()) {
+				drawShadedRegion(canvas, SCRAP_REGION_COLOR);
+				drawBorder(canvas, scaleFactor);
+			}
 		} else {
 			canvas.drawBitmap(snapshot, matrix, null);
 		}
@@ -527,18 +518,11 @@ public class Scrap extends CaliSmallElement {
 	/**
 	 * Updates the scrap area according to the outer border.
 	 */
-	protected void computeArea() {
+	public void setBoundaries() {
 		Path testPath = new Path(outerBorder.getPath());
 		testPath.close();
 		testPath.setFillType(FillType.WINDING);
-		RectF rect = new RectF();
-		testPath.computeBounds(rect, true);
-		setArea(rect);
-		scrapArea.setPath(
-				testPath,
-				new Region(new Rect(Math.round(rect.left),
-						Math.round(rect.top), Math.round(rect.right), Math
-								.round(rect.bottom))));
+		super.setBoundaries(testPath);
 	}
 
 	/**
@@ -564,7 +548,7 @@ public class Scrap extends CaliSmallElement {
 			scrap.applyTransform();
 		}
 		matrix.reset();
-		computeArea();
+		setBoundaries();
 	}
 
 	/**
@@ -581,6 +565,27 @@ public class Scrap extends CaliSmallElement {
 		for (int i = allScraps.size() - 1; i > -1; i--) {
 			Scrap test = allScraps.get(i);
 			if (test.contains(touchPoint)) {
+				return test;
+			}
+		}
+		// this method is only called when touchPoint is within this scrap
+		return this;
+	}
+
+	/**
+	 * Returns the smallest scrap child of this scrap that contains the argument
+	 * <tt>element</tt>, or this scrap itself.
+	 * 
+	 * @param element
+	 *            the element that should be within this scrap
+	 * @return the smallest scrap child of this scrap containing the argument
+	 *         <tt>element</tt>, or this scrap
+	 */
+	public Scrap getSmallestTouched(CaliSmallElement element) {
+		List<Scrap> allScraps = getScraps();
+		for (int i = allScraps.size() - 1; i > -1; i--) {
+			Scrap test = allScraps.get(i);
+			if (test.contains(element)) {
 				return test;
 			}
 		}
@@ -629,7 +634,7 @@ public class Scrap extends CaliSmallElement {
 				List<Stroke> canvasStrokes, float scaleFactor) {
 			super(selectionBorder, new ArrayList<Scrap>(),
 					new ArrayList<Stroke>(), new Region());
-			computeArea();
+			setBoundaries();
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 			findSelected(canvasStrokes, canvasScraps);
 		}
@@ -656,7 +661,7 @@ public class Scrap extends CaliSmallElement {
 			for (CaliSmallElement element : candidates) {
 				Stroke stroke = (Stroke) element;
 				Region boundaries = stroke.getBoundaries();
-				if (boundaries.op(scrapArea, Op.INTERSECT)) {
+				if (boundaries.op(this.boundaries, Op.INTERSECT)) {
 					// stroke intersects selection
 					if (!stroke.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
 						// stroke is contained within selection
@@ -666,7 +671,7 @@ public class Scrap extends CaliSmallElement {
 			}
 			for (Scrap scrap : canvasScraps) {
 				Region boundaries = scrap.getBoundaries();
-				if (boundaries.op(scrapArea, Op.INTERSECT)) {
+				if (boundaries.op(this.boundaries, Op.INTERSECT)) {
 					if (!scrap.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
 						scraps.add(scrap);
 						scrap.parent = this;
@@ -684,6 +689,7 @@ public class Scrap extends CaliSmallElement {
 		public void deselect() {
 			selected = false;
 			toBeDestroyed = true;
+			mustBeDrawn(false);
 			// SPACE_OCCUPATION_LIST.remove(this);
 			// Stroke.SPACE_OCCUPATION_LIST.remove(outerBorder);
 		}
@@ -735,6 +741,25 @@ public class Scrap extends CaliSmallElement {
 		SPACE_OCCUPATION_LIST.update(this);
 		previousTopLeftPoint.x = topLeftPoint.x;
 		previousTopLeftPoint.y = topLeftPoint.y;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see edu.uci.calismall.CaliSmallElement#contains(edu.uci.calismall.
+	 * CaliSmallElement)
+	 */
+	@Override
+	public boolean contains(CaliSmallElement element) {
+		Region elementBoundaries = element.getBoundaries();
+		Region boundaries = getBoundaries();
+		if (boundaries.op(elementBoundaries, Op.INTERSECT)) {
+			// elements intersect
+			if (!element.getBoundaries().op(getBoundaries(), Op.DIFFERENCE)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 }

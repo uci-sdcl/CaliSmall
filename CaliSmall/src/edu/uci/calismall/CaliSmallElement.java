@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.UUID;
 
 import android.graphics.Canvas;
+import android.graphics.Path;
 import android.graphics.PointF;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
 import android.util.Log;
@@ -70,6 +72,11 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		}
 
 	}
+
+	/**
+	 * The region representing the area of this element.
+	 */
+	protected final Region boundaries = new Region();
 
 	private final UUID id = UUID.randomUUID();
 
@@ -207,6 +214,17 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	public abstract boolean contains(PointF point);
 
 	/**
+	 * Tests whether the argument element is completely contained in this
+	 * element.
+	 * 
+	 * @param element
+	 *            the element to be tested
+	 * @return <code>true</code> if the argument element is completely within
+	 *         this element's area
+	 */
+	public abstract boolean contains(CaliSmallElement element);
+
+	/**
 	 * Returns whether this element must be deleted.
 	 * 
 	 * <p>
@@ -277,6 +295,33 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 			}
 		}
 		spaceOccupationList.removeAll(elementsToRemove);
+	}
+
+	/**
+	 * Returns the region enclosing this element.
+	 * 
+	 * @return a new copy of the region enclosing this element
+	 */
+	public Region getBoundaries() {
+		return new Region(boundaries);
+	}
+
+	/**
+	 * Updates the boundaries for this element using the argument {@link Path}
+	 * as perimeter for the area of this element.
+	 * 
+	 * @param path
+	 *            the perimeter of the region enclosing this element
+	 */
+	protected void setBoundaries(Path path) {
+		RectF rect = new RectF();
+		path.computeBounds(rect, true);
+		setArea(rect);
+		boundaries.setPath(
+				path,
+				new Region(new Rect(Math.round(rect.left),
+						Math.round(rect.top), Math.round(rect.right), Math
+								.round(rect.bottom))));
 	}
 
 	/**

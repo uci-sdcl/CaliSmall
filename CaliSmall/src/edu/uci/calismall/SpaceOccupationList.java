@@ -66,14 +66,16 @@ public class SpaceOccupationList {
 	 * 
 	 * @param element
 	 *            the element of which all intersecting elements shall be found
-	 * @return a (potentially empty) list containing all candidates for
-	 *         intersection with the argument <tt>element</tt>
+	 * @return a (potentially empty) list containing all elements that can
+	 *         potentially intersect the argument <tt>element</tt>; the list is
+	 *         sorted by the X position of the elements
 	 */
 	public List<CaliSmallElement> findIntersectionCandidates(
 			CaliSmallElement element) {
 		List<CaliSmallElement> candidates = new ArrayList<CaliSmallElement>();
 		if (!sortedByX.isEmpty()) {
-			Log.d(CaliSmall.TAG, "finding intersections. Here's the list");
+			Log.d(CaliSmall.TAG, "finding intersections. ### test is "
+					+ element + " ###");
 			Log.d(CaliSmall.TAG, toString());
 			int position = Collections.binarySearch(sortedByX, element,
 					comparator);

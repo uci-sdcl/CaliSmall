@@ -12,9 +12,6 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
-import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.Region;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.view.View;
@@ -42,7 +39,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	private final Path path;
 	private final float[] matrixValues;
 	private float startX, startY;
-	private final Region boundaries;
 	private Paint.Style style = DEFAULT_STYLE;
 	private float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
 	private int color = DEFAULT_COLOR;
@@ -60,7 +56,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	Stroke(Path path, Stroke previousStroke) {
 		this.path = path;
-		this.boundaries = new Region();
 		matrixValues = new float[9];
 		if (previousStroke != null) {
 			this.strokeWidth = previousStroke.getStrokeWidth();
@@ -227,19 +222,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	}
 
 	/**
-	 * Returns a copy of this stroke's boundaries.
-	 * 
-	 * <p>
-	 * {@link android.graphics.Region.Op} can be performed on the returned
-	 * object, as it doesn't affect the <tt>Stroke</tt>'s internal state.
-	 * 
-	 * @return a copy of the boundaries computed for this stroke
-	 */
-	public Region getBoundaries() {
-		return new Region(boundaries);
-	}
-
-	/**
 	 * Computes the boundaries for this stroke.
 	 * 
 	 * <p>
@@ -248,14 +230,7 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 * @return a reference to this object, so calls can be chained
 	 */
 	public Stroke setBoundaries() {
-		RectF rect = new RectF();
-		path.computeBounds(rect, true);
-		setArea(rect);
-		boundaries.setPath(
-				path,
-				new Region(new Rect(Math.round(rect.left),
-						Math.round(rect.top), Math.round(rect.right), Math
-								.round(rect.bottom))));
+		super.setBoundaries(path);
 		return this;
 	}
 
@@ -313,6 +288,17 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	@Override
 	public boolean contains(PointF point) {
+		return false;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see edu.uci.calismall.CaliSmallElement#contains(edu.uci.calismall.
+	 * CaliSmallElement)
+	 */
+	@Override
+	public boolean contains(CaliSmallElement element) {
 		return false;
 	}
 }
