@@ -124,7 +124,8 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 * Sets the first point of this stroke.
 	 * 
 	 * @param startPoint
-	 *            the first point of this stroke
+	 *            the first point of this stroke, adjusted for the current zoom
+	 *            level and panning
 	 * @return a reference to this object, so calls can be chained
 	 */
 	public Stroke setStart(PointF startPoint) {

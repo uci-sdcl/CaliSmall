@@ -690,8 +690,6 @@ public class Scrap extends CaliSmallElement {
 			selected = false;
 			toBeDestroyed = true;
 			mustBeDrawn(false);
-			// SPACE_OCCUPATION_LIST.remove(this);
-			// Stroke.SPACE_OCCUPATION_LIST.remove(outerBorder);
 		}
 
 		private void highlight(Canvas canvas, float scaleFactor) {

@@ -101,10 +101,10 @@ public class CaliSmall extends Activity {
 
 		private Thread worker;
 		private Scrap selected, previousSelection, newScrap, toBeRemoved,
-				tempSelStrokes;
+				tempScrap, tempSelStrokes;
 		private boolean zooming, running, mustShowLandingZone, strokeAdded,
 				mustClearCanvas, bubbleMenuShown, mustShowBubbleMenu,
-				tempSelectionCreated, redirectingToBubbleMenu;
+				tempScrapCreated, redirectingToBubbleMenu;
 		private PointF landingZoneCenter;
 		private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
 				screenHeight;
@@ -129,9 +129,7 @@ public class CaliSmall extends Activity {
 					maybeDrawLandingZone(canvas);
 					maybeCreateBubbleMenu();
 					deleteSelected();
-					if (selected != null) {
-						selected.draw(this, canvas, scaleFactor);
-					}
+					drawTempScrap(canvas);
 					maybeCreateScrap();
 					addTmpSelectionStrokes();
 					drawScraps(canvas);
@@ -165,6 +163,11 @@ public class CaliSmall extends Activity {
 			}
 		}
 
+		private void drawTempScrap(Canvas canvas) {
+			if (tempScrap != null)
+				tempScrap.draw(this, canvas, scaleFactor);
+		}
+
 		private void drawNewStroke(Canvas canvas) {
 			if (!strokeAdded) {
 				drawStroke(stroke, canvas);
@@ -184,12 +187,13 @@ public class CaliSmall extends Activity {
 		private void maybeCreateBubbleMenu() {
 			if (mustShowBubbleMenu) {
 				mustShowBubbleMenu = false;
-				if (tempSelectionCreated) {
+				if (tempScrapCreated) {
 					Stroke border = strokes.remove(strokes.size() - 1);
 					Stroke.SPACE_OCCUPATION_LIST.remove(border);
-					selected = new Scrap.Temp(border, scraps, strokes,
-							scaleFactor);
-					tempSelectionCreated = false;
+					createNewStroke();
+					changeTempScrap(new Scrap.Temp(border, scraps, strokes,
+							scaleFactor));
+					tempScrapCreated = false;
 				}
 				bubbleMenuShown = true;
 			}
@@ -200,7 +204,7 @@ public class CaliSmall extends Activity {
 				toBeRemoved.erase();
 				CaliSmallElement.deleteMarkedFromList(strokes,
 						Stroke.SPACE_OCCUPATION_LIST);
-
+				mustShowBubbleMenu = false;
 				toBeRemoved = null;
 			}
 		}
@@ -211,6 +215,8 @@ public class CaliSmall extends Activity {
 				Scrap.SPACE_OCCUPATION_LIST.add(newScrap);
 				Log.d(TAG, "new scrap! Here's the new list");
 				Log.d(TAG, Scrap.SPACE_OCCUPATION_LIST.toString());
+				setSelected(newScrap);
+				previousSelection = newScrap;
 				newScrap = null;
 			}
 		}
@@ -243,6 +249,20 @@ public class CaliSmall extends Activity {
 				redirectingToBubbleMenu = false;
 			}
 			this.selected = selected;
+		}
+
+		/**
+		 * Changes the current selected scrap to the argument temp scrap.
+		 * 
+		 * @param newTempScrap
+		 *            the new temporary scrap, cannot be <code>null</code>
+		 */
+		public void changeTempScrap(Scrap newTempScrap) {
+			if (newTempScrap != null) {
+				tempScrap = newTempScrap;
+				setSelected(tempScrap);
+				previousSelection = newScrap;
+			}
 		}
 
 		/**
@@ -319,15 +339,14 @@ public class CaliSmall extends Activity {
 				if (redirectingToBubbleMenu) {
 					if (onTouchBubbleMenuShown(action,
 							adjustForZoom(event.getX(), event.getY()))) {
-						if (action == MotionEvent.ACTION_UP
-								&& !stroke.getPath().isEmpty()) {
-							stroke = new Stroke(new Path(), stroke);
-							strokeAdded = false;
-						}
+						// action has been handled by the bubble menu
+						Log.d(TAG, "handled by bubble menu");
 						return true;
 					} else {
+						Log.d(TAG, "deselect bubble menu NOW");
 						redirectingToBubbleMenu = false;
 						mustShowBubbleMenu = false;
+						bubbleMenuShown = false;
 					}
 				}
 				switch (action) {
@@ -346,6 +365,7 @@ public class CaliSmall extends Activity {
 				case MotionEvent.ACTION_POINTER_DOWN:
 					// first touch with second finger
 					bubbleMenuShown = false;
+					setSelected(null);
 					scaleDetector.onTouchEvent(event);
 					zooming = true;
 					break;
@@ -401,14 +421,12 @@ public class CaliSmall extends Activity {
 		/**
 		 * Checks whether the argument <tt>touchPoint</tt> is within any of the
 		 * buttons in the bubble menu, and if so it forwards the action to the
-		 * bubble menu. Returns whether <tt>touchPoint</tt> is within any of the
-		 * bubble menu buttons.
+		 * bubble menu. Returns whether the bubble menu should keep being
+		 * displayed.
 		 */
 		private boolean onTouchBubbleMenuShown(int action, PointF touchPoint) {
 			if (bubbleMenu.buttonTouched(touchPoint)) {
-				if (!bubbleMenu.onTouch(action, touchPoint, selected))
-					mustShowBubbleMenu = false;
-				return true;
+				return bubbleMenu.onTouch(action, touchPoint, selected);
 			}
 			return false;
 		}
@@ -417,16 +435,18 @@ public class CaliSmall extends Activity {
 			PointF adjusted = adjustForZoom(event.getX(), event.getY());
 			mustShowLandingZone = false;
 			mActivePointerId = event.findPointerIndex(0);
-			if (bubbleMenuShown
-					&& onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
-				// a button was touched, redirect actions to bubble menu
-				redirectingToBubbleMenu = true;
-			} else {
-				lastX = adjusted.x;
-				lastY = adjusted.y;
-				stroke.setStart(adjusted);
-				stroke.getPath().moveTo(lastX, lastY);
+			if (bubbleMenuShown) {
+				if (onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
+					// a button was touched, redirect actions to bubble menu
+					redirectingToBubbleMenu = true;
+					return;
+				}
 			}
+			lastX = adjusted.x;
+			lastY = adjusted.y;
+			stroke.setStart(adjusted);
+			stroke.getPath().moveTo(lastX, lastY);
+			setSelected(getSelectedScrap(adjusted));
 		}
 
 		private void onMove(MotionEvent event) {
@@ -452,8 +472,7 @@ public class CaliSmall extends Activity {
 				lastX = x;
 				lastY = y;
 				stroke.setBoundaries();
-				Scrap selected = getSelectedScrap();
-				setSelected(selected);
+				setSelected(getSelectedScrap());
 			}
 		}
 
@@ -470,35 +489,44 @@ public class CaliSmall extends Activity {
 				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
 					bubbleMenu.setBounds(stroke.getPath(), scaleFactor, bounds);
 					mustShowBubbleMenu = true;
-					tempSelectionCreated = true;
+					tempScrapCreated = true;
 				} else {
-					Scrap selected = getSelectedScrap();
-					Log.d(TAG, "selected = " + selected + ", old selected = "
-							+ this.selected);
-					setSelected(selected);
+					Scrap newSelection;
 					if (!hasMovedEnough()) {
-						if (selected == previousSelection) {
+						Log.d(TAG, "tap detected");
+						PointF center = stroke.getStartPoint();
+						newSelection = getSelectedScrap(center);
+						if (newSelection == previousSelection) {
 							// draw a point (a small circle)
 							stroke.setStyle(Paint.Style.FILL);
-							PointF center = stroke.getStartPoint();
 							stroke.getPath().addCircle(center.x, center.y,
 									stroke.getStrokeWidth() / 2, Direction.CW);
+							stroke.setBoundaries();
 						} else {
 							// a single tap selects the scrap w/o being
 							// drawn
 							stroke.getPath().reset();
 						}
+					} else {
+						newSelection = getSelectedScrap();
 					}
-					if (!stroke.getPath().isEmpty()) {
-						// otherwise don't create useless strokes
-						stroke = new Stroke(new Path(), stroke);
-						strokeAdded = false;
-					}
+					setSelected(newSelection);
+					Log.d(TAG, "selected = " + selected + ", old selected = "
+							+ previousSelection);
+					createNewStroke();
 				}
 			} else {
-				setSelected(selected);
+				setSelected(previousSelection);
 			}
 			previousSelection = selected;
+		}
+
+		private void createNewStroke() {
+			if (!stroke.getPath().isEmpty()) {
+				// otherwise don't create useless strokes
+				stroke = new Stroke(new Path(), stroke);
+				strokeAdded = false;
+			}
 		}
 
 		private Scrap getSelectedScrap() {
@@ -509,6 +537,17 @@ public class CaliSmall extends Activity {
 			for (CaliSmallElement element : candidates) {
 				if (element.contains(stroke)) {
 					return Scrap.class.cast(element).getSmallestTouched(stroke);
+				}
+			}
+			return null;
+		}
+
+		private Scrap getSelectedScrap(PointF adjusted) {
+			for (int i = scraps.size() - 1; i > -1; i--) {
+				// reverse loop because older scraps are behind
+				Scrap scrap = scraps.get(i);
+				if (scrap.contains(adjusted)) {
+					return scrap.getSmallestTouched(adjusted);
 				}
 			}
 			return null;
@@ -539,8 +578,10 @@ public class CaliSmall extends Activity {
 		}
 
 		private boolean hasMovedEnough() {
-			pathMeasure.setPath(stroke.getPath(), false);
-			return pathMeasure.getLength() > touchThreshold;
+			// pathMeasure.setPath(stroke.getPath(), false);
+			// return pathMeasure.getLength() > touchThreshold;
+			stroke.setBoundaries();
+			return stroke.getWidth() + stroke.getHeight() > touchThreshold;
 		}
 
 		private boolean mustShowLandingZone() {
@@ -713,7 +754,7 @@ public class CaliSmall extends Activity {
 	 * The length over which a Path is no longer considered as a potential tap,
 	 * but is viewed as a stroke instead (to be rescaled by scaleFactor).
 	 */
-	static final float ABS_TOUCH_THRESHOLD = 4;
+	static final float ABS_TOUCH_THRESHOLD = 6;
 	/**
 	 * The amount of pixels that a touch needs to cover before it is considered
 	 * a move action.

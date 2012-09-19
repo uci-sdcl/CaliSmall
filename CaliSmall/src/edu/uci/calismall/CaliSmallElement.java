@@ -61,8 +61,8 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		 */
 		@Override
 		public int compare(T lhs, T rhs) {
-			// if (lhs.id.equals(rhs.id))
-			// return 0;
+			if (lhs.id.equals(rhs.id))
+				return 0;
 			int whichFirst = Float.compare(lhs.topLeftPoint.x,
 					rhs.topLeftPoint.x);
 			if (whichFirst == 0) {

@@ -238,11 +238,12 @@ public class BubbleMenu {
 		if (selected instanceof Scrap.Temp) {
 			newScrap = new Scrap.Temp(selected, scaleFactor);
 			view.addStrokes(newScrap);
+			view.changeTempScrap(newScrap);
 		} else {
 			newScrap = new Scrap(selected, true);
 			view.addScrap(newScrap);
+			view.setSelected(newScrap);
 		}
-		view.setSelected(newScrap);
 		touched = null;
 		return true;
 	}
