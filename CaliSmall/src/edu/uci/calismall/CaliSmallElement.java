@@ -19,7 +19,7 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
-import android.util.Log;
+import android.util.FloatMath;
 
 /**
  * A graphical item used in CaliSmall.
@@ -119,10 +119,8 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 *            the rectangle enclosing this element
 	 */
 	protected void setArea(RectF enclosingRect) {
-		previousTopLeftPoint.x = topLeftPoint.x;
-		previousTopLeftPoint.y = topLeftPoint.y;
-		topLeftPoint.x = enclosingRect.left;
-		topLeftPoint.y = enclosingRect.top;
+		previousTopLeftPoint.set(topLeftPoint.x, topLeftPoint.y);
+		topLeftPoint.set(enclosingRect.left, enclosingRect.top);
 		width = enclosingRect.width();
 		height = enclosingRect.height();
 		updateSpaceOccupation();
@@ -310,13 +308,11 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		RectF rect = new RectF();
 		path.computeBounds(rect, true);
 		setArea(rect);
-		Rect rounded = new Rect(Math.round(rect.left), Math.round(rect.top),
-				Math.round(rect.right), Math.round(rect.bottom));
+		Rect rounded = new Rect((int) FloatMath.floor(rect.left),
+				(int) FloatMath.floor(rect.top),
+				(int) FloatMath.ceil(rect.right),
+				(int) FloatMath.ceil(rect.bottom));
 		boundaries.setPath(path, new Region(rounded));
-		if (boundaries.isEmpty()) {
-			Log.d(CaliSmall.TAG, "empty region, path: " + path + ", clip: "
-					+ rounded);
-		}
 	}
 
 	/**

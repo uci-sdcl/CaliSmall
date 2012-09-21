@@ -42,7 +42,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	private final Path path;
 	private final List<PointF> points;
 	private final float[] matrixValues;
-	private float startX, startY;
 	private Paint.Style style = DEFAULT_STYLE;
 	private float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
 	private int color = DEFAULT_COLOR;
@@ -186,10 +185,9 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 * @return a reference to this object, so calls can be chained
 	 */
 	public Stroke setStart(PointF startPoint) {
-		this.startX = startPoint.x;
-		this.startY = startPoint.y;
-		path.moveTo(startX, startY);
+		path.moveTo(startPoint.x, startPoint.y);
 		points.add(startPoint);
+		setBoundaries();
 		return this;
 	}
 
@@ -199,7 +197,9 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 * @return the point from which the user started to draw this stroke
 	 */
 	public PointF getStartPoint() {
-		return new PointF(startX, startY);
+		if (points.isEmpty())
+			return new PointF();
+		return points.get(0);
 	}
 
 	/**
@@ -254,9 +254,12 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	public void transform(Matrix matrix) {
 		matrix.getValues(matrixValues);
-		startX += matrixValues[2];
-		startY += matrixValues[5];
+		for (PointF point : points) {
+			point.x += matrixValues[2];
+			point.y += matrixValues[5];
+		}
 		path.transform(matrix);
+		setBoundaries();
 	}
 
 	/**
@@ -292,6 +295,35 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	public Stroke setBoundaries() {
 		super.setBoundaries(path);
 		return this;
+	}
+
+	/**
+	 * Returns a list of all points that are part of this stroke.
+	 * 
+	 * @return a comma separated list of points that make part of this stroke
+	 */
+	public String listPoints() {
+		StringBuilder builder = new StringBuilder();
+		String comma = "";
+		for (PointF point : points) {
+			builder.append(comma);
+			builder.append(CaliSmall.pointToString(point));
+			comma = ", ";
+		}
+		return builder.toString();
+	}
+
+	/**
+	 * Resets this stroke, clearing all points.
+	 * 
+	 * <p>
+	 * After a call to this method, {@link #setStart(PointF)} must be called
+	 * again to use this stroke.
+	 */
+	public void reset() {
+		path.reset();
+		points.clear();
+		setBoundaries();
 	}
 
 	/**
@@ -337,8 +369,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	@Override
 	protected void updateSpaceOccupation() {
 		SPACE_OCCUPATION_LIST.update(this);
-		previousTopLeftPoint.x = topLeftPoint.x;
-		previousTopLeftPoint.y = topLeftPoint.y;
 	}
 
 	/*

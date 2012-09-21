@@ -26,6 +26,7 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
+import android.util.FloatMath;
 import android.util.Log;
 import android.view.View;
 
@@ -656,7 +657,18 @@ public class Scrap extends CaliSmallElement {
 			Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
 			for (CaliSmallElement element : candidates) {
 				Stroke stroke = (Stroke) element;
-				if (!stroke.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
+				Region strokeBoundaries = stroke.getBoundaries();
+				if (strokeBoundaries.isEmpty()) {
+					// porkaround for empty regions... thx android
+					strokeBoundaries.set(
+							(int) FloatMath.floor(stroke.topLeftPoint.x),
+							(int) FloatMath.floor(stroke.topLeftPoint.y),
+							(int) FloatMath.ceil(stroke.topLeftPoint.x
+									+ stroke.width),
+							(int) FloatMath.ceil(stroke.topLeftPoint.y
+									+ stroke.height));
+				}
+				if (!strokeBoundaries.op(boundaries, Op.DIFFERENCE)) {
 					// stroke is contained within selection
 					strokes.add(stroke);
 				}

@@ -469,8 +469,6 @@ public class CaliSmall extends Activity {
 				mActivePointerId = INVALID_POINTER_ID;
 				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 						event.getY(pointerIndex));
-				// last stroke ended, compute its boundaries
-				stroke.setBoundaries();
 				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
 					bubbleMenu.setBounds(stroke.getPath(), scaleFactor, bounds);
 					mustShowBubbleMenu = true;
@@ -490,7 +488,7 @@ public class CaliSmall extends Activity {
 						} else {
 							// a single tap selects the scrap w/o being
 							// drawn
-							stroke.getPath().reset();
+							stroke.reset();
 						}
 					} else {
 						newSelection = getSelectedScrap();
