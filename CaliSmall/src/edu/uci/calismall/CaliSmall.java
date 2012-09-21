@@ -93,7 +93,6 @@ public class CaliSmall extends Activity {
 
 		private static final int INVALID_POINTER_ID = -1;
 		private final PathMeasure pathMeasure;
-		private float lastX, lastY;
 		// a list of strokes kept in chronological order (oldest first)
 		private final List<Stroke> strokes;
 		// a list of scraps kept in chronological order (oldest first)
@@ -164,8 +163,9 @@ public class CaliSmall extends Activity {
 		}
 
 		private void drawTempScrap(Canvas canvas) {
-			if (tempScrap != null)
+			if (tempScrap != null) {
 				tempScrap.draw(this, canvas, scaleFactor);
+			}
 		}
 
 		private void drawNewStroke(Canvas canvas) {
@@ -191,8 +191,7 @@ public class CaliSmall extends Activity {
 					Stroke border = strokes.remove(strokes.size() - 1);
 					Stroke.SPACE_OCCUPATION_LIST.remove(border);
 					createNewStroke();
-					changeTempScrap(new Scrap.Temp(border, scraps, strokes,
-							scaleFactor));
+					changeTempScrap(new Scrap.Temp(border, scaleFactor));
 					tempScrapCreated = false;
 				}
 				bubbleMenuShown = true;
@@ -261,7 +260,7 @@ public class CaliSmall extends Activity {
 			if (newTempScrap != null) {
 				tempScrap = newTempScrap;
 				setSelected(tempScrap);
-				previousSelection = newScrap;
+				previousSelection = tempScrap;
 			}
 		}
 
@@ -332,8 +331,6 @@ public class CaliSmall extends Activity {
 					// first finger lifted (only when pinching)
 					onPointerUp(event);
 					break;
-				default:
-					Log.d(TAG, actionToString(action));
 				}
 			} else {
 				if (redirectingToBubbleMenu) {
@@ -370,7 +367,7 @@ public class CaliSmall extends Activity {
 					zooming = true;
 					break;
 				default:
-					Log.d(TAG, actionToString(action));
+					Log.d(TAG, "default: " + actionToString(action));
 				}
 			}
 			return true;
@@ -442,10 +439,7 @@ public class CaliSmall extends Activity {
 					return;
 				}
 			}
-			lastX = adjusted.x;
-			lastY = adjusted.y;
 			stroke.setStart(adjusted);
-			stroke.getPath().moveTo(lastX, lastY);
 			setSelected(getSelectedScrap(adjusted));
 		}
 
@@ -453,10 +447,6 @@ public class CaliSmall extends Activity {
 			final int pointerIndex = event.findPointerIndex(mActivePointerId);
 			final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 					event.getY(pointerIndex));
-			final float x = adjusted.x;
-			final float y = adjusted.y;
-			final float dx = Math.abs(x - lastX);
-			final float dy = Math.abs(y - lastY);
 			if (!mustShowLandingZone) {
 				mustShowLandingZone = mustShowLandingZone();
 				if (mustShowLandingZone) {
@@ -466,12 +456,7 @@ public class CaliSmall extends Activity {
 					landingZoneCenter = new PointF(position[0], position[1]);
 				}
 			}
-			if (dx >= TOUCH_TOLERANCE || dy >= TOUCH_TOLERANCE) {
-				stroke.getPath().quadTo(lastX, lastY, (x + lastX) / 2,
-						(y + lastY) / 2);
-				lastX = x;
-				lastY = y;
-				stroke.setBoundaries();
+			if (stroke.addPoint(adjusted, touchTolerance)) {
 				setSelected(getSelectedScrap());
 			}
 		}
@@ -511,14 +496,14 @@ public class CaliSmall extends Activity {
 						newSelection = getSelectedScrap();
 					}
 					setSelected(newSelection);
-					Log.d(TAG, "selected = " + selected + ", old selected = "
-							+ previousSelection);
 					createNewStroke();
 				}
 			} else {
 				setSelected(previousSelection);
 			}
 			previousSelection = selected;
+			Log.d(TAG, "selected = " + selected + ", old selected = "
+					+ previousSelection);
 		}
 
 		private void createNewStroke() {
@@ -578,9 +563,6 @@ public class CaliSmall extends Activity {
 		}
 
 		private boolean hasMovedEnough() {
-			// pathMeasure.setPath(stroke.getPath(), false);
-			// return pathMeasure.getLength() > touchThreshold;
-			stroke.setBoundaries();
 			return stroke.getWidth() + stroke.getHeight() > touchThreshold;
 		}
 
@@ -708,6 +690,7 @@ public class CaliSmall extends Activity {
 					/ scaleFactor;
 			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET / scaleFactor;
 			touchThreshold = ABS_TOUCH_THRESHOLD / scaleFactor;
+			touchTolerance = ABS_TOUCH_TOLERANCE / scaleFactor;
 			final float newInterval = ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 			landingZonePaint.setPathEffect(new DashPathEffect(new float[] {
 					newInterval, newInterval }, (float) 1.0));
@@ -757,11 +740,11 @@ public class CaliSmall extends Activity {
 	static final float ABS_TOUCH_THRESHOLD = 6;
 	/**
 	 * The amount of pixels that a touch needs to cover before it is considered
-	 * a move action.
+	 * a move action (to be rescaled by scaleFactor).
 	 */
-	static final float TOUCH_TOLERANCE = 2;
-	private static final float MIN_ZOOM = 0.25f;
-	private static final float MAX_ZOOM = 3f;
+	static final float ABS_TOUCH_TOLERANCE = 2;
+	private static final float MIN_ZOOM = 1f;
+	private static final float MAX_ZOOM = 4f;
 	private static final int COLOR_MENU_ID = Menu.FIRST;
 	private static final int CLEAR_MENU_ID = Menu.FIRST + 1;
 	private BubbleMenu bubbleMenu;
@@ -779,7 +762,8 @@ public class CaliSmall extends Activity {
 			landingZoneRadius = ABS_LANDING_ZONE_RADIUS,
 			minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE,
 			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET,
-			touchThreshold = ABS_TOUCH_THRESHOLD;
+			touchThreshold = ABS_TOUCH_THRESHOLD,
+			touchTolerance = ABS_TOUCH_TOLERANCE;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {

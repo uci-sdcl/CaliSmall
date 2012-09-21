@@ -6,6 +6,9 @@
  */
 package edu.uci.calismall;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.graphics.Color;
 import android.graphics.MaskFilter;
 import android.graphics.Matrix;
@@ -37,6 +40,7 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	private static final int DEFAULT_COLOR = Color.BLACK;
 	private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
 	private final Path path;
+	private final List<PointF> points;
 	private final float[] matrixValues;
 	private float startX, startY;
 	private Paint.Style style = DEFAULT_STYLE;
@@ -56,6 +60,7 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	Stroke(Path path, Stroke previousStroke) {
 		this.path = path;
+		points = new ArrayList<PointF>();
 		matrixValues = new float[9];
 		if (previousStroke != null) {
 			this.strokeWidth = previousStroke.getStrokeWidth();
@@ -75,7 +80,42 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 *            the stroke to be copied
 	 */
 	Stroke(Stroke copy) {
-		this(new Path(copy.getPath()), copy);
+		this(new Path(copy.path), copy);
+		points.addAll(copy.points);
+	}
+
+	/**
+	 * Adds a point to this stroke if it's at least <tt>touchTolerance</tt> far
+	 * from the last point of this stroke.
+	 * 
+	 * <p>
+	 * If <tt>newPoint</tt> is too close to the previous point it's not added
+	 * and this method returns <code>false</code>.
+	 * 
+	 * <p>
+	 * This method assumes that {@link #setStart(PointF)} has been called once
+	 * for this <tt>Stroke</tt>.
+	 * 
+	 * @param newPoint
+	 *            the new point to be added to this stroke
+	 * @param touchTolerance
+	 *            the distance from the last point in this <tt>Stroke</tt> under
+	 *            which <tt>newPoint</tt> is to be ignored
+	 * @return <code>true</code> if the point has been added to this stroke
+	 */
+	public boolean addPoint(PointF newPoint, float touchTolerance) {
+		boolean added = false;
+		final PointF last = points.get(points.size() - 1);
+		final float dx = Math.abs(newPoint.x - last.x);
+		final float dy = Math.abs(newPoint.y - last.y);
+		if (dx >= touchTolerance || dy >= touchTolerance) {
+			path.quadTo(last.x, last.y, (newPoint.x + last.x) / 2,
+					(newPoint.y + last.y) / 2);
+			points.add(newPoint);
+			setBoundaries();
+			added = true;
+		}
+		return added;
 	}
 
 	/**
@@ -85,6 +125,19 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	public Path getPath() {
 		return path;
+	}
+
+	/**
+	 * Returns the list of points that are part of this stroke.
+	 * 
+	 * <p>
+	 * This method <b>does not</b> make defensive copies, so altering the
+	 * returned list alters the internal state of the object
+	 * 
+	 * @return the list of points that are part of this stroke
+	 */
+	public List<PointF> getPoints() {
+		return points;
 	}
 
 	/**
@@ -123,6 +176,10 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	/**
 	 * Sets the first point of this stroke.
 	 * 
+	 * <p>
+	 * This method <b>must</b> be called first before any call to
+	 * {@link #addPoint(PointF, float)} can be performed.
+	 * 
 	 * @param startPoint
 	 *            the first point of this stroke, adjusted for the current zoom
 	 *            level and panning
@@ -131,6 +188,8 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	public Stroke setStart(PointF startPoint) {
 		this.startX = startPoint.x;
 		this.startY = startPoint.y;
+		path.moveTo(startX, startY);
+		points.add(startPoint);
 		return this;
 	}
 

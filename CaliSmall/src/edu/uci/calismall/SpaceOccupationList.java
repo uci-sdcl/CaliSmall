@@ -57,8 +57,7 @@ public class SpaceOccupationList {
 			sortedByX.add(position, element);
 		}
 		Log.d(SPACE_OCCUPATION, toString());
-		Log.d(SPACE_OCCUPATION, "added element " + element + " at [" + position
-				+ "]");
+		Log.d(SPACE_OCCUPATION, "added " + element + " at [" + position + "]");
 	}
 
 	/**

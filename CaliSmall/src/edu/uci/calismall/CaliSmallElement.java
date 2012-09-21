@@ -98,11 +98,11 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	/**
 	 * The width of the {@link RectF} enclosing this element.
 	 */
-	private float width;
+	protected float width;
 	/**
 	 * The height of the {@link RectF} enclosing this element.
 	 */
-	private float height;
+	protected float height;
 
 	private boolean mustBeDrawn = true;
 
@@ -125,14 +125,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		topLeftPoint.y = enclosingRect.top;
 		width = enclosingRect.width();
 		height = enclosingRect.height();
-		try {
-			updateSpaceOccupation();
-		} catch (IndexOutOfBoundsException e) {
-			Log.e(CaliSmall.TAG,
-					"following are the two space occupation lists", e);
-			Log.e(CaliSmall.TAG, "Strokes: " + Stroke.SPACE_OCCUPATION_LIST);
-			Log.e(CaliSmall.TAG, "Scraps: " + Scrap.SPACE_OCCUPATION_LIST);
-		}
+		updateSpaceOccupation();
 	}
 
 	/**
@@ -317,11 +310,13 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		RectF rect = new RectF();
 		path.computeBounds(rect, true);
 		setArea(rect);
-		boundaries.setPath(
-				path,
-				new Region(new Rect(Math.round(rect.left),
-						Math.round(rect.top), Math.round(rect.right), Math
-								.round(rect.bottom))));
+		Rect rounded = new Rect(Math.round(rect.left), Math.round(rect.top),
+				Math.round(rect.right), Math.round(rect.bottom));
+		boundaries.setPath(path, new Region(rounded));
+		if (boundaries.isEmpty()) {
+			Log.d(CaliSmall.TAG, "empty region, path: " + path + ", clip: "
+					+ rounded);
+		}
 	}
 
 	/**
@@ -396,8 +391,13 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	}
 
 	public String toString() {
-		return getClass().getSimpleName() + " " + id.toString() + " "
-				+ CaliSmall.pointToString(topLeftPoint) + " ["
-				+ Math.round(width) + "x" + Math.round(height) + "]";
+		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+		builder.append(" ").append(id.toString()).append(" ")
+				.append(CaliSmall.pointToString(topLeftPoint)).append(" [")
+				.append(Math.round(width)).append("x")
+				.append(Math.round(height)).append("] ");
+		if (boundaries.isEmpty())
+			builder.append("(empty)");
+		return builder.toString();
 	}
 }

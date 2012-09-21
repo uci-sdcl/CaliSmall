@@ -68,7 +68,7 @@ public class Scrap extends CaliSmallElement {
 	protected final Matrix matrix;
 
 	/**
-	 * All scraps children of this scrap.
+	 * All scraps children (but not grand-children) of this scrap.
 	 */
 	protected final List<Scrap> scraps;
 	/**
@@ -89,6 +89,7 @@ public class Scrap extends CaliSmallElement {
 	protected Scrap parent;
 	private Canvas snapshotCanvas;
 	private Bitmap snapshot;
+	private boolean topLevelForEdit;
 	private float snapOffsetX, snapOffsetY;
 
 	static {
@@ -417,16 +418,6 @@ public class Scrap extends CaliSmallElement {
 			changeDrawingStatus(false);
 		}
 		translate(dx, dy);
-		// if (!matrix.isIdentity()) {
-		// outerBorder.transform(matrix);
-		// for (Stroke stroke : strokes) {
-		// stroke.transform(matrix);
-		// }
-		// for (Scrap scrap : scraps) {
-		// scrap.moveBy(dx, dy, scaleFactor);
-		// }
-		// }
-		// matrix.reset();
 	}
 
 	private void changeDrawingStatus(boolean mustBeDrawn) {
@@ -519,10 +510,21 @@ public class Scrap extends CaliSmallElement {
 	 * Updates the scrap area according to the outer border.
 	 */
 	public void setBoundaries() {
-		Path testPath = new Path(outerBorder.getPath());
-		testPath.close();
-		testPath.setFillType(FillType.WINDING);
-		super.setBoundaries(testPath);
+		// Path testPath = new Path(outerBorder.getPath());
+		outerBorder.getPath().close();
+		outerBorder.getPath().setFillType(FillType.WINDING);
+		outerBorder.setBoundaries();
+		super.setBoundaries(outerBorder.getPath());
+	}
+
+	/**
+	 * Prepares this scrap for editing.
+	 * 
+	 * <p>
+	 * Must be called before starting an edit operation on the scrap.
+	 */
+	public void startEditing() {
+		topLevelForEdit = true;
 	}
 
 	/**
@@ -530,9 +532,10 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void applyTransform() {
 		snapshot = null;
-		if (parent == null) {
+		if (topLevelForEdit) {
 			// only translate the root scrap
 			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
+			topLevelForEdit = false;
 		}
 		// update boundaries according to new position
 		outerBorder.transform(matrix);
@@ -623,20 +626,15 @@ public class Scrap extends CaliSmallElement {
 		 * 
 		 * @param selectionBorder
 		 *            the border enclosing the temporary scrap
-		 * @param canvasScraps
-		 *            all scraps currently drawn to the canvas
-		 * @param canvasStrokes
-		 *            all strokes currently not belonging to any other scrap
 		 * @param scaleFactor
 		 *            the scale factor currently applied to the canvas
 		 */
-		public Temp(Stroke selectionBorder, List<Scrap> canvasScraps,
-				List<Stroke> canvasStrokes, float scaleFactor) {
+		public Temp(Stroke selectionBorder, float scaleFactor) {
 			super(selectionBorder, new ArrayList<Scrap>(),
 					new ArrayList<Stroke>(), new Region());
 			setBoundaries();
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
-			findSelected(canvasStrokes, canvasScraps);
+			findSelected();
 		}
 
 		/**
@@ -652,32 +650,43 @@ public class Scrap extends CaliSmallElement {
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 		}
 
-		private void findSelected(List<Stroke> canvasStrokes,
-				List<Scrap> canvasScraps) {
+		private void findSelected() {
 			List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
-			Log.d(CaliSmall.TAG, "found " + candidates.size()
-					+ " candidates...");
+			Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
 			for (CaliSmallElement element : candidates) {
 				Stroke stroke = (Stroke) element;
-				Region boundaries = stroke.getBoundaries();
-				if (boundaries.op(this.boundaries, Op.INTERSECT)) {
-					// stroke intersects selection
-					if (!stroke.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
-						// stroke is contained within selection
-						strokes.add(stroke);
-					}
+				if (!stroke.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
+					// stroke is contained within selection
+					strokes.add(stroke);
 				}
 			}
-			for (Scrap scrap : canvasScraps) {
-				Region boundaries = scrap.getBoundaries();
-				if (boundaries.op(this.boundaries, Op.INTERSECT)) {
+			candidates = SPACE_OCCUPATION_LIST.findIntersectionCandidates(this);
+			final float size = width + height;
+			for (CaliSmallElement candidate : candidates) {
+				Scrap scrap = (Scrap) candidate;
+				if (scrap.parent == null
+						|| scrap.parent.width + scrap.parent.height > size) {
+					// only include scraps that have no parent or whose parent
+					// is larger than this scrap
 					if (!scrap.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
 						scraps.add(scrap);
 						scrap.parent = this;
 					}
 				}
 			}
+			Log.d(CaliSmall.TAG, String.format(
+					"*** new temp scrap - strokes: %d scraps: %d",
+					strokes.size(), scraps.size()));
+			Log.d(CaliSmall.TAG, "*** border - " + outerBorder);
+			StringBuilder builder = new StringBuilder("content:\n");
+			String newline = "";
+			for (Stroke stroke : strokes) {
+				builder.append(newline);
+				builder.append(stroke);
+				newline = "\n";
+			}
+			Log.d(CaliSmall.TAG, builder.toString());
 		}
 
 		/*

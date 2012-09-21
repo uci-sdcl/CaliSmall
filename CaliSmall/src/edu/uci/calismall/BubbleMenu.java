@@ -6,7 +6,6 @@
  */
 package edu.uci.calismall;
 
-import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -16,7 +15,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.view.MotionEvent;
-import android.widget.Toast;
 import edu.uci.calismall.CaliSmall.CaliView;
 
 /**
@@ -113,7 +111,6 @@ public class BubbleMenu {
 	 */
 	public static final int ABS_B_SIZE = 48;
 	private static final int MIN_BUTTON_DISTANCE = 3;
-	private final Context parentContext;
 	private final Button[] buttons;
 	private final Button topLeft;
 	private final Button topRight;
@@ -133,7 +130,6 @@ public class BubbleMenu {
 	 *            the running instance of CaliSmall
 	 */
 	public BubbleMenu(CaliSmall parent) {
-		this.parentContext = parent.getApplicationContext();
 		view = parent.getView();
 		sel = new RectF();
 		bounds = new RectF();
@@ -254,27 +250,25 @@ public class BubbleMenu {
 	}
 
 	private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
+		if (action == MotionEvent.ACTION_DOWN) {
+			selected.startEditing();
+		}
 		PointF quantizedMove = moveMenu(selected,
 				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
 		selected.moveBy(quantizedMove.x, quantizedMove.y, scaleFactor);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform();
 			touched = null;
+			lastPosition = new PointF();
 		}
 		return true;
 	}
 
 	private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
-		Toast toast = Toast.makeText(parentContext, "scrapResize!",
-				Toast.LENGTH_SHORT);
-		toast.show();
 		return (action != MotionEvent.ACTION_UP);
 	}
 
 	private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
-		Toast toast = Toast.makeText(parentContext, "scrapRotate!",
-				Toast.LENGTH_SHORT);
-		toast.show();
 		return (action != MotionEvent.ACTION_UP);
 	}
 
