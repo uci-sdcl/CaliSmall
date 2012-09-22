@@ -12,8 +12,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import android.util.Log;
-
 /**
  * A list of {@link CaliSmallElement}'s sorted by their position along the two
  * (X, Y) axes.
@@ -56,8 +54,9 @@ public class SpaceOccupationList {
 		} else {
 			sortedByX.add(position, element);
 		}
-		Log.d(SPACE_OCCUPATION, toString());
-		Log.d(SPACE_OCCUPATION, "added " + element + " at [" + position + "]");
+		// Log.d(SPACE_OCCUPATION, toString());
+		// Log.d(SPACE_OCCUPATION, "added " + element + " at [" + position +
+		// "]");
 	}
 
 	/**
@@ -80,9 +79,9 @@ public class SpaceOccupationList {
 			CaliSmallElement element) {
 		List<CaliSmallElement> candidates = new ArrayList<CaliSmallElement>();
 		if (!sortedByX.isEmpty()) {
-			Log.d(INTERSECTION, "###intersection test###");
-			Log.d(INTERSECTION, "[*] " + element);
-			Log.d(INTERSECTION, toString());
+			// Log.d(INTERSECTION, "###intersection test###");
+			// Log.d(INTERSECTION, "[*] " + element);
+			// Log.d(INTERSECTION, toString());
 			int position = Collections.binarySearch(sortedByX, element,
 					comparator);
 			if (position < 0) {
@@ -138,23 +137,23 @@ public class SpaceOccupationList {
 			position = sortedByX.size() - 1;
 		for (int i = position; i > -1; i--) {
 			CaliSmallElement candidate = sortedByX.get(i);
-			String testResult = String.format("[%d] <-- [*] ?", i);
+			// String testResult = String.format("[%d] <-- [*] ?", i);
 			if (candidate.getID().equals(element.getID())) {
 				// don't add the element itself
-				testResult += "same!";
-				Log.d(INTERSECTION, testResult);
+				// testResult += "same!";
+				// Log.d(INTERSECTION, testResult);
 				continue;
 			}
 			if (!candidate.intersectsX(element)) {
 				// it's pointless to keep going left
-				testResult += " no intersection";
-				Log.d(INTERSECTION, testResult);
+				// testResult += " no intersection";
+				// Log.d(INTERSECTION, testResult);
 				break;
 			}
 			if (candidate.intersectsY(element)) {
 				candidates.add(candidate);
-				testResult += " *** intersection ***";
-				Log.d(INTERSECTION, testResult);
+				// testResult += " *** intersection ***";
+				// Log.d(INTERSECTION, testResult);
 			}
 		}
 	}
@@ -163,23 +162,23 @@ public class SpaceOccupationList {
 			int position, List<CaliSmallElement> candidates) {
 		for (int i = position; i < sortedByX.size(); i++) {
 			CaliSmallElement candidate = sortedByX.get(i);
-			String testResult = String.format("[*] --> [%d] ?", i);
+			// String testResult = String.format("[*] --> [%d] ?", i);
 			if (candidate.getID().equals(element.getID())) {
 				// don't add the element itself
-				testResult += "same!";
-				Log.d(INTERSECTION, testResult);
+				// testResult += "same!";
+				// Log.d(INTERSECTION, testResult);
 				continue;
 			}
 			if (!candidate.intersectsX(element)) {
 				// it's pointless to keep going right
-				testResult += " no intersection";
-				Log.d(INTERSECTION, testResult);
+				// testResult += " no intersection";
+				// Log.d(INTERSECTION, testResult);
 				break;
 			}
 			if (candidate.intersectsY(element)) {
 				candidates.add(candidate);
-				testResult += " *** intersection ***";
-				Log.d(INTERSECTION, testResult);
+				// testResult += " *** intersection ***";
+				// Log.d(INTERSECTION, testResult);
 			}
 		}
 	}
@@ -203,13 +202,13 @@ public class SpaceOccupationList {
 		if (found) {
 			removed = sortedByX.remove(position) != null;
 		}
-		if (removed)
-			Log.d(SPACE_OCCUPATION, "Removed element at position [" + position
-					+ "], updated list follows");
-		else
-			Log.d(SPACE_OCCUPATION, "request to remove " + element
-					+ ", but it's not on the list!");
-		Log.d(SPACE_OCCUPATION, toString());
+		// if (removed)
+		// Log.d(SPACE_OCCUPATION, "Removed element at position [" + position
+		// + "], updated list follows");
+		// else
+		// Log.d(SPACE_OCCUPATION, "request to remove " + element
+		// + ", but it's not on the list!");
+		// Log.d(SPACE_OCCUPATION, toString());
 		return removed;
 	}
 
@@ -241,7 +240,7 @@ public class SpaceOccupationList {
 				last = next;
 			}
 			if (!sorted) {
-				Log.d(SPACE_OCCUPATION, "updating position of " + element);
+				// Log.d(SPACE_OCCUPATION, "updating position of " + element);
 				sortedByX.remove(position);
 				add(element);
 			}

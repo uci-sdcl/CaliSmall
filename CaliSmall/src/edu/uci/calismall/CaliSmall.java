@@ -331,16 +331,15 @@ public class CaliSmall extends Activity {
 					// first finger lifted (only when pinching)
 					onPointerUp(event);
 					break;
+				// move actions are handled by scaleDetector
 				}
 			} else {
 				if (redirectingToBubbleMenu) {
 					if (onTouchBubbleMenuShown(action,
 							adjustForZoom(event.getX(), event.getY()))) {
 						// action has been handled by the bubble menu
-						Log.d(TAG, "handled by bubble menu");
 						return true;
 					} else {
-						Log.d(TAG, "deselect bubble menu NOW");
 						redirectingToBubbleMenu = false;
 						mustShowBubbleMenu = false;
 						bubbleMenuShown = false;
@@ -500,8 +499,8 @@ public class CaliSmall extends Activity {
 				setSelected(previousSelection);
 			}
 			previousSelection = selected;
-			Log.d(TAG, "selected = " + selected + ", old selected = "
-					+ previousSelection);
+			// Log.d(TAG, "selected = " + selected + ", old selected = "
+			// + previousSelection);
 		}
 
 		private void createNewStroke() {
@@ -704,7 +703,7 @@ public class CaliSmall extends Activity {
 	/**
 	 * Absolute stroke width (to be rescaled by scaleFactor).
 	 */
-	public static final int ABS_STROKE_WIDTH = 6;
+	public static final int ABS_STROKE_WIDTH = 2;
 
 	/**
 	 * A list containing all created scraps sorted by their position in the

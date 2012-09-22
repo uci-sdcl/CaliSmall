@@ -409,13 +409,15 @@ public class Scrap extends CaliSmallElement {
 		if (snapshot == null) {
 			outerBorder.setBoundaries();
 			Rect size = getBounds();
-			snapshot = Bitmap.createBitmap(size.width(), size.height(),
-					Config.ARGB_8888);
+			// snapshot = Bitmap.createBitmap(size.width(), size.height(),
+			// Config.ARGB_8888);
+			snapshot = Bitmap.createBitmap(1280, 720, Config.ARGB_8888);
 			snapshotCanvas = new Canvas(snapshot);
 			snapOffsetX = size.left;
 			snapOffsetY = size.top;
-			matrix.postTranslate(snapOffsetX, snapOffsetY);
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
+
+			// matrix.postTranslate(snapOffsetX, snapOffsetY);
 			changeDrawingStatus(false);
 		}
 		translate(dx, dy);
@@ -535,7 +537,7 @@ public class Scrap extends CaliSmallElement {
 		snapshot = null;
 		if (topLevelForEdit) {
 			// only translate the root scrap
-			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
+			// matrix.postTranslate(-snapOffsetX, -snapOffsetY);
 			topLevelForEdit = false;
 		}
 		// update boundaries according to new position
@@ -671,6 +673,20 @@ public class Scrap extends CaliSmallElement {
 				if (!strokeBoundaries.op(boundaries, Op.DIFFERENCE)) {
 					// stroke is contained within selection
 					strokes.add(stroke);
+				} else /*
+						 * if (stroke.getBoundaries().op(boundaries,
+						 * Op.INTERSECT))
+						 */{
+					boolean outliers = false;
+					for (PointF point : stroke.getPoints()) {
+						if (!boundaries.contains(Math.round(point.x),
+								Math.round(point.y))) {
+							outliers = true;
+							break;
+						}
+					}
+					if (!outliers)
+						strokes.add(stroke);
 				}
 			}
 			candidates = SPACE_OCCUPATION_LIST.findIntersectionCandidates(this);
