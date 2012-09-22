@@ -391,6 +391,16 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	@Override
 	public boolean contains(CaliSmallElement element) {
-		return false;
+		if (!(element instanceof Stroke))
+			return false;
+		Stroke stroke = Stroke.class.cast(element);
+		boolean outliers = false;
+		for (PointF point : stroke.getPoints()) {
+			if (!boundaries.contains(Math.round(point.x), Math.round(point.y))) {
+				outliers = true;
+				break;
+			}
+		}
+		return !outliers;
 	}
 }

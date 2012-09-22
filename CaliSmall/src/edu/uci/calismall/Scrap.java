@@ -26,8 +26,6 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
-import android.util.FloatMath;
-import android.util.Log;
 import android.view.View;
 
 /**
@@ -409,15 +407,15 @@ public class Scrap extends CaliSmallElement {
 		if (snapshot == null) {
 			outerBorder.setBoundaries();
 			Rect size = getBounds();
-			// snapshot = Bitmap.createBitmap(size.width(), size.height(),
-			// Config.ARGB_8888);
-			snapshot = Bitmap.createBitmap(1280, 720, Config.ARGB_8888);
+			snapshot = Bitmap.createBitmap(size.width(), size.height(),
+					Config.ARGB_8888);
+			// snapshot = Bitmap.createBitmap(1280, 720, Config.ARGB_8888);
 			snapshotCanvas = new Canvas(snapshot);
 			snapOffsetX = size.left;
 			snapOffsetY = size.top;
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
 
-			// matrix.postTranslate(snapOffsetX, snapOffsetY);
+			matrix.postTranslate(snapOffsetX, snapOffsetY);
 			changeDrawingStatus(false);
 		}
 		translate(dx, dy);
@@ -537,7 +535,7 @@ public class Scrap extends CaliSmallElement {
 		snapshot = null;
 		if (topLevelForEdit) {
 			// only translate the root scrap
-			// matrix.postTranslate(-snapOffsetX, -snapOffsetY);
+			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
 			topLevelForEdit = false;
 		}
 		// update boundaries according to new position
@@ -656,38 +654,10 @@ public class Scrap extends CaliSmallElement {
 		private void findSelected() {
 			List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
-			Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
+			// Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
 			for (CaliSmallElement element : candidates) {
-				Stroke stroke = (Stroke) element;
-				Region strokeBoundaries = stroke.getBoundaries();
-				if (strokeBoundaries.isEmpty()) {
-					// porkaround for empty regions... thx android
-					strokeBoundaries.set(
-							(int) FloatMath.floor(stroke.topLeftPoint.x),
-							(int) FloatMath.floor(stroke.topLeftPoint.y),
-							(int) FloatMath.ceil(stroke.topLeftPoint.x
-									+ stroke.width),
-							(int) FloatMath.ceil(stroke.topLeftPoint.y
-									+ stroke.height));
-				}
-				if (!strokeBoundaries.op(boundaries, Op.DIFFERENCE)) {
-					// stroke is contained within selection
-					strokes.add(stroke);
-				} else /*
-						 * if (stroke.getBoundaries().op(boundaries,
-						 * Op.INTERSECT))
-						 */{
-					boolean outliers = false;
-					for (PointF point : stroke.getPoints()) {
-						if (!boundaries.contains(Math.round(point.x),
-								Math.round(point.y))) {
-							outliers = true;
-							break;
-						}
-					}
-					if (!outliers)
-						strokes.add(stroke);
-				}
+				if (outerBorder.contains(element))
+					strokes.add(Stroke.class.cast(element));
 			}
 			candidates = SPACE_OCCUPATION_LIST.findIntersectionCandidates(this);
 			final float size = width + height;
@@ -697,24 +667,24 @@ public class Scrap extends CaliSmallElement {
 						|| scrap.parent.width + scrap.parent.height > size) {
 					// only include scraps that have no parent or whose parent
 					// is larger than this scrap
-					if (!scrap.getBoundaries().op(boundaries, Op.DIFFERENCE)) {
+					if (outerBorder.contains(scrap.outerBorder)) {
 						scraps.add(scrap);
 						scrap.parent = this;
 					}
 				}
 			}
-			Log.d(CaliSmall.TAG, String.format(
-					"*** new temp scrap - strokes: %d scraps: %d",
-					strokes.size(), scraps.size()));
-			Log.d(CaliSmall.TAG, "*** border - " + outerBorder);
-			StringBuilder builder = new StringBuilder("content:\n");
-			String newline = "";
-			for (Stroke stroke : strokes) {
-				builder.append(newline);
-				builder.append(stroke);
-				newline = "\n";
-			}
-			Log.d(CaliSmall.TAG, builder.toString());
+			// Log.d(CaliSmall.TAG, String.format(
+			// "*** new temp scrap - strokes: %d scraps: %d",
+			// strokes.size(), scraps.size()));
+			// Log.d(CaliSmall.TAG, "*** border - " + outerBorder);
+			// StringBuilder builder = new StringBuilder("content:\n");
+			// String newline = "";
+			// for (Stroke stroke : strokes) {
+			// builder.append(newline);
+			// builder.append(stroke);
+			// newline = "\n";
+			// }
+			// Log.d(CaliSmall.TAG, builder.toString());
 		}
 
 		/*

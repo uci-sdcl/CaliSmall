@@ -703,7 +703,7 @@ public class CaliSmall extends Activity {
 	/**
 	 * Absolute stroke width (to be rescaled by scaleFactor).
 	 */
-	public static final int ABS_STROKE_WIDTH = 2;
+	public static final int ABS_STROKE_WIDTH = 3;
 
 	/**
 	 * A list containing all created scraps sorted by their position in the
