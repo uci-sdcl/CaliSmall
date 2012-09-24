@@ -660,6 +660,7 @@ public class CaliSmall extends Activity {
 			mTranslateY = scaledCenterY - scaledPreviousScaleCenterY;
 			mCanvasOffsetX += mTranslateX;
 			mCanvasOffsetY += mTranslateY;
+			enforceBoundConstraints();
 			// translate, move origin to (x,y) to center zooming
 			matrix.preTranslate(mTranslateX + dScaleCenterX, mTranslateY
 					+ dScaleCenterY);
@@ -669,6 +670,35 @@ public class CaliSmall extends Activity {
 			scaledPreviousScaleCenterX = scaledCenterX;
 			scaledPreviousScaleCenterY = scaledCenterY;
 			return true;
+		}
+
+		private void enforceBoundConstraints() {
+			if (mCanvasOffsetX > 0) {
+				mTranslateX -= mCanvasOffsetX;
+				mCanvasOffsetX = 0;
+			} else {
+				final float minOffsetX = (1 - scaleFactor) * view.screenWidth;
+				if (mCanvasOffsetX * scaleFactor < minOffsetX) {
+					float difference = mCanvasOffsetX * scaleFactor
+							- minOffsetX;
+					mCanvasOffsetX -= mTranslateX;
+					mTranslateX -= difference;
+					mCanvasOffsetX += mTranslateX;
+				}
+			}
+			if (mCanvasOffsetY > 0) {
+				mTranslateY -= mCanvasOffsetY;
+				mCanvasOffsetY = 0;
+			} else {
+				final float minOffsetY = (1 - scaleFactor) * view.screenHeight;
+				if (mCanvasOffsetY * scaleFactor < minOffsetY) {
+					float difference = mCanvasOffsetY * scaleFactor
+							- minOffsetY;
+					mCanvasOffsetY -= mTranslateY;
+					mTranslateY -= difference;
+					mCanvasOffsetY += mTranslateY;
+				}
+			}
 		}
 
 		/*
