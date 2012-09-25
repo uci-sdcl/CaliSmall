@@ -213,7 +213,16 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 * @return <code>true</code> if the argument element is completely within
 	 *         this element's area
 	 */
-	public abstract boolean contains(CaliSmallElement element);
+	public boolean contains(CaliSmallElement element) {
+		boolean outliers = false;
+		for (PointF point : element.getPointsForInclusionTests()) {
+			if (!boundaries.contains(Math.round(point.x), Math.round(point.y))) {
+				outliers = true;
+				break;
+			}
+		}
+		return !outliers;
+	}
 
 	/**
 	 * Returns whether this element must be deleted.
@@ -367,6 +376,20 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	public float getPrevYPos() {
 		return previousTopLeftPoint.y;
 	}
+
+	/**
+	 * Returns a list of all points that must be tested when performing
+	 * inclusion tests.
+	 * 
+	 * <p>
+	 * This method <b>is not required</b> to make defensive copies, so altering
+	 * the returned may alter the internal state of the object.
+	 * 
+	 * @return a list containing all points of this element that must be
+	 *         included within some area for this element to be contained within
+	 *         said area
+	 */
+	public abstract List<PointF> getPointsForInclusionTests();
 
 	/**
 	 * Returns the width of the rectangle enclosing this element.

@@ -127,19 +127,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	}
 
 	/**
-	 * Returns the list of points that are part of this stroke.
-	 * 
-	 * <p>
-	 * This method <b>does not</b> make defensive copies, so altering the
-	 * returned list alters the internal state of the object
-	 * 
-	 * @return the list of points that are part of this stroke
-	 */
-	public List<PointF> getPoints() {
-		return points;
-	}
-
-	/**
 	 * Returns whether this stroke is empty, i.e. if it only contains an empty
 	 * path.
 	 * 
@@ -386,21 +373,10 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	/*
 	 * (non-Javadoc)
 	 * 
-	 * @see edu.uci.calismall.CaliSmallElement#contains(edu.uci.calismall.
-	 * CaliSmallElement)
+	 * @see edu.uci.calismall.CaliSmallElement#getPointsForInclusionTests()
 	 */
 	@Override
-	public boolean contains(CaliSmallElement element) {
-		if (!(element instanceof Stroke))
-			return false;
-		Stroke stroke = Stroke.class.cast(element);
-		boolean outliers = false;
-		for (PointF point : stroke.getPoints()) {
-			if (!boundaries.contains(Math.round(point.x), Math.round(point.y))) {
-				outliers = true;
-				break;
-			}
-		}
-		return !outliers;
+	public List<PointF> getPointsForInclusionTests() {
+		return points;
 	}
 }

@@ -117,16 +117,12 @@ public class Scrap extends CaliSmallElement {
 	 *            all scraps that make part of this scrap
 	 * @param strokes
 	 *            all strokes belonging to this scrap
-	 * @param scrapArea
-	 *            the area of this scrap
 	 */
-	public Scrap(Stroke outerBorder, List<Scrap> scraps, List<Stroke> strokes,
-			Region scrapArea) {
-		this.outerBorder = new Stroke(new Path(outerBorder.getPath()),
-				outerBorder);
+	public Scrap(Stroke outerBorder, List<Scrap> scraps, List<Stroke> strokes) {
+		this.outerBorder = outerBorder;
 		this.scraps = scraps;
 		this.strokes = strokes;
-		this.boundaries.set(scrapArea);
+		setBoundaries();
 		matrix = new Matrix();
 	}
 
@@ -407,15 +403,14 @@ public class Scrap extends CaliSmallElement {
 		if (snapshot == null) {
 			outerBorder.setBoundaries();
 			Rect size = getBounds();
-			snapshot = Bitmap.createBitmap(size.width(), size.height(),
-					Config.ARGB_8888);
-			// snapshot = Bitmap.createBitmap(1280, 720, Config.ARGB_8888);
+			// snapshot = Bitmap.createBitmap(size.width(), size.height(),
+			// Config.ARGB_8888);
+			snapshot = Bitmap.createBitmap(1280, 720, Config.ARGB_8888);
 			snapshotCanvas = new Canvas(snapshot);
 			snapOffsetX = size.left;
 			snapOffsetY = size.top;
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
-
-			matrix.postTranslate(snapOffsetX, snapOffsetY);
+			// matrix.postTranslate(snapOffsetX, snapOffsetY);
 			changeDrawingStatus(false);
 		}
 		translate(dx, dy);
@@ -511,7 +506,6 @@ public class Scrap extends CaliSmallElement {
 	 * Updates the scrap area according to the outer border.
 	 */
 	public void setBoundaries() {
-		// Path testPath = new Path(outerBorder.getPath());
 		outerBorder.getPath().close();
 		outerBorder.getPath().setFillType(FillType.WINDING);
 		outerBorder.setBoundaries();
@@ -632,8 +626,7 @@ public class Scrap extends CaliSmallElement {
 		 */
 		public Temp(Stroke selectionBorder, float scaleFactor) {
 			super(selectionBorder, new ArrayList<Scrap>(),
-					new ArrayList<Stroke>(), new Region());
-			setBoundaries();
+					new ArrayList<Stroke>());
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 			findSelected();
 		}
@@ -652,6 +645,9 @@ public class Scrap extends CaliSmallElement {
 		}
 
 		private void findSelected() {
+			// Log.d(CaliSmall.TAG, "*** new temp scrap, border - " +
+			// outerBorder
+			// + ", points: " + outerBorder.listPoints());
 			List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
 			// Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
@@ -673,10 +669,8 @@ public class Scrap extends CaliSmallElement {
 					}
 				}
 			}
-			// Log.d(CaliSmall.TAG, String.format(
-			// "*** new temp scrap - strokes: %d scraps: %d",
+			// Log.d(CaliSmall.TAG, String.format("*** strokes: %d scraps: %d",
 			// strokes.size(), scraps.size()));
-			// Log.d(CaliSmall.TAG, "*** border - " + outerBorder);
 			// StringBuilder builder = new StringBuilder("content:\n");
 			// String newline = "";
 			// for (Stroke stroke : strokes) {
@@ -765,6 +759,16 @@ public class Scrap extends CaliSmallElement {
 			}
 		}
 		return false;
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see edu.uci.calismall.CaliSmallElement#getPointsForInclusionTests()
+	 */
+	@Override
+	public List<PointF> getPointsForInclusionTests() {
+		return outerBorder.getPointsForInclusionTests();
 	}
 
 }

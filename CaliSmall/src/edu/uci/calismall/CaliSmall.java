@@ -125,6 +125,7 @@ public class CaliSmall extends Activity {
 				if (mustClearCanvas) {
 					clearCanvas();
 				} else {
+					// canvas.drawPath(canvasBounds, borderPaint);
 					maybeDrawLandingZone(canvas);
 					maybeCreateBubbleMenu();
 					deleteSelected();
@@ -240,7 +241,8 @@ public class CaliSmall extends Activity {
 			if (this.selected != null && selected != this.selected)
 				this.selected.deselect();
 			if (selected != null) {
-				bubbleMenu.setBounds(selected.getBorder(), scaleFactor, bounds);
+				bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
+						screenBounds);
 				mustShowBubbleMenu = true;
 				selected.select();
 			} else {
@@ -361,10 +363,15 @@ public class CaliSmall extends Activity {
 				case MotionEvent.ACTION_POINTER_DOWN:
 					// first touch with second finger
 					bubbleMenuShown = false;
+					mustShowLandingZone = false;
+					stroke.reset();
 					setSelected(null);
 					scaleDetector.onTouchEvent(event);
 					zooming = true;
 					break;
+				case MotionEvent.ACTION_CANCEL:
+					mustShowLandingZone = false;
+					createNewStroke();
 				default:
 					Log.d(TAG, "default: " + actionToString(action));
 				}
@@ -469,7 +476,8 @@ public class CaliSmall extends Activity {
 				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 						event.getY(pointerIndex));
 				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
-					bubbleMenu.setBounds(stroke.getPath(), scaleFactor, bounds);
+					bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
+							screenBounds);
 					mustShowBubbleMenu = true;
 					tempScrapCreated = true;
 				} else {
@@ -579,11 +587,15 @@ public class CaliSmall extends Activity {
 				int height) {
 			screenWidth = width;
 			screenHeight = height;
+			canvasBounds.reset();
+			canvasBounds.addRect(new RectF(0, 0, screenWidth, screenHeight),
+					Direction.CCW);
 			updateBounds();
 			if (selected != null) {
-				bubbleMenu.setBounds(selected.getBorder(), scaleFactor, bounds);
+				bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
+						screenBounds);
 			} else {
-				bubbleMenu.setBounds(scaleFactor, bounds);
+				bubbleMenu.setBounds(scaleFactor, screenBounds);
 			}
 		}
 
@@ -774,12 +786,14 @@ public class CaliSmall extends Activity {
 	private static final float MAX_ZOOM = 4f;
 	private static final int COLOR_MENU_ID = Menu.FIRST;
 	private static final int CLEAR_MENU_ID = Menu.FIRST + 1;
+	private static final int LOG_MENU_ID = Menu.FIRST + 2;
 	private BubbleMenu bubbleMenu;
 	private CaliView view;
 	private Matrix matrix;
-	private RectF bounds;
+	private RectF screenBounds;
+	private Path canvasBounds;
 	private Stroke stroke;
-	private Paint paint, landingZonePaint;
+	private Paint paint, borderPaint, landingZonePaint;
 	private ScaleGestureDetector scaleDetector;
 	// variables starting with 'd' are in display-coordinates
 	private float scaleFactor = 1.f, dScaleFactor = 1.f, dScaleCenterX,
@@ -797,13 +811,21 @@ public class CaliSmall extends Activity {
 		super.onCreate(savedInstanceState);
 		view = new CaliView(this);
 		matrix = new Matrix();
-		bounds = new RectF();
+		screenBounds = new RectF();
 		setContentView(view);
 		paint = new Paint();
 		paint.setAntiAlias(true);
 		paint.setDither(true);
 		paint.setStrokeJoin(Paint.Join.ROUND);
 		paint.setStrokeCap(Paint.Cap.ROUND);
+		borderPaint = new Paint();
+		borderPaint.setAntiAlias(true);
+		borderPaint.setDither(true);
+		borderPaint.setStrokeJoin(Paint.Join.ROUND);
+		borderPaint.setStrokeCap(Paint.Cap.ROUND);
+		borderPaint.setStyle(Style.STROKE);
+		borderPaint.setStrokeWidth(10);
+		canvasBounds = new Path();
 		landingZonePaint = new Paint();
 		landingZonePaint.setColor(Color.BLACK);
 		landingZonePaint.setPathEffect(new DashPathEffect(new float[] {
@@ -842,7 +864,7 @@ public class CaliSmall extends Activity {
 	private void updateBounds() {
 		final PointF max = adjustForZoom(view.screenWidth, view.screenHeight);
 		final PointF min = adjustForZoom(0, 0);
-		bounds.set(min.x, min.y, max.x, max.y);
+		screenBounds.set(min.x, min.y, max.x, max.y);
 	}
 
 	/*
@@ -861,6 +883,7 @@ public class CaliSmall extends Activity {
 		super.onCreateOptionsMenu(menu);
 		menu.add(0, COLOR_MENU_ID, 0, "Color").setShortcut('3', 'c');
 		menu.add(0, CLEAR_MENU_ID, 0, "Clear").setShortcut('4', 'x');
+		menu.add(0, LOG_MENU_ID, 0, "Print Log").setShortcut('5', 'l');
 		return true;
 	}
 
@@ -896,6 +919,19 @@ public class CaliSmall extends Activity {
 		case CLEAR_MENU_ID:
 			view.mustClearCanvas = true;
 			view.strokeAdded = false;
+			return true;
+		case LOG_MENU_ID:
+			Log.d(TAG, "{{{SCRAPS}}}\n" + Scrap.SPACE_OCCUPATION_LIST);
+			Log.d(TAG, "{{{STROKES}}}\n" + Stroke.SPACE_OCCUPATION_LIST);
+			StringBuilder builder = new StringBuilder("{{{POINTS}}}\n");
+			String newLine = "";
+			for (Stroke stroke : view.strokes) {
+				builder.append(newLine);
+				builder.append(stroke.getID());
+				builder.append(stroke.listPoints());
+				newLine = "\n";
+			}
+			Log.d(TAG, builder.toString());
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
