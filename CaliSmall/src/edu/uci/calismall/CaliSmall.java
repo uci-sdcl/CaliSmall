@@ -100,7 +100,9 @@ public class CaliSmall extends Activity {
 
 		private Thread worker;
 		private Scrap selected, previousSelection, newScrap, toBeRemoved,
-				tempScrap, tempSelStrokes;
+				tempScrap;
+		private List<Stroke> newStrokes;
+		private List<Scrap> newScraps;
 		private boolean zoomingOrPanning, running, mustShowLandingZone,
 				strokeAdded, mustClearCanvas, bubbleMenuShown,
 				mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu;
@@ -113,6 +115,8 @@ public class CaliSmall extends Activity {
 			getHolder().addCallback(this);
 			strokes = new ArrayList<Stroke>();
 			scraps = new ArrayList<Scrap>();
+			newStrokes = new ArrayList<Stroke>();
+			newScraps = new ArrayList<Scrap>();
 			scaleDetector = new ScaleGestureDetector(c, new ScaleListener());
 			pathMeasure = new PathMeasure();
 			landingZoneCenter = new PointF();
@@ -131,7 +135,7 @@ public class CaliSmall extends Activity {
 					deleteSelected();
 					drawTempScrap(canvas);
 					maybeCreateScrap();
-					addTmpSelectionStrokes();
+					addNewStrokesAndScraps();
 					drawScraps(canvas);
 					drawStrokes(canvas);
 					if (bubbleMenuShown)
@@ -213,22 +217,21 @@ public class CaliSmall extends Activity {
 
 		private void maybeCreateScrap() {
 			if (newScrap != null) {
-				scraps.add(newScrap);
 				Scrap.SPACE_OCCUPATION_LIST.add(newScrap);
 				Log.d(TAG, "new scrap! Here's the new list");
 				Log.d(TAG, Scrap.SPACE_OCCUPATION_LIST.toString());
 				setSelected(newScrap);
 				previousSelection = newScrap;
+
 				newScrap = null;
 			}
 		}
 
-		private void addTmpSelectionStrokes() {
-			if (tempSelStrokes != null) {
-				strokes.addAll(tempSelStrokes.getStrokes());
-				scraps.addAll(tempSelStrokes.getScraps());
-				tempSelStrokes = null;
-			}
+		private void addNewStrokesAndScraps() {
+			strokes.addAll(newStrokes);
+			newStrokes.clear();
+			scraps.addAll(newScraps);
+			newScraps.clear();
 		}
 
 		/**
@@ -289,7 +292,7 @@ public class CaliSmall extends Activity {
 		 *            canvas
 		 */
 		public void addStrokes(Scrap toBeAdded) {
-			this.tempSelStrokes = toBeAdded;
+			newStrokes.addAll(toBeAdded.getStrokes());
 		}
 
 		/**

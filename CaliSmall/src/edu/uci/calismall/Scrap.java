@@ -27,7 +27,6 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
-import android.util.Log;
 import android.view.View;
 
 /**
@@ -254,7 +253,8 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Returns all strokes that are part of this scrap.
+	 * Returns all strokes that are part of this scrap, including strokes that
+	 * are part of scraps that are children of this scrap.
 	 * 
 	 * @return all strokes children of this scrap
 	 */
@@ -376,6 +376,8 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void deselect() {
 		this.selected = false;
+		// free up some space
+		snapshot = null;
 	}
 
 	/**
@@ -520,17 +522,14 @@ public class Scrap extends CaliSmallElement {
 		Rect size = getBounds();
 		snapOffsetX = size.left;
 		snapOffsetY = size.top;
-		if (contentChanged) {
-			snapshot = Bitmap.createBitmap(size.width(), size.height(),
+		if (contentChanged || snapshot == null) {
+			Bitmap snapshot = Bitmap.createBitmap(size.width(), size.height(),
 					Config.ARGB_8888);
 			Canvas snapshotCanvas = new Canvas(snapshot);
 			snapshotCanvas.translate(-snapOffsetX, -snapOffsetY);
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
+			this.snapshot = snapshot;
 			contentChanged = false;
-			Log.d(CaliSmall.TAG,
-					"created new " + size.width() + "x" + size.height()
-							+ " bitmap for " + this + ", offset is ("
-							+ snapOffsetX + "," + snapOffsetY + ")");
 		}
 		matrix.postTranslate(snapOffsetX, snapOffsetY);
 		changeDrawingStatus(false);

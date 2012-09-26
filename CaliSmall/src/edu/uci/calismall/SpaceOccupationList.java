@@ -108,6 +108,7 @@ public class SpaceOccupationList {
 	 *            a list of elements that have been erased
 	 */
 	public void removeAll(List<? extends CaliSmallElement> toBeRemoved) {
+		// TODO check when it's convenient to sort and iterate vs binary search
 		Collections.sort(toBeRemoved, comparator);
 		Iterator<? extends CaliSmallElement> removeIterator = toBeRemoved
 				.iterator();
