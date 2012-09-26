@@ -238,7 +238,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	}
 
 	/**
-	 * Returns whether this element must be drawn.
+	 * Returns whether this element must be drawn as vector data.
 	 * 
 	 * <p>
 	 * While being edited (moved, scaled, rotated) elements should not be drawn
@@ -248,7 +248,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 * @return <code>true</code> if this element shall be drawn using its vector
 	 *         data format
 	 */
-	public boolean hasToBeDrawn() {
+	public boolean hasToBeDrawnVectorially() {
 		return mustBeDrawn;
 	}
 

@@ -43,8 +43,16 @@ public class BubbleMenu {
 		 * <p>
 		 * A button is considered clicked when no
 		 * {@link MotionEvent#ACTION_MOVE} events are detected by this listener
-		 * or when they are detected but the touch point doesn't exit the button
-		 * area.
+		 * or when they are detected but all of the <tt>touchPoint</tt>'s passed
+		 * as argument since the first call to this method are within the area
+		 * of the button this listener is attached to.
+		 * 
+		 * 
+		 * <p>
+		 * This implementation is designed for overriding: if not overridden
+		 * this method <b>always returns <code>true</code> unless no
+		 * {@link MotionEvent#ACTION_MOVE} events are detected and a
+		 * {@link MotionEvent#ACTION_UP} is detected</b>.
 		 * 
 		 * <p>
 		 * Subclasses should override this method like this: <blockquote>
@@ -59,9 +67,26 @@ public class BubbleMenu {
 		 * 
 		 * </blockquote>
 		 * 
-		 * so that <tt>myMethod</tt> (which is the method that actually performs
-		 * the action attached to the button) is called only when a click has
-		 * been detected.
+		 * so that <tt>myMethod()</tt> (which is the method that actually
+		 * performs the action associated with the button this listener is
+		 * attached to) is called only when a click has been detected.
+		 * 
+		 * <p>
+		 * This way the overridden implementation always returns
+		 * <code>true</code> as long as the action is not "over" (i.e. until a
+		 * {@link MotionEvent#ACTION_UP} event is detected), and returns
+		 * <tt>myMethod()</tt>'s return value only when a
+		 * {@link MotionEvent#ACTION_UP} event is detected and the user's
+		 * finger/stylus never left the area of the button this listener is
+		 * attached to.
+		 * 
+		 * <p>
+		 * If the user touches the button and then drags the finger/stylus
+		 * outside of the button area, the overridden method should always
+		 * return <code>true</code>, so that the selection doesn't change and
+		 * the bubble menu is always shown; however, the associated action
+		 * should <b>not</b> be performed. Overriding this method like shown
+		 * above guarantees this behavior.
 		 */
 		@Override
 		public boolean touched(int action, PointF touchPoint, Scrap selected) {
@@ -251,11 +276,11 @@ public class BubbleMenu {
 
 	private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
 		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing();
+			selected.startEditing(scaleFactor);
 		}
 		PointF quantizedMove = moveMenu(selected,
 				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
-		selected.moveBy(quantizedMove.x, quantizedMove.y, scaleFactor);
+		selected.translate(quantizedMove.x, quantizedMove.y);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform();
 			touched = null;

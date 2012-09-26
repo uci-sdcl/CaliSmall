@@ -146,19 +146,20 @@ public class CaliSmall extends Activity {
 			scraps.clear();
 			Stroke.SPACE_OCCUPATION_LIST.clear();
 			Scrap.SPACE_OCCUPATION_LIST.clear();
+			createNewStroke();
 			mustClearCanvas = false;
 		}
 
 		private void drawScraps(Canvas canvas) {
 			for (Scrap scrap : scraps) {
-				if (scrap.hasToBeDrawn())
+				if (scrap.hasToBeDrawnVectorially())
 					scrap.draw(this, canvas, scaleFactor);
 			}
 		}
 
 		private void drawStrokes(Canvas canvas) {
 			for (Stroke stroke : strokes) {
-				if (stroke.hasToBeDrawn())
+				if (stroke.hasToBeDrawnVectorially())
 					drawStroke(stroke, canvas);
 			}
 		}
@@ -204,6 +205,8 @@ public class CaliSmall extends Activity {
 				toBeRemoved.erase();
 				CaliSmallElement.deleteMarkedFromList(strokes,
 						Stroke.SPACE_OCCUPATION_LIST);
+				CaliSmallElement.deleteMarkedFromList(scraps,
+						Scrap.SPACE_OCCUPATION_LIST);
 				mustShowBubbleMenu = false;
 				toBeRemoved = null;
 			}

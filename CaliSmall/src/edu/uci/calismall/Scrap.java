@@ -7,6 +7,7 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import android.graphics.Bitmap;
@@ -26,6 +27,7 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -86,9 +88,16 @@ public class Scrap extends CaliSmallElement {
 	 * The direct parent of this scrap.
 	 */
 	protected Scrap parent;
-	private Canvas snapshotCanvas;
-	private Bitmap snapshot;
-	private boolean topLevelForEdit;
+	/**
+	 * The bitmap to which strokes are temporarily painted when editing the
+	 * scrap.
+	 */
+	protected Bitmap snapshot;
+	/**
+	 * The color with which to fill the area of this scrap.
+	 */
+	protected int regionColor = SCRAP_REGION_COLOR;
+	private boolean topLevelForEdit, contentChanged = true;
 	private float snapOffsetX, snapOffsetY;
 
 	static {
@@ -98,6 +107,12 @@ public class Scrap extends CaliSmallElement {
 		BORDER_PAINT.setStrokeCap(Paint.Cap.ROUND);
 		BORDER_PAINT.setColor(SELECTED_BORDER_COLOR);
 		BORDER_PAINT.setStyle(Style.STROKE);
+		SNAPSHOT_PAINT.setAntiAlias(true);
+		SNAPSHOT_PAINT.setDither(true);
+		SNAPSHOT_PAINT.setStrokeJoin(Paint.Join.ROUND);
+		SNAPSHOT_PAINT.setStrokeCap(Paint.Cap.ROUND);
+		SNAPSHOT_PAINT.setColor(SELECTED_BORDER_COLOR);
+		SNAPSHOT_PAINT.setStyle(Style.STROKE);
 		TEMP_BORDER_PAINT.setColor(Color.BLACK);
 		TEMP_BORDER_PAINT.setStyle(Style.STROKE);
 		PAINT.setAntiAlias(true);
@@ -119,7 +134,7 @@ public class Scrap extends CaliSmallElement {
 	 *            all strokes belonging to this scrap
 	 */
 	public Scrap(Stroke outerBorder, List<Scrap> scraps, List<Stroke> strokes) {
-		this.outerBorder = outerBorder;
+		this.outerBorder = new Stroke(outerBorder);
 		this.scraps = scraps;
 		this.strokes = strokes;
 		setBoundaries();
@@ -137,26 +152,46 @@ public class Scrap extends CaliSmallElement {
 	 *            by this scrap
 	 */
 	public Scrap(Scrap copy, boolean deepCopy) {
-		// this.outerBorder = new Stroke(new Path(copy.outerBorder.getPath()),
-		// copy.outerBorder);
-		this.outerBorder = copy.outerBorder;
+		this.outerBorder = new Stroke(copy.outerBorder);
 		if (deepCopy) {
 			this.scraps = new ArrayList<Scrap>(copy.scraps.size());
 			this.strokes = new ArrayList<Stroke>(copy.strokes.size());
-			// this.boundaries.set(copy.getBoundaries());
 			copyContent(copy);
 		} else {
 			this.scraps = new ArrayList<Scrap>(copy.scraps);
 			this.strokes = new ArrayList<Stroke>(copy.strokes);
-			// this.boundaries.set(copy.boundaries);
 			this.outerBorder.getPath().close();
 			// all strokes are now in this scrap
 			for (Scrap scrap : scraps) {
 				scrap.parent = this;
 			}
 		}
-		setBoundaries(copy.getBorder());
+		setBoundaries();
 		matrix = new Matrix();
+	}
+
+	/**
+	 * Adds the argument <tt>stroke</tt> to this scrap.
+	 * 
+	 * @param stroke
+	 *            the stroke to be added to this scrap
+	 */
+	public void add(Stroke stroke) {
+		strokes.add(stroke);
+		// refresh the snapshot the next time!
+		contentChanged = true;
+	}
+
+	/**
+	 * Removes the argument <tt>stroke</tt> from this scrap.
+	 * 
+	 * @param stroke
+	 *            the stroke to be removed from this scrap
+	 */
+	public void remove(Stroke stroke) {
+		strokes.remove(stroke);
+		// refresh the snapshot the next time!
+		contentChanged = true;
 	}
 
 	/**
@@ -169,10 +204,10 @@ public class Scrap extends CaliSmallElement {
 	public void copyContent(Scrap copy) {
 		for (Scrap scrap : copy.scraps) {
 			Scrap newCopy = new Scrap(scrap, true);
-			this.scraps.add(newCopy);
+			scraps.add(newCopy);
 		}
 		for (Stroke stroke : copy.strokes) {
-			this.strokes.add(new Stroke(stroke).setBoundaries());
+			strokes.add(new Stroke(stroke).setBoundaries());
 		}
 	}
 
@@ -260,6 +295,7 @@ public class Scrap extends CaliSmallElement {
 		collage.addRoundRect(area, radius, radius, Direction.CW);
 		outerBorder.setPath(collage);
 		setBoundaries();
+		contentChanged = true;
 	}
 
 	/**
@@ -267,11 +303,9 @@ public class Scrap extends CaliSmallElement {
 	 * 
 	 * @param canvas
 	 *            the canvas onto which the scrap is to be drawn
-	 * @param color
-	 *            the color with which the scrap shall be filled
 	 */
-	protected void drawShadedRegion(Canvas canvas, int color) {
-		PAINT.setColor(color);
+	protected void drawShadedRegion(Canvas canvas) {
+		PAINT.setColor(regionColor);
 		canvas.drawPath(outerBorder.getPath(), PAINT);
 	}
 
@@ -350,31 +384,19 @@ public class Scrap extends CaliSmallElement {
 	 * thread can remove them from the lists.
 	 */
 	public void erase() {
-		if (parent != null) {
-			parent.removeChild(this);
-			parent = null;
-		}
+		parent = null;
 		toBeDeleted = true;
 		mustBeDrawn(false);
 		outerBorder.toBeDeleted = true;
 		for (Stroke stroke : strokes) {
 			stroke.toBeDeleted = true;
 		}
-		for (Scrap scrap : scraps) {
+		for (Iterator<Scrap> iterator = scraps.iterator(); iterator.hasNext();) {
+			Scrap scrap = iterator.next();
 			scrap.erase();
-		}
-	}
-
-	/**
-	 * Removes the argument <tt>scrap</tt> (and all of its children) from this
-	 * scrap.
-	 * 
-	 * @param scrap
-	 *            the scrap to be removed
-	 */
-	public void removeChild(Scrap scrap) {
-		if (scrap != null) {
-			scraps.remove(scrap);
+			if (scrap.parent != this) {
+				iterator.remove();
+			}
 		}
 	}
 
@@ -387,33 +409,6 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public Scrap getParent() {
 		return parent;
-	}
-
-	/**
-	 * Moves this scrap to the new position.
-	 * 
-	 * @param dx
-	 *            the X-axis translation
-	 * @param dy
-	 *            the Y-axis translation
-	 * @param scaleFactor
-	 *            the scale factor that is currently applied to the canvas
-	 */
-	public void moveBy(float dx, float dy, float scaleFactor) {
-		if (snapshot == null) {
-			outerBorder.setBoundaries();
-			Rect size = getBounds();
-			// snapshot = Bitmap.createBitmap(size.width(), size.height(),
-			// Config.ARGB_8888);
-			snapshot = Bitmap.createBitmap(1280, 720, Config.ARGB_8888);
-			snapshotCanvas = new Canvas(snapshot);
-			snapOffsetX = size.left;
-			snapOffsetY = size.top;
-			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
-			// matrix.postTranslate(snapOffsetX, snapOffsetY);
-			changeDrawingStatus(false);
-		}
-		translate(dx, dy);
 	}
 
 	private void changeDrawingStatus(boolean mustBeDrawn) {
@@ -466,11 +461,9 @@ public class Scrap extends CaliSmallElement {
 	 *            the current scale factor applied to the canvas
 	 */
 	public void draw(CaliSmall.CaliView parent, Canvas canvas, float scaleFactor) {
-		if (snapshot == null) {
-			if (hasToBeDrawn()) {
-				drawShadedRegion(canvas, SCRAP_REGION_COLOR);
-				drawBorder(canvas, scaleFactor);
-			}
+		if (hasToBeDrawnVectorially()) {
+			drawShadedRegion(canvas);
+			drawBorder(canvas, scaleFactor);
 		} else {
 			canvas.drawBitmap(snapshot, matrix, null);
 		}
@@ -489,7 +482,7 @@ public class Scrap extends CaliSmallElement {
 	 *            the scale factor that is currently applied to the canvas
 	 */
 	public void drawOnBitmap(Canvas canvas, Bitmap bitmap, float scaleFactor) {
-		drawShadedRegion(canvas, SCRAP_REGION_COLOR);
+		drawShadedRegion(canvas);
 		drawBorder(canvas, scaleFactor);
 		for (Stroke stroke : strokes) {
 			SNAPSHOT_PAINT.setColor(stroke.getColor());
@@ -517,16 +510,34 @@ public class Scrap extends CaliSmallElement {
 	 * 
 	 * <p>
 	 * Must be called before starting an edit operation on the scrap.
+	 * 
+	 * @param scaleFactor
+	 *            the current scale factor
 	 */
-	public void startEditing() {
+	public void startEditing(float scaleFactor) {
 		topLevelForEdit = true;
+		outerBorder.setBoundaries();
+		Rect size = getBounds();
+		snapOffsetX = size.left;
+		snapOffsetY = size.top;
+		if (contentChanged) {
+			snapshot = Bitmap.createBitmap(size.width(), size.height(),
+					Config.ARGB_8888);
+			Canvas snapshotCanvas = new Canvas(snapshot);
+			snapshotCanvas.translate(-snapOffsetX, -snapOffsetY);
+			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
+			contentChanged = false;
+			Log.d(CaliSmall.TAG, "created new bitmap for " + this
+					+ ", offset is (" + snapOffsetX + "," + snapOffsetY + ")");
+		}
+		matrix.postTranslate(snapOffsetX, snapOffsetY);
+		changeDrawingStatus(false);
 	}
 
 	/**
 	 * Applies the transformations set for this scrap to all of its contents.
 	 */
 	public void applyTransform() {
-		snapshot = null;
 		if (topLevelForEdit) {
 			// only translate the root scrap
 			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
@@ -605,7 +616,6 @@ public class Scrap extends CaliSmallElement {
 
 		private static final Paint HIGHLIGHT_PAINT = new Paint();
 		private float dashInterval, pathPhase;
-		private boolean toBeDestroyed;
 
 		static {
 			HIGHLIGHT_PAINT.setAntiAlias(true);
@@ -627,6 +637,7 @@ public class Scrap extends CaliSmallElement {
 		public Temp(Stroke selectionBorder, float scaleFactor) {
 			super(selectionBorder, new ArrayList<Scrap>(),
 					new ArrayList<Stroke>());
+			regionColor = TEMP_SCRAP_REGION_COLOR;
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 			findSelected();
 		}
@@ -641,6 +652,7 @@ public class Scrap extends CaliSmallElement {
 		 */
 		public Temp(Scrap copy, float scaleFactor) {
 			super(copy, true);
+			regionColor = TEMP_SCRAP_REGION_COLOR;
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 		}
 
@@ -681,26 +693,16 @@ public class Scrap extends CaliSmallElement {
 			// Log.d(CaliSmall.TAG, builder.toString());
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see edu.uci.calismall.Scrap#deselect()
-		 */
-		@Override
-		public void deselect() {
-			selected = false;
-			toBeDestroyed = true;
-			mustBeDrawn(false);
-		}
-
 		private void highlight(Canvas canvas, float scaleFactor) {
 			for (Stroke stroke : strokes) {
 				if (stroke.getStyle() == Style.FILL) {
 					HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
-							* HIGHLIGHTED_STROKE_WIDTH_MUL);
+							* HIGHLIGHTED_STROKE_WIDTH_MUL / scaleFactor);
 					PointF startPoint = stroke.getStartPoint();
+					HIGHLIGHT_PAINT.setStyle(Style.FILL);
 					canvas.drawCircle(startPoint.x, startPoint.y,
 							stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
+					HIGHLIGHT_PAINT.setStyle(Style.STROKE);
 				} else {
 					HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
 							* HIGHLIGHTED_STROKE_WIDTH_MUL);
@@ -714,10 +716,14 @@ public class Scrap extends CaliSmallElement {
 
 		public void draw(CaliSmall.CaliView parent, Canvas canvas,
 				float scaleFactor) {
-			if (hasToBeDrawn() && !toBeDestroyed) {
-				highlight(canvas, scaleFactor);
-				drawShadedRegion(canvas, TEMP_SCRAP_REGION_COLOR);
-				drawBorder(canvas, scaleFactor);
+			if (selected) {
+				if (hasToBeDrawnVectorially()) {
+					highlight(canvas, scaleFactor);
+					drawShadedRegion(canvas);
+					drawBorder(canvas, scaleFactor);
+				} else {
+					canvas.drawBitmap(snapshot, matrix, null);
+				}
 			}
 		}
 
