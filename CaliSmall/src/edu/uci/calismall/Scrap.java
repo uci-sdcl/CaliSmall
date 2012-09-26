@@ -463,7 +463,7 @@ public class Scrap extends CaliSmallElement {
 	 *            the current scale factor applied to the canvas
 	 */
 	public void draw(CaliSmall.CaliView parent, Canvas canvas, float scaleFactor) {
-		if (hasToBeDrawnVectorially()) {
+		if (hasToBeDrawnVectorially() || snapshot == null) {
 			drawShadedRegion(canvas);
 			drawBorder(canvas, scaleFactor);
 		} else {
@@ -718,7 +718,7 @@ public class Scrap extends CaliSmallElement {
 		public void draw(CaliSmall.CaliView parent, Canvas canvas,
 				float scaleFactor) {
 			if (selected) {
-				if (hasToBeDrawnVectorially()) {
+				if (hasToBeDrawnVectorially() || snapshot == null) {
 					highlight(canvas, scaleFactor);
 					drawShadedRegion(canvas);
 					drawBorder(canvas, scaleFactor);
