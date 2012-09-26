@@ -101,9 +101,9 @@ public class CaliSmall extends Activity {
 		private Thread worker;
 		private Scrap selected, previousSelection, newScrap, toBeRemoved,
 				tempScrap, tempSelStrokes;
-		private boolean zooming, running, mustShowLandingZone, strokeAdded,
-				mustClearCanvas, bubbleMenuShown, mustShowBubbleMenu,
-				tempScrapCreated, redirectingToBubbleMenu;
+		private boolean zoomingOrPanning, running, mustShowLandingZone,
+				strokeAdded, mustClearCanvas, bubbleMenuShown,
+				mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu;
 		private PointF landingZoneCenter;
 		private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
 				screenHeight;
@@ -152,8 +152,7 @@ public class CaliSmall extends Activity {
 
 		private void drawScraps(Canvas canvas) {
 			for (Scrap scrap : scraps) {
-				if (scrap.hasToBeDrawnVectorially())
-					scrap.draw(this, canvas, scaleFactor);
+				scrap.draw(this, canvas, scaleFactor);
 			}
 		}
 
@@ -322,22 +321,8 @@ public class CaliSmall extends Activity {
 		public boolean onTouchEvent(MotionEvent event) {
 			final int action = event.getAction() & MotionEvent.ACTION_MASK;
 			// Log.d(TAG, actionToString(action));
-			if (zooming) {
-				scaleDetector.onTouchEvent(event);
-				switch (action) {
-				case MotionEvent.ACTION_UP:
-					// last finger lifted
-					onUp(event);
-					// delete stroke if one was accidentally created
-					stroke.getPath().reset();
-					zooming = false;
-					break;
-				case MotionEvent.ACTION_POINTER_UP:
-					// first finger lifted (only when pinching)
-					onPointerUp(event);
-					break;
-				// move actions are handled by scaleDetector
-				}
+			if (zoomingOrPanning) {
+				handleZoomingPanningEvent(event, action);
 			} else {
 				if (redirectingToBubbleMenu) {
 					if (onTouchBubbleMenuShown(action,
@@ -350,77 +335,57 @@ public class CaliSmall extends Activity {
 						bubbleMenuShown = false;
 					}
 				}
-				switch (action) {
-				case MotionEvent.ACTION_DOWN:
-					// first touch with one finger
-					onDown(event);
-					scaleDetector.onTouchEvent(event);
-					break;
-				case MotionEvent.ACTION_MOVE:
-					onMove(event);
-					break;
-				case MotionEvent.ACTION_UP:
-					// last finger lifted
-					onUp(event);
-					break;
-				case MotionEvent.ACTION_POINTER_DOWN:
-					// first touch with second finger
-					bubbleMenuShown = false;
-					mustShowLandingZone = false;
-					stroke.reset();
-					setSelected(null);
-					scaleDetector.onTouchEvent(event);
-					zooming = true;
-					break;
-				case MotionEvent.ACTION_CANCEL:
-					mustShowLandingZone = false;
-					createNewStroke();
-				default:
-					Log.d(TAG, "default: " + actionToString(action));
-				}
+				handleDrawingEvent(event, action);
 			}
 			return true;
 		}
 
-		/**
-		 * Returns a string that represents the symbolic name of the specified
-		 * action such as "ACTION_DOWN", "ACTION_POINTER_DOWN(3)" or an
-		 * equivalent numeric constant such as "35" if unknown.
-		 * 
-		 * @param action
-		 *            The action.
-		 * @return The symbolic name of the specified action.
-		 * @hide
-		 */
-		public String actionToString(int action) {
+		private void handleDrawingEvent(final MotionEvent event,
+				final int action) {
+			// events in the switch block are in chronological order
 			switch (action) {
 			case MotionEvent.ACTION_DOWN:
-				return "ACTION_DOWN";
-			case MotionEvent.ACTION_UP:
-				return "ACTION_UP";
-			case MotionEvent.ACTION_CANCEL:
-				return "ACTION_CANCEL";
-			case MotionEvent.ACTION_OUTSIDE:
-				return "ACTION_OUTSIDE";
+				// first touch with one finger
+				onDown(event);
+				scaleDetector.onTouchEvent(event);
+				break;
 			case MotionEvent.ACTION_MOVE:
-				return "ACTION_MOVE";
-			case MotionEvent.ACTION_HOVER_MOVE:
-				return "ACTION_HOVER_MOVE";
-			case MotionEvent.ACTION_SCROLL:
-				return "ACTION_SCROLL";
-			case MotionEvent.ACTION_HOVER_ENTER:
-				return "ACTION_HOVER_ENTER";
-			case MotionEvent.ACTION_HOVER_EXIT:
-				return "ACTION_HOVER_EXIT";
-			}
-			int index = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-			switch (action & MotionEvent.ACTION_MASK) {
+				onMove(event);
+				break;
 			case MotionEvent.ACTION_POINTER_DOWN:
-				return "ACTION_POINTER_DOWN(" + index + ")";
-			case MotionEvent.ACTION_POINTER_UP:
-				return "ACTION_POINTER_UP(" + index + ")";
+				// first touch with second finger
+				onPointerDown(event);
+				break;
+			case MotionEvent.ACTION_CANCEL:
+				mustShowLandingZone = false;
+				createNewStroke();
+				break;
+			case MotionEvent.ACTION_UP:
+				// last finger lifted
+				onUp(event);
+				break;
 			default:
-				return Integer.toString(action);
+				Log.d(TAG, "default: " + actionToString(action));
+			}
+		}
+
+		private void handleZoomingPanningEvent(final MotionEvent event,
+				final int action) {
+			scaleDetector.onTouchEvent(event);
+			// events in the switch block are in chronological order
+			switch (action) {
+			case MotionEvent.ACTION_POINTER_UP:
+				// first finger lifted (only when pinching)
+				onPointerUp(event);
+				break;
+			case MotionEvent.ACTION_UP:
+				// last finger lifted
+				onUp(event);
+				// delete stroke if one was accidentally created
+				stroke.getPath().reset();
+				zoomingOrPanning = false;
+				break;
+			// move actions are handled by scaleDetector
 			}
 		}
 
@@ -472,7 +437,7 @@ public class CaliSmall extends Activity {
 
 		private void onUp(MotionEvent event) {
 			mustShowLandingZone = false;
-			if (!zooming) {
+			if (!zoomingOrPanning) {
 				final int pointerIndex = event
 						.findPointerIndex(mActivePointerId);
 				mActivePointerId = INVALID_POINTER_ID;
@@ -555,6 +520,15 @@ public class CaliSmall extends Activity {
 				final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
 				mActivePointerId = event.getPointerId(newPointerIndex);
 			}
+		}
+
+		private void onPointerDown(MotionEvent event) {
+			bubbleMenuShown = false;
+			mustShowLandingZone = false;
+			stroke.reset();
+			setSelected(null);
+			scaleDetector.onTouchEvent(event);
+			zoomingOrPanning = true;
 		}
 
 		private boolean isInLandingZone(PointF lastPoint) {
@@ -808,6 +782,48 @@ public class CaliSmall extends Activity {
 			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET,
 			touchThreshold = ABS_TOUCH_THRESHOLD,
 			touchTolerance = ABS_TOUCH_TOLERANCE;
+
+	/**
+	 * Returns a string that represents the symbolic name of the specified
+	 * action such as "ACTION_DOWN", "ACTION_POINTER_DOWN(3)" or an equivalent
+	 * numeric constant such as "35" if unknown.
+	 * 
+	 * @author Google
+	 * @param action
+	 *            The action.
+	 * @return The symbolic name of the specified action.
+	 */
+	public static String actionToString(int action) {
+		switch (action) {
+		case MotionEvent.ACTION_DOWN:
+			return "ACTION_DOWN";
+		case MotionEvent.ACTION_UP:
+			return "ACTION_UP";
+		case MotionEvent.ACTION_CANCEL:
+			return "ACTION_CANCEL";
+		case MotionEvent.ACTION_OUTSIDE:
+			return "ACTION_OUTSIDE";
+		case MotionEvent.ACTION_MOVE:
+			return "ACTION_MOVE";
+		case MotionEvent.ACTION_HOVER_MOVE:
+			return "ACTION_HOVER_MOVE";
+		case MotionEvent.ACTION_SCROLL:
+			return "ACTION_SCROLL";
+		case MotionEvent.ACTION_HOVER_ENTER:
+			return "ACTION_HOVER_ENTER";
+		case MotionEvent.ACTION_HOVER_EXIT:
+			return "ACTION_HOVER_EXIT";
+		}
+		int index = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+		switch (action & MotionEvent.ACTION_MASK) {
+		case MotionEvent.ACTION_POINTER_DOWN:
+			return "ACTION_POINTER_DOWN(" + index + ")";
+		case MotionEvent.ACTION_POINTER_UP:
+			return "ACTION_POINTER_UP(" + index + ")";
+		default:
+			return Integer.toString(action);
+		}
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {

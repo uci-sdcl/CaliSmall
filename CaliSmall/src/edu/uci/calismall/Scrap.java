@@ -527,8 +527,10 @@ public class Scrap extends CaliSmallElement {
 			snapshotCanvas.translate(-snapOffsetX, -snapOffsetY);
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
 			contentChanged = false;
-			Log.d(CaliSmall.TAG, "created new bitmap for " + this
-					+ ", offset is (" + snapOffsetX + "," + snapOffsetY + ")");
+			Log.d(CaliSmall.TAG,
+					"created new " + size.width() + "x" + size.height()
+							+ " bitmap for " + this + ", offset is ("
+							+ snapOffsetX + "," + snapOffsetY + ")");
 		}
 		matrix.postTranslate(snapOffsetX, snapOffsetY);
 		changeDrawingStatus(false);
