@@ -27,6 +27,7 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -97,7 +98,15 @@ public class CaliSmall extends Activity {
 		private final List<Stroke> strokes;
 		// a list of scraps kept in chronological order (oldest first)
 		private final List<Scrap> scraps;
+		private final Handler longPressListener = new Handler();
+		private final Runnable longPressAction = new Runnable() {
 
+			@Override
+			public void run() {
+				if (!hasMovedEnough())
+					longPress = true;
+			}
+		};
 		private Thread worker;
 		private Scrap selected, previousSelection, newSelection, toBeRemoved,
 				tempScrap;
@@ -105,7 +114,8 @@ public class CaliSmall extends Activity {
 		private List<Scrap> newScraps;
 		private boolean zoomingOrPanning, running, mustShowLandingZone,
 				strokeAdded, mustClearCanvas, bubbleMenuShown,
-				mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu;
+				mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu,
+				longPress;
 		private PointF landingZoneCenter;
 		private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
 				screenHeight;
@@ -126,6 +136,8 @@ public class CaliSmall extends Activity {
 			if (canvas != null) {
 				canvas.drawColor(Color.WHITE);
 				canvas.concat(matrix);
+				if (longPress)
+					canvas.drawText("LONG PRESS!!1!1 ;)", 300, 400, textPaint);
 				if (mustClearCanvas) {
 					clearCanvas();
 				} else {
@@ -149,6 +161,7 @@ public class CaliSmall extends Activity {
 			scraps.clear();
 			Stroke.SPACE_OCCUPATION_LIST.clear();
 			Scrap.SPACE_OCCUPATION_LIST.clear();
+			stroke = null;
 			createNewStroke();
 			mustClearCanvas = false;
 		}
@@ -430,6 +443,7 @@ public class CaliSmall extends Activity {
 			PointF adjusted = adjustForZoom(event.getX(), event.getY());
 			mustShowLandingZone = false;
 			mActivePointerId = event.findPointerIndex(0);
+			longPress = false;
 			if (bubbleMenuShown) {
 				if (onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
 					// a button was touched, redirect actions to bubble menu
@@ -437,6 +451,7 @@ public class CaliSmall extends Activity {
 					return;
 				}
 			}
+			longPressListener.postDelayed(longPressAction, LONG_PRESS_DURATION);
 			stroke.setStart(adjusted);
 			setSelected(getSelectedScrap(adjusted));
 		}
@@ -461,42 +476,49 @@ public class CaliSmall extends Activity {
 
 		private void onUp(MotionEvent event) {
 			mustShowLandingZone = false;
-			if (!zoomingOrPanning) {
-				final int pointerIndex = event
-						.findPointerIndex(mActivePointerId);
-				mActivePointerId = INVALID_POINTER_ID;
-				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
-						event.getY(pointerIndex));
-				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
-					bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
-							screenBounds);
-					mustShowBubbleMenu = true;
-					tempScrapCreated = true;
-				} else {
-					Scrap newSelection;
-					if (!hasMovedEnough()) {
-						Log.d(TAG, "tap detected");
-						PointF center = stroke.getStartPoint();
-						newSelection = getSelectedScrap(center);
-						if (newSelection == previousSelection) {
-							// draw a point (a small circle)
-							stroke.setStyle(Paint.Style.FILL);
-							stroke.getPath().addCircle(center.x, center.y,
-									stroke.getStrokeWidth() / 2, Direction.CW);
-							stroke.setBoundaries();
-						} else {
-							// a single tap selects the scrap w/o being
-							// drawn
-							stroke.reset();
-						}
-					} else {
-						newSelection = getSelectedScrap();
-					}
-					setSelected(newSelection);
-					createNewStroke();
-				}
+			longPressListener.removeCallbacks(longPressAction);
+			if (longPress) {
+				longPress = false;
+				// do whatever is supposed to happen with the long press
 			} else {
-				setSelected(previousSelection);
+				if (!zoomingOrPanning) {
+					final int pointerIndex = event
+							.findPointerIndex(mActivePointerId);
+					mActivePointerId = INVALID_POINTER_ID;
+					final PointF adjusted = adjustForZoom(
+							event.getX(pointerIndex), event.getY(pointerIndex));
+					if (isInLandingZone(adjusted)
+							&& isWideEnoughForBubbleMenu()) {
+						bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
+								screenBounds);
+						mustShowBubbleMenu = true;
+						tempScrapCreated = true;
+					} else {
+						Scrap newSelection;
+						if (!hasMovedEnough()) {
+							PointF center = stroke.getStartPoint();
+							newSelection = getSelectedScrap(center);
+							if (newSelection == previousSelection) {
+								// draw a point (a small circle)
+								stroke.setStyle(Paint.Style.FILL);
+								stroke.getPath().addCircle(center.x, center.y,
+										stroke.getStrokeWidth() / 2,
+										Direction.CW);
+								stroke.setBoundaries();
+							} else {
+								// a single tap selects the scrap w/o being
+								// drawn
+								stroke.reset();
+							}
+						} else {
+							newSelection = getSelectedScrap();
+						}
+						setSelected(newSelection);
+						createNewStroke();
+					}
+				} else {
+					setSelected(previousSelection);
+				}
 			}
 			previousSelection = selected;
 			// Log.d(TAG, "selected = " + selected + ", old selected = "
@@ -504,7 +526,7 @@ public class CaliSmall extends Activity {
 		}
 
 		private void createNewStroke() {
-			if (!stroke.getPath().isEmpty()) {
+			if (stroke == null || !stroke.getPath().isEmpty()) {
 				// otherwise don't create useless strokes
 				stroke = new Stroke(new Path(), stroke);
 				activeStroke = stroke;
@@ -548,6 +570,7 @@ public class CaliSmall extends Activity {
 		}
 
 		private void onPointerDown(MotionEvent event) {
+			longPressListener.removeCallbacks(longPressAction);
 			bubbleMenuShown = false;
 			mustShowLandingZone = false;
 			stroke.reset();
@@ -750,6 +773,12 @@ public class CaliSmall extends Activity {
 	public static final int ABS_STROKE_WIDTH = 3;
 
 	/**
+	 * The amount of time (in milliseconds) before a tap is considered a long
+	 * press gesture.
+	 */
+	public static final long LONG_PRESS_DURATION = 500;
+
+	/**
 	 * A list containing all created scraps sorted by their position in the
 	 * canvas.
 	 */
@@ -778,7 +807,7 @@ public class CaliSmall extends Activity {
 	 * The length over which a Path is no longer considered as a potential tap,
 	 * but is viewed as a stroke instead (to be rescaled by scaleFactor).
 	 */
-	static final float ABS_TOUCH_THRESHOLD = 6;
+	static final float ABS_TOUCH_THRESHOLD = 8;
 	/**
 	 * The amount of pixels that a touch needs to cover before it is considered
 	 * a move action (to be rescaled by scaleFactor).
@@ -795,7 +824,7 @@ public class CaliSmall extends Activity {
 	private RectF screenBounds;
 	private Path canvasBounds;
 	private Stroke stroke, activeStroke;
-	private Paint paint, borderPaint, landingZonePaint;
+	private Paint paint, borderPaint, landingZonePaint, textPaint;
 	private ScaleGestureDetector scaleDetector;
 	// variables starting with 'd' are in display-coordinates
 	private float scaleFactor = 1.f, dScaleFactor = 1.f, dScaleCenterX,
@@ -869,6 +898,14 @@ public class CaliSmall extends Activity {
 		borderPaint.setStrokeCap(Paint.Cap.ROUND);
 		borderPaint.setStyle(Style.STROKE);
 		borderPaint.setStrokeWidth(10);
+		textPaint = new Paint();
+		textPaint.setAntiAlias(true);
+		textPaint.setDither(true);
+		textPaint.setStrokeJoin(Paint.Join.ROUND);
+		textPaint.setStrokeCap(Paint.Cap.ROUND);
+		textPaint.setStyle(Style.STROKE);
+		textPaint.setTextSize(80);
+		textPaint.setColor(Color.RED);
 		canvasBounds = new Path();
 		landingZonePaint = new Paint();
 		landingZonePaint.setColor(Color.BLACK);
@@ -876,8 +913,7 @@ public class CaliSmall extends Activity {
 				ABS_LANDING_ZONE_INTERVAL, ABS_LANDING_ZONE_INTERVAL },
 				(float) 1.0));
 		landingZonePaint.setStyle(Style.STROKE);
-		stroke = new Stroke(new Path(), null);
-		activeStroke = stroke;
+		view.createNewStroke();
 		bubbleMenu = new BubbleMenu(this);
 	}
 
@@ -960,7 +996,6 @@ public class CaliSmall extends Activity {
 			return true;
 		case CLEAR_MENU_ID:
 			view.mustClearCanvas = true;
-			view.strokeAdded = false;
 			return true;
 		case LOG_MENU_ID:
 			Log.d(TAG, "{{{SCRAPS}}}\n" + Scrap.SPACE_OCCUPATION_LIST);
