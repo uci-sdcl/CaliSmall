@@ -162,14 +162,10 @@ public class Scrap extends CaliSmallElement {
 			this.outerBorder.getPath().close();
 			outerBorder.getPath().setFillType(FillType.WINDING);
 		}
-		Log.d(CaliSmall.TAG, "new scrap has " + scraps.size() + " scraps and "
-				+ strokes.size() + " strokes");
 		// all strokes are now in this scrap
 		for (Stroke stroke : strokes) {
 			stroke.parent = this;
 			stroke.previousParent = this;
-			Log.d(CaliSmall.TAG, "set " + stroke.getID() + "'s parent to "
-					+ this.getID());
 		}
 		for (Scrap scrap : scraps) {
 			scrap.parent = this;
@@ -271,8 +267,8 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public List<Stroke> getAllStrokes() {
 		List<Stroke> allStrokes = new ArrayList<Stroke>(strokes);
-		for (Scrap scrap : scraps) {
-			allStrokes.addAll(scrap.getAllStrokes());
+		for (Scrap scrap : getAllScraps()) {
+			allStrokes.addAll(scrap.strokes);
 		}
 		return allStrokes;
 	}
@@ -400,7 +396,7 @@ public class Scrap extends CaliSmallElement {
 	public void erase() {
 		parent = null;
 		toBeDeleted = true;
-		mustBeDrawn(false);
+		mustBeDrawnVectorially(false);
 		outerBorder.toBeDeleted = true;
 		for (Stroke stroke : getAllStrokes()) {
 			stroke.toBeDeleted = true;
@@ -415,10 +411,10 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	private void changeDrawingStatus(boolean mustBeDrawn) {
-		mustBeDrawn(mustBeDrawn);
-		outerBorder.mustBeDrawn(mustBeDrawn);
+		mustBeDrawnVectorially(mustBeDrawn);
+		outerBorder.mustBeDrawnVectorially(mustBeDrawn);
 		for (Stroke stroke : strokes) {
-			stroke.mustBeDrawn(mustBeDrawn);
+			stroke.mustBeDrawnVectorially(mustBeDrawn);
 		}
 		for (Scrap scrap : scraps) {
 			scrap.changeDrawingStatus(mustBeDrawn);
@@ -435,9 +431,6 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void translate(float dx, float dy) {
 		matrix.postTranslate(dx, dy);
-		for (Scrap scrap : scraps) {
-			scrap.translate(dx, dy);
-		}
 		setBoundaries();
 	}
 
@@ -465,10 +458,10 @@ public class Scrap extends CaliSmallElement {
 	 *            the current scale factor applied to the canvas
 	 */
 	public void draw(CaliSmall.CaliView parent, Canvas canvas, float scaleFactor) {
-		if (hasToBeDrawnVectorially() || snapshot == null) {
+		if (hasToBeDrawnVectorially() || (topLevelForEdit && snapshot == null)) {
 			drawShadedRegion(canvas);
 			drawBorder(canvas, scaleFactor);
-		} else {
+		} else if (topLevelForEdit) {
 			canvas.drawBitmap(snapshot, matrix, null);
 		}
 	}
@@ -523,6 +516,7 @@ public class Scrap extends CaliSmallElement {
 		snapOffsetX = size.left;
 		snapOffsetY = size.top;
 		if (contentChanged || snapshot == null) {
+			// create a new bitmap as large as the scrap and move it
 			Bitmap snapshot = Bitmap.createBitmap(size.width(), size.height(),
 					Config.ARGB_8888);
 			Canvas snapshotCanvas = new Canvas(snapshot);
@@ -532,6 +526,7 @@ public class Scrap extends CaliSmallElement {
 			contentChanged = false;
 		}
 		matrix.postTranslate(snapOffsetX, snapOffsetY);
+		// use the bitmap snapshot until applyTransform() is called
 		changeDrawingStatus(false);
 	}
 
@@ -539,23 +534,21 @@ public class Scrap extends CaliSmallElement {
 	 * Applies the transformations set for this scrap to all of its contents.
 	 */
 	public void applyTransform() {
-		if (topLevelForEdit) {
-			// only translate the root scrap
-			matrix.postTranslate(-snapOffsetX, -snapOffsetY);
-			topLevelForEdit = false;
-		}
+		matrix.postTranslate(-snapOffsetX, -snapOffsetY);
+		topLevelForEdit = false;
 		// update boundaries according to new position
 		outerBorder.transform(matrix);
-		outerBorder.setBoundaries();
-		outerBorder.mustBeDrawn(true);
-		for (Stroke stroke : strokes) {
+		outerBorder.mustBeDrawnVectorially(true);
+		for (Stroke stroke : getAllStrokes()) {
+			Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
 			stroke.transform(matrix);
-			stroke.setBoundaries();
-			stroke.mustBeDrawn(true);
+			stroke.mustBeDrawnVectorially(true);
 		}
-		mustBeDrawn(true);
-		for (Scrap scrap : scraps) {
-			scrap.applyTransform();
+		mustBeDrawnVectorially(true);
+		for (Scrap scrap : getAllScraps()) {
+			scrap.outerBorder.transform(matrix);
+			scrap.mustBeDrawnVectorially(true);
+			scrap.setBoundaries();
 		}
 		matrix.reset();
 		setBoundaries();
@@ -663,11 +656,10 @@ public class Scrap extends CaliSmallElement {
 			// + ", points: " + outerBorder.listPoints());
 			List<CaliSmallElement> candidates = SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
-			final float size = width + height;
+			final float size = getRectSize();
 			for (CaliSmallElement candidate : candidates) {
 				Scrap scrap = (Scrap) candidate;
-				if (scrap.parent == null
-						|| scrap.parent.width + scrap.parent.height > size) {
+				if (scrap.parent == null || scrap.parent.getRectSize() > size) {
 					// only include scraps that have no parent or whose parent
 					// is larger than this scrap
 					if (outerBorder.contains(scrap.outerBorder)) {
@@ -684,15 +676,15 @@ public class Scrap extends CaliSmallElement {
 				if (outerBorder.contains(element)) {
 					Stroke stroke = (Stroke) element;
 					if (stroke.parent == null
-							|| !scraps.contains(stroke.parent)) {
+							|| stroke.parent.getRectSize() > size) {
 						strokes.add(stroke);
 						stroke.previousParent = stroke.parent;
 						stroke.parent = this;
 					}
 				}
 			}
-			Log.d(CaliSmall.TAG, String.format("*** strokes: %d scraps: %d",
-					strokes.size(), scraps.size()));
+			// Log.d(CaliSmall.TAG, String.format("*** strokes: %d scraps: %d",
+			// strokes.size(), scraps.size()));
 			// StringBuilder builder = new StringBuilder("content:\n");
 			// String newline = "";
 			// for (Stroke stroke : strokes) {

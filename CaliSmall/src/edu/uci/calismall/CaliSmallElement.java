@@ -277,7 +277,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 *            <code>true</code> if this element shall be drawn using its
 	 *            vector data format
 	 */
-	public void mustBeDrawn(boolean mustBeDrawn) {
+	public void mustBeDrawnVectorially(boolean mustBeDrawn) {
 		this.mustBeDrawn = mustBeDrawn;
 	}
 
@@ -403,6 +403,16 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 *         said area
 	 */
 	public abstract List<PointF> getPointsForInclusionTests();
+
+	/**
+	 * Returns the sum of the enclosing rectangle's width and height.
+	 * 
+	 * @return the sum of width and height of the rectangle enclosing this
+	 *         element
+	 */
+	public float getRectSize() {
+		return width + height;
+	}
 
 	/**
 	 * Returns the width of the rectangle enclosing this element.

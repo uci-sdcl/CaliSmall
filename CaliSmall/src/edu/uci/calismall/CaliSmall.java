@@ -481,6 +481,7 @@ public class CaliSmall extends Activity {
 			if (longPress) {
 				longPress = false;
 				// do whatever is supposed to happen with the long press
+				stroke.reset();
 			} else {
 				if (!zoomingOrPanning) {
 					final int pointerIndex = event
