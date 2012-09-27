@@ -161,6 +161,7 @@ public class CaliSmall extends Activity {
 			scraps.clear();
 			Stroke.SPACE_OCCUPATION_LIST.clear();
 			Scrap.SPACE_OCCUPATION_LIST.clear();
+			setSelected(null);
 			stroke = null;
 			createNewStroke();
 			mustClearCanvas = false;
@@ -309,8 +310,8 @@ public class CaliSmall extends Activity {
 			newSelection = scrap;
 			newScraps.add(scrap);
 			if (addContent) {
-				newStrokes.addAll(scrap.getStrokes());
-				newScraps.addAll(scrap.getScraps());
+				newStrokes.addAll(scrap.getAllStrokes());
+				newScraps.addAll(scrap.getAllScraps());
 			}
 		}
 
@@ -325,7 +326,7 @@ public class CaliSmall extends Activity {
 		 *            canvas
 		 */
 		public void addStrokes(Scrap toBeAdded) {
-			newStrokes.addAll(toBeAdded.getStrokes());
+			newStrokes.addAll(toBeAdded.getAllStrokes());
 		}
 
 		/**
@@ -976,7 +977,6 @@ public class CaliSmall extends Activity {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		view.setSelected(null);
 		switch (item.getItemId()) {
 		case COLOR_MENU_ID:
 			AmbilWarnaDialog dialog = new AmbilWarnaDialog(this,
@@ -1005,7 +1005,12 @@ public class CaliSmall extends Activity {
 			for (Stroke stroke : view.strokes) {
 				builder.append(newLine);
 				builder.append(stroke.getID());
+				builder.append(" ");
 				builder.append(stroke.listPoints());
+				builder.append(" ");
+				builder.append("parent: ");
+				builder.append(stroke.parent == null ? "null" : stroke.parent
+						.getID());
 				newLine = "\n";
 			}
 			Log.d(TAG, builder.toString());

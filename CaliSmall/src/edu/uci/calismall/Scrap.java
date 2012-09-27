@@ -7,6 +7,7 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -27,6 +28,7 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -83,10 +85,6 @@ public class Scrap extends CaliSmallElement {
 	 * Whether this scrap is currently selected.
 	 */
 	protected boolean selected;
-	/**
-	 * The direct parent of this scrap.
-	 */
-	protected Scrap parent;
 	/**
 	 * The bitmap to which strokes are temporarily painted when editing the
 	 * scrap.
@@ -163,10 +161,19 @@ public class Scrap extends CaliSmallElement {
 			this.strokes = new ArrayList<Stroke>(copy.strokes);
 			this.outerBorder.getPath().close();
 			outerBorder.getPath().setFillType(FillType.WINDING);
-			// all strokes are now in this scrap
-			for (Scrap scrap : scraps) {
-				scrap.parent = this;
-			}
+		}
+		Log.d(CaliSmall.TAG, "new scrap has " + scraps.size() + " scraps and "
+				+ strokes.size() + " strokes");
+		// all strokes are now in this scrap
+		for (Stroke stroke : strokes) {
+			stroke.parent = this;
+			stroke.previousParent = this;
+			Log.d(CaliSmall.TAG, "set " + stroke.getID() + "'s parent to "
+					+ this.getID());
+		}
+		for (Scrap scrap : scraps) {
+			scrap.parent = this;
+			scrap.previousParent = this;
 		}
 		setBoundaries();
 		matrix = new Matrix();
@@ -208,7 +215,7 @@ public class Scrap extends CaliSmallElement {
 			Scrap newCopy = new Scrap(scrap, true);
 			scraps.add(newCopy);
 		}
-		for (Stroke stroke : copy.strokes) {
+		for (Stroke stroke : copy.getAllStrokes()) {
 			strokes.add(new Stroke(stroke).setBoundaries());
 		}
 	}
@@ -243,14 +250,15 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Returns the list of all scraps contained within this scrap.
+	 * Returns the list of all scraps contained within this scrap, including all
+	 * descendent scraps.
 	 * 
 	 * @return all scraps that are descendents of this scrap
 	 */
-	public List<Scrap> getScraps() {
+	public List<Scrap> getAllScraps() {
 		List<Scrap> allScraps = new ArrayList<Scrap>(scraps);
 		for (Scrap scrap : scraps) {
-			allScraps.addAll(scrap.getScraps());
+			allScraps.addAll(scrap.getAllScraps());
 		}
 		return allScraps;
 	}
@@ -261,10 +269,10 @@ public class Scrap extends CaliSmallElement {
 	 * 
 	 * @return all strokes children of this scrap
 	 */
-	public List<Stroke> getStrokes() {
+	public List<Stroke> getAllStrokes() {
 		List<Stroke> allStrokes = new ArrayList<Stroke>(strokes);
 		for (Scrap scrap : scraps) {
-			allStrokes.addAll(scrap.getStrokes());
+			allStrokes.addAll(scrap.getAllStrokes());
 		}
 		return allStrokes;
 	}
@@ -296,7 +304,8 @@ public class Scrap extends CaliSmallElement {
 		area.set(area.left - margin, area.top - margin, area.right + margin,
 				area.bottom + margin);
 		collage.addRoundRect(area, radius, radius, Direction.CW);
-		outerBorder.setPath(collage);
+		outerBorder.replacePath(collage, Arrays.asList(new PointF(area.left,
+				area.top), new PointF(area.right, area.bottom)));
 		setBoundaries();
 		contentChanged = true;
 	}
@@ -393,7 +402,7 @@ public class Scrap extends CaliSmallElement {
 		toBeDeleted = true;
 		mustBeDrawn(false);
 		outerBorder.toBeDeleted = true;
-		for (Stroke stroke : strokes) {
+		for (Stroke stroke : getAllStrokes()) {
 			stroke.toBeDeleted = true;
 		}
 		for (Iterator<Scrap> iterator = scraps.iterator(); iterator.hasNext();) {
@@ -403,17 +412,6 @@ public class Scrap extends CaliSmallElement {
 				iterator.remove();
 			}
 		}
-	}
-
-	/**
-	 * Returns the parent of this scrap if it has any, <code>null</code>
-	 * otherwise.
-	 * 
-	 * @return the parent of this scrap or <code>null</code> if this is a
-	 *         top-level scrap
-	 */
-	public Scrap getParent() {
-		return parent;
 	}
 
 	private void changeDrawingStatus(boolean mustBeDrawn) {
@@ -573,7 +571,7 @@ public class Scrap extends CaliSmallElement {
 	 *         <tt>touchPoint</tt>, or this scrap
 	 */
 	public Scrap getSmallestTouched(PointF touchPoint) {
-		List<Scrap> allScraps = getScraps();
+		List<Scrap> allScraps = getAllScraps();
 		for (int i = allScraps.size() - 1; i > -1; i--) {
 			Scrap test = allScraps.get(i);
 			if (test.contains(touchPoint)) {
@@ -594,7 +592,7 @@ public class Scrap extends CaliSmallElement {
 	 *         <tt>element</tt>, or this scrap
 	 */
 	public Scrap getSmallestTouched(CaliSmallElement element) {
-		List<Scrap> allScraps = getScraps();
+		List<Scrap> allScraps = getAllScraps();
 		for (int i = allScraps.size() - 1; i > -1; i--) {
 			Scrap test = allScraps.get(i);
 			if (test.contains(element)) {
@@ -663,14 +661,8 @@ public class Scrap extends CaliSmallElement {
 			// Log.d(CaliSmall.TAG, "*** new temp scrap, border - " +
 			// outerBorder
 			// + ", points: " + outerBorder.listPoints());
-			List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
+			List<CaliSmallElement> candidates = SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
-			// Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
-			for (CaliSmallElement element : candidates) {
-				if (outerBorder.contains(element))
-					strokes.add(Stroke.class.cast(element));
-			}
-			candidates = SPACE_OCCUPATION_LIST.findIntersectionCandidates(this);
 			final float size = width + height;
 			for (CaliSmallElement candidate : candidates) {
 				Scrap scrap = (Scrap) candidate;
@@ -680,12 +672,27 @@ public class Scrap extends CaliSmallElement {
 					// is larger than this scrap
 					if (outerBorder.contains(scrap.outerBorder)) {
 						scraps.add(scrap);
+						scrap.previousParent = parent;
 						scrap.parent = this;
 					}
 				}
 			}
-			// Log.d(CaliSmall.TAG, String.format("*** strokes: %d scraps: %d",
-			// strokes.size(), scraps.size()));
+			candidates = Stroke.SPACE_OCCUPATION_LIST
+					.findIntersectionCandidates(this);
+			// Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
+			for (CaliSmallElement element : candidates) {
+				if (outerBorder.contains(element)) {
+					Stroke stroke = (Stroke) element;
+					if (stroke.parent == null
+							|| !scraps.contains(stroke.parent)) {
+						strokes.add(stroke);
+						stroke.previousParent = stroke.parent;
+						stroke.parent = this;
+					}
+				}
+			}
+			Log.d(CaliSmall.TAG, String.format("*** strokes: %d scraps: %d",
+					strokes.size(), scraps.size()));
 			// StringBuilder builder = new StringBuilder("content:\n");
 			// String newline = "";
 			// for (Stroke stroke : strokes) {
@@ -698,21 +705,23 @@ public class Scrap extends CaliSmallElement {
 
 		private void highlight(Canvas canvas, float scaleFactor) {
 			for (Stroke stroke : strokes) {
-				if (stroke.getStyle() == Style.FILL) {
-					HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
-							* HIGHLIGHTED_STROKE_WIDTH_MUL / scaleFactor);
-					PointF startPoint = stroke.getStartPoint();
-					HIGHLIGHT_PAINT.setStyle(Style.FILL);
-					canvas.drawCircle(startPoint.x, startPoint.y,
-							stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
-					HIGHLIGHT_PAINT.setStyle(Style.STROKE);
-				} else {
-					HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
-							* HIGHLIGHTED_STROKE_WIDTH_MUL);
-					canvas.drawPath(stroke.getPath(), HIGHLIGHT_PAINT);
+				if (stroke.parent == this) {
+					if (stroke.getStyle() == Style.FILL) {
+						HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
+								* HIGHLIGHTED_STROKE_WIDTH_MUL / scaleFactor);
+						PointF startPoint = stroke.getStartPoint();
+						HIGHLIGHT_PAINT.setStyle(Style.FILL);
+						canvas.drawCircle(startPoint.x, startPoint.y,
+								stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
+						HIGHLIGHT_PAINT.setStyle(Style.STROKE);
+					} else {
+						HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
+								* HIGHLIGHTED_STROKE_WIDTH_MUL);
+						canvas.drawPath(stroke.getPath(), HIGHLIGHT_PAINT);
+					}
 				}
 			}
-			for (Scrap scrap : getScraps()) {
+			for (Scrap scrap : getAllScraps()) {
 				scrap.highlightBorder(canvas, scaleFactor);
 			}
 		}
@@ -735,6 +744,23 @@ public class Scrap extends CaliSmallElement {
 					dashInterval, dashInterval }, pathPhase));
 			pathPhase += 1 / scaleFactor;
 			canvas.drawPath(outerBorder.getPath(), TEMP_BORDER_PAINT);
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * 
+		 * @see edu.uci.calismall.Scrap#deselect()
+		 */
+		@Override
+		public void deselect() {
+			super.deselect();
+			// remove link to child scraps, rollback
+			for (Scrap scrap : scraps) {
+				scrap.parent = scrap.previousParent;
+			}
+			for (Stroke stroke : strokes) {
+				stroke.parent = stroke.previousParent;
+			}
 		}
 
 	}

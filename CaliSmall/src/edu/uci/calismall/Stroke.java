@@ -318,15 +318,20 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	}
 
 	/**
-	 * Resets this stroke replacing its path with the argument <tt>path</tt>.
+	 * Resets this stroke replacing its path with the argument <tt>path</tt> and
+	 * replacing the current points with the argument list of points.
 	 * 
-	 * @param path
+	 * @param newPath
 	 *            the new path that replaces this stroke's
+	 * @param newPoints
+	 *            a list of points that belong to the <tt>newPath</tt>
 	 */
-	public void setPath(Path path) {
+	public void replacePath(Path newPath, List<PointF> newPoints) {
 		this.path.reset();
-		this.path.addPath(path);
-		this.path.setFillType(path.getFillType());
+		this.path.addPath(newPath);
+		this.path.setFillType(newPath.getFillType());
+		points.clear();
+		points.addAll(newPoints);
 		setBoundaries();
 	}
 

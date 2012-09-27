@@ -62,7 +62,9 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		@Override
 		public int compare(T lhs, T rhs) {
 			if (lhs == null)
-				return 1;
+				return rhs == null ? 0 : 1;
+			if (rhs == null)
+				return -1;
 			if (lhs.id.equals(rhs.id))
 				return 0;
 			int whichFirst = Float.compare(lhs.topLeftPoint.x,
@@ -81,6 +83,15 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	protected final Region boundaries = new Region();
 
 	private final UUID id = UUID.randomUUID();
+
+	/**
+	 * The direct parent of this element.
+	 */
+	protected CaliSmallElement parent;
+	/**
+	 * The previous direct parent of this element.
+	 */
+	protected CaliSmallElement previousParent;
 
 	/**
 	 * The top-left corner of the {@link RectF} enclosing this element.

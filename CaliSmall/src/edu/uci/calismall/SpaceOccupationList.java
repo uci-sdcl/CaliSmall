@@ -69,6 +69,8 @@ public class SpaceOccupationList {
 	public void addAll(List<? extends CaliSmallElement> elements) {
 		if (elements == null || elements.isEmpty())
 			return;
+		// Log.d(SPACE_OCCUPATION, "adding " + elements.size() +
+		// " new elements");
 		if (elements.size() == 1) {
 			add(elements.get(0));
 			return;
@@ -76,13 +78,24 @@ public class SpaceOccupationList {
 		List<CaliSmallElement> newList = new ArrayList<CaliSmallElement>(
 				(sortedByX.size() + elements.size()) * 2);
 		Collections.sort(elements, comparator);
+		if (sortedByX.isEmpty()) {
+			newList.addAll(elements);
+			sortedByX = newList;
+			return;
+		}
 		Iterator<? extends CaliSmallElement> newIterator = elements.iterator();
+		Iterator<CaliSmallElement> currentIterator = sortedByX.iterator();
 		CaliSmallElement next = newIterator.next();
-		for (CaliSmallElement element : sortedByX) {
-			if (comparator.compare(next, element) < 0) {
+		CaliSmallElement current = currentIterator.next();
+		for (int i = 0; i < elements.size() + sortedByX.size(); i++) {
+			if (comparator.compare(next, current) < 0) {
 				newList.add(next);
 			} else {
-				newList.add(element);
+				newList.add(current);
+				if (currentIterator.hasNext())
+					current = currentIterator.next();
+				else
+					current = null;
 				continue;
 			}
 			if (newIterator.hasNext()) {
@@ -92,6 +105,7 @@ public class SpaceOccupationList {
 			}
 		}
 		sortedByX = newList;
+		// Log.d(SPACE_OCCUPATION, "new list " + this);
 	}
 
 	/**
