@@ -136,6 +136,8 @@ public class Scrap extends CaliSmallElement {
 		this.outerBorder = new Stroke(outerBorder);
 		this.scraps = scraps;
 		this.strokes = strokes;
+		outerBorder.getPath().close();
+		outerBorder.getPath().setFillType(FillType.WINDING);
 		setBoundaries();
 		matrix = new Matrix();
 	}
@@ -160,6 +162,7 @@ public class Scrap extends CaliSmallElement {
 			this.scraps = new ArrayList<Scrap>(copy.scraps);
 			this.strokes = new ArrayList<Stroke>(copy.strokes);
 			this.outerBorder.getPath().close();
+			outerBorder.getPath().setFillType(FillType.WINDING);
 			// all strokes are now in this scrap
 			for (Scrap scrap : scraps) {
 				scrap.parent = this;
@@ -240,9 +243,9 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Returns the list of scraps contained within this scrap.
+	 * Returns the list of all scraps contained within this scrap.
 	 * 
-	 * @return all scraps that are children of this scrap
+	 * @return all scraps that are descendents of this scrap
 	 */
 	public List<Scrap> getScraps() {
 		List<Scrap> allScraps = new ArrayList<Scrap>(scraps);
@@ -437,6 +440,7 @@ public class Scrap extends CaliSmallElement {
 		for (Scrap scrap : scraps) {
 			scrap.translate(dx, dy);
 		}
+		setBoundaries();
 	}
 
 	/**
@@ -501,8 +505,6 @@ public class Scrap extends CaliSmallElement {
 	 * Updates the scrap area according to the outer border.
 	 */
 	public void setBoundaries() {
-		outerBorder.getPath().close();
-		outerBorder.getPath().setFillType(FillType.WINDING);
 		outerBorder.setBoundaries();
 		super.setBoundaries(outerBorder.getPath());
 	}

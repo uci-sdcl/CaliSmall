@@ -80,7 +80,9 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	Stroke(Stroke copy) {
 		this(new Path(copy.path), copy);
-		points.addAll(copy.points);
+		for (PointF point : copy.points) {
+			points.add(new PointF(point.x, point.y));
+		}
 	}
 
 	/**

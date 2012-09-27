@@ -27,8 +27,8 @@ public class SpaceOccupationList {
 	 * Tag used for messages about space occupation of elements in LogCat files.
 	 */
 	public static final String SPACE_OCCUPATION = "space";
-	private final List<CaliSmallElement> sortedByX;
 	private final Comparator<CaliSmallElement> comparator;
+	private List<CaliSmallElement> sortedByX;
 
 	/**
 	 * Creates a new list.
@@ -57,6 +57,41 @@ public class SpaceOccupationList {
 		// Log.d(SPACE_OCCUPATION, toString());
 		// Log.d(SPACE_OCCUPATION, "added " + element + " at [" + position +
 		// "]");
+	}
+
+	/**
+	 * Adds all of the elements in the argument list to this list, keeping it
+	 * sorted.
+	 * 
+	 * @param elements
+	 *            the list of elements that must be added to this list
+	 */
+	public void addAll(List<? extends CaliSmallElement> elements) {
+		if (elements == null || elements.isEmpty())
+			return;
+		if (elements.size() == 1) {
+			add(elements.get(0));
+			return;
+		}
+		List<CaliSmallElement> newList = new ArrayList<CaliSmallElement>(
+				(sortedByX.size() + elements.size()) * 2);
+		Collections.sort(elements, comparator);
+		Iterator<? extends CaliSmallElement> newIterator = elements.iterator();
+		CaliSmallElement next = newIterator.next();
+		for (CaliSmallElement element : sortedByX) {
+			if (comparator.compare(next, element) < 0) {
+				newList.add(next);
+			} else {
+				newList.add(element);
+				continue;
+			}
+			if (newIterator.hasNext()) {
+				next = newIterator.next();
+			} else {
+				next = null;
+			}
+		}
+		sortedByX = newList;
 	}
 
 	/**

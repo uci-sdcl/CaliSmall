@@ -211,12 +211,11 @@ public class BubbleMenu {
 				return scrapMove(action, touchPoint, selected);
 			}
 		};
-		copy.listener = new ClickableButtonListener(copy) {
+		copy.listener = new ButtonListener() {
 
 			@Override
 			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return super.touched(action, touchPoint, selected)
-						|| scrapCopy(action, touchPoint, selected);
+				return scrapCopy(action, touchPoint, selected);
 			}
 		};
 		rotate.listener = new ButtonListener() {
@@ -245,8 +244,7 @@ public class BubbleMenu {
 		if (selected instanceof Scrap.Temp) {
 			// FIXME control should be moved outside
 			Scrap newScrap = new Scrap(selected, false);
-			view.addScrap(newScrap);
-			view.setSelected(newScrap);
+			view.addScrap(newScrap, false);
 			touched = null;
 			return true;
 		} else {
@@ -255,18 +253,17 @@ public class BubbleMenu {
 	}
 
 	private boolean scrapCopy(int action, PointF touchPoint, Scrap selected) {
-		Scrap newScrap;
-		if (selected instanceof Scrap.Temp) {
-			newScrap = new Scrap.Temp(selected, scaleFactor);
-			view.addStrokes(newScrap);
-			view.changeTempScrap(newScrap);
-		} else {
-			newScrap = new Scrap(selected, true);
-			view.addScrap(newScrap);
-			view.setSelected(newScrap);
+		if (action == MotionEvent.ACTION_DOWN) {
+			if (selected instanceof Scrap.Temp) {
+				selected = new Scrap.Temp(selected, scaleFactor);
+				view.addStrokes(selected);
+				view.changeTempScrap(selected);
+			} else {
+				selected = new Scrap(selected, true);
+				view.addScrap(selected, true);
+			}
 		}
-		touched = null;
-		return true;
+		return scrapMove(action, touchPoint, selected);
 	}
 
 	private boolean scrapErase(int action, PointF touchPoint, Scrap selected) {

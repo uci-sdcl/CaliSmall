@@ -99,7 +99,7 @@ public class CaliSmall extends Activity {
 		private final List<Scrap> scraps;
 
 		private Thread worker;
-		private Scrap selected, previousSelection, newScrap, toBeRemoved,
+		private Scrap selected, previousSelection, newSelection, toBeRemoved,
 				tempScrap;
 		private List<Stroke> newStrokes;
 		private List<Scrap> newScraps;
@@ -134,7 +134,6 @@ public class CaliSmall extends Activity {
 					maybeCreateBubbleMenu();
 					deleteSelected();
 					drawTempScrap(canvas);
-					maybeCreateScrap();
 					addNewStrokesAndScraps();
 					drawScraps(canvas);
 					drawStrokes(canvas);
@@ -193,7 +192,7 @@ public class CaliSmall extends Activity {
 			if (mustShowBubbleMenu) {
 				mustShowBubbleMenu = false;
 				if (tempScrapCreated) {
-					Stroke border = strokes.remove(strokes.size() - 1);
+					Stroke border = getActiveStroke();
 					Stroke.SPACE_OCCUPATION_LIST.remove(border);
 					createNewStroke();
 					changeTempScrap(new Scrap.Temp(border, scaleFactor));
@@ -201,6 +200,19 @@ public class CaliSmall extends Activity {
 				}
 				bubbleMenuShown = true;
 			}
+		}
+
+		private Stroke getActiveStroke() {
+			int index = -1;
+			for (index = strokes.size() - 1; index > -1; index--) {
+				if (strokes.get(index).equals(activeStroke)) {
+					break;
+				}
+			}
+			if (index > -1) {
+				return strokes.remove(index);
+			}
+			return null;
 		}
 
 		private void deleteSelected() {
@@ -215,23 +227,22 @@ public class CaliSmall extends Activity {
 			}
 		}
 
-		private void maybeCreateScrap() {
-			if (newScrap != null) {
-				Scrap.SPACE_OCCUPATION_LIST.add(newScrap);
-				Log.d(TAG, "new scrap! Here's the new list");
-				Log.d(TAG, Scrap.SPACE_OCCUPATION_LIST.toString());
-				setSelected(newScrap);
-				previousSelection = newScrap;
-
-				newScrap = null;
-			}
-		}
-
 		private void addNewStrokesAndScraps() {
-			strokes.addAll(newStrokes);
-			newStrokes.clear();
-			scraps.addAll(newScraps);
-			newScraps.clear();
+			if (!newStrokes.isEmpty()) {
+				strokes.addAll(newStrokes);
+				Stroke.SPACE_OCCUPATION_LIST.addAll(newStrokes);
+				newStrokes.clear();
+			}
+			if (!newScraps.isEmpty()) {
+				scraps.addAll(newScraps);
+				Scrap.SPACE_OCCUPATION_LIST.addAll(newScraps);
+				newScraps.clear();
+			}
+			if (newSelection != null) {
+				setSelected(newSelection);
+				previousSelection = newSelection;
+				newSelection = null;
+			}
 		}
 
 		/**
@@ -242,7 +253,7 @@ public class CaliSmall extends Activity {
 		 *            the scrap that should appear selected or <code>null</code>
 		 *            if there shouldn't be any scrap selected
 		 */
-		public void setSelected(Scrap selected) {
+		private void setSelected(Scrap selected) {
 			if (this.selected != null && selected != this.selected)
 				this.selected.deselect();
 			if (selected != null) {
@@ -276,9 +287,18 @@ public class CaliSmall extends Activity {
 		 * 
 		 * @param scrap
 		 *            the scrap to be added
+		 * @param addContent
+		 *            whether all of the strokes inside of the argument scrap
+		 *            should be added to the view as well, should be
+		 *            <code>true</code> only for newly created scrap copies
 		 */
-		public void addScrap(Scrap scrap) {
-			newScrap = scrap;
+		public void addScrap(Scrap scrap, boolean addContent) {
+			newSelection = scrap;
+			newScraps.add(scrap);
+			if (addContent) {
+				newStrokes.addAll(scrap.getStrokes());
+				newScraps.addAll(scrap.getScraps());
+			}
 		}
 
 		/**
@@ -336,6 +356,7 @@ public class CaliSmall extends Activity {
 						redirectingToBubbleMenu = false;
 						mustShowBubbleMenu = false;
 						bubbleMenuShown = false;
+						createNewStroke();
 					}
 				}
 				handleDrawingEvent(event, action);
@@ -486,6 +507,7 @@ public class CaliSmall extends Activity {
 			if (!stroke.getPath().isEmpty()) {
 				// otherwise don't create useless strokes
 				stroke = new Stroke(new Path(), stroke);
+				activeStroke = stroke;
 				strokeAdded = false;
 			}
 		}
@@ -772,7 +794,7 @@ public class CaliSmall extends Activity {
 	private Matrix matrix;
 	private RectF screenBounds;
 	private Path canvasBounds;
-	private Stroke stroke;
+	private Stroke stroke, activeStroke;
 	private Paint paint, borderPaint, landingZonePaint;
 	private ScaleGestureDetector scaleDetector;
 	// variables starting with 'd' are in display-coordinates
@@ -855,6 +877,7 @@ public class CaliSmall extends Activity {
 				(float) 1.0));
 		landingZonePaint.setStyle(Style.STROKE);
 		stroke = new Stroke(new Path(), null);
+		activeStroke = stroke;
 		bubbleMenu = new BubbleMenu(this);
 	}
 
@@ -924,10 +947,7 @@ public class CaliSmall extends Activity {
 					stroke.getColor(), new OnAmbilWarnaListener() {
 						@Override
 						public void onOk(AmbilWarnaDialog dialog, int color) {
-							if (!stroke.isEmpty()) {
-								stroke = new Stroke(new Path(), stroke);
-								view.strokeAdded = false;
-							}
+							view.createNewStroke();
 							stroke.setColor(color);
 						}
 
