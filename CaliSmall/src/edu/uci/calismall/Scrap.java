@@ -8,6 +8,7 @@ package edu.uci.calismall;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -25,8 +26,6 @@ import android.graphics.Path.FillType;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.graphics.Region;
-import android.graphics.Region.Op;
 import android.graphics.drawable.shapes.RoundRectShape;
 import android.util.Log;
 import android.view.View;
@@ -183,6 +182,7 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void add(Stroke stroke) {
 		strokes.add(stroke);
+		stroke.parent = this;
 		// refresh the snapshot the next time!
 		contentChanged = true;
 	}
@@ -586,12 +586,15 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public Scrap getSmallestTouched(CaliSmallElement element) {
 		List<Scrap> allScraps = getAllScraps();
-		for (int i = allScraps.size() - 1; i > -1; i--) {
-			Scrap test = allScraps.get(i);
+		Collections.sort(allScraps);
+		for (Scrap test : allScraps) {
 			if (test.contains(element)) {
+				Log.d(CaliSmall.TAG, test + " is the one!");
 				return test;
 			}
+			Log.d(CaliSmall.TAG, "not " + test);
 		}
+		Log.d(CaliSmall.TAG, this + " is the one!");
 		// this method is only called when touchPoint is within this scrap
 		return this;
 	}
@@ -767,25 +770,6 @@ public class Scrap extends CaliSmallElement {
 		SPACE_OCCUPATION_LIST.update(this);
 		previousTopLeftPoint.x = topLeftPoint.x;
 		previousTopLeftPoint.y = topLeftPoint.y;
-	}
-
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see edu.uci.calismall.CaliSmallElement#contains(edu.uci.calismall.
-	 * CaliSmallElement)
-	 */
-	@Override
-	public boolean contains(CaliSmallElement element) {
-		Region elementBoundaries = element.getBoundaries();
-		Region boundaries = getBoundaries();
-		if (boundaries.op(elementBoundaries, Op.INTERSECT)) {
-			// elements intersect
-			if (!element.getBoundaries().op(getBoundaries(), Op.DIFFERENCE)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	/*

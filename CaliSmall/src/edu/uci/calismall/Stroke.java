@@ -175,6 +175,7 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	public Stroke setStart(PointF startPoint) {
 		path.moveTo(startPoint.x, startPoint.y);
+		path.lineTo(startPoint.x, startPoint.y);
 		points.add(startPoint);
 		setBoundaries();
 		return this;

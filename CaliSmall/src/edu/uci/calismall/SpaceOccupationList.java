@@ -195,10 +195,9 @@ public class SpaceOccupationList {
 				continue;
 			}
 			if (!candidate.intersectsX(element)) {
-				// it's pointless to keep going left
 				// testResult += " no intersection";
 				// Log.d(INTERSECTION, testResult);
-				break;
+				continue;
 			}
 			if (candidate.intersectsY(element)) {
 				candidates.add(candidate);
@@ -220,10 +219,9 @@ public class SpaceOccupationList {
 				continue;
 			}
 			if (!candidate.intersectsX(element)) {
-				// it's pointless to keep going right
 				// testResult += " no intersection";
 				// Log.d(INTERSECTION, testResult);
-				break;
+				continue;
 			}
 			if (candidate.intersectsY(element)) {
 				candidates.add(candidate);

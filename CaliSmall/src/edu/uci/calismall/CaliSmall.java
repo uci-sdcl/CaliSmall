@@ -516,6 +516,9 @@ public class CaliSmall extends Activity {
 							newSelection = getSelectedScrap();
 						}
 						setSelected(newSelection);
+						if (selected != null && !stroke.isEmpty()) {
+							selected.add(stroke);
+						}
 						createNewStroke();
 					}
 				} else {
