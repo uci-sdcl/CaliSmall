@@ -146,6 +146,7 @@ public class BubbleMenu {
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
 			selWidth, selHeight, scaleFactor;
+	private Scrap highlighted;
 
 	/**
 	 * Initializes a new BubbleMenu that will pick image files from the
@@ -245,6 +246,8 @@ public class BubbleMenu {
 			// FIXME control should be moved outside
 			Scrap newScrap = new Scrap(selected, false);
 			view.addScrap(newScrap, false);
+			updateHighlighted(newScrap);
+			fixParenting(newScrap);
 			touched = null;
 			return true;
 		} else {
@@ -278,8 +281,10 @@ public class BubbleMenu {
 		PointF quantizedMove = moveMenu(selected,
 				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
 		selected.translate(quantizedMove.x, quantizedMove.y);
+		updateHighlighted(selected);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform();
+			fixParenting(selected);
 			touched = null;
 			lastPosition = new PointF();
 		}
@@ -302,6 +307,45 @@ public class BubbleMenu {
 			scrap(action, touchPoint, selected);
 		}
 		return true;
+	}
+
+	private void updateHighlighted(Scrap selected) {
+		Scrap toBeHighlighted = view.getSelectedScrap(selected);
+		if (toBeHighlighted != highlighted) {
+			if (toBeHighlighted != null)
+				toBeHighlighted.select();
+			if (highlighted != null) {
+				highlighted.deselect();
+			}
+			highlighted = toBeHighlighted;
+		}
+	}
+
+	private void fixParenting(Scrap selected) {
+		if (selected instanceof Scrap.Temp) {
+			// FIXME sooo not OOP!
+			fixParenting((Scrap.Temp) selected);
+		} else {
+			if (selected.parent != highlighted) {
+				if (selected.parent != null) {
+					((Scrap) selected.parent).remove(selected);
+				}
+				if (highlighted != null) {
+					highlighted.add(selected);
+				} else {
+					selected.setParent(highlighted);
+				}
+			}
+		}
+		if (highlighted != null) {
+			highlighted.deselect();
+			view.setSelected(highlighted);
+		}
+		highlighted = null;
+	}
+
+	private void fixParenting(Scrap.Temp tempScrap) {
+
 	}
 
 	/**

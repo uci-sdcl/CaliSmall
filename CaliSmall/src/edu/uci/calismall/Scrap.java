@@ -27,7 +27,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.shapes.RoundRectShape;
-import android.util.Log;
 import android.view.View;
 
 /**
@@ -67,6 +66,12 @@ public class Scrap extends CaliSmallElement {
 	 * menu.
 	 */
 	protected final Matrix matrix;
+
+	/**
+	 * The transformation matrix in use when modifying a scrap through bubble
+	 * menu that is applied to the scrap's outer border.
+	 */
+	protected final Matrix borderMatrix;
 
 	/**
 	 * All scraps children (but not grand-children) of this scrap.
@@ -137,6 +142,7 @@ public class Scrap extends CaliSmallElement {
 		outerBorder.getPath().setFillType(FillType.WINDING);
 		setBoundaries();
 		matrix = new Matrix();
+		borderMatrix = new Matrix();
 	}
 
 	/**
@@ -172,6 +178,7 @@ public class Scrap extends CaliSmallElement {
 		}
 		setBoundaries();
 		matrix = new Matrix();
+		borderMatrix = new Matrix();
 	}
 
 	/**
@@ -188,6 +195,19 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
+	 * Adds the argument <tt>scrap</tt> as a child of this scrap.
+	 * 
+	 * @param scrap
+	 *            the child scrap to be added to this scrap
+	 */
+	public void add(Scrap scrap) {
+		scraps.add(scrap);
+		scrap.parent = this;
+		// refresh the snapshot the next time!
+		contentChanged = true;
+	}
+
+	/**
 	 * Removes the argument <tt>stroke</tt> from this scrap.
 	 * 
 	 * @param stroke
@@ -195,6 +215,22 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void remove(Stroke stroke) {
 		strokes.remove(stroke);
+		stroke.parent = stroke.previousParent;
+		// refresh the snapshot the next time!
+		contentChanged = true;
+	}
+
+	/**
+	 * Removes the argument <tt>scrap</tt> from the list of children of this
+	 * scrap.
+	 * 
+	 * @param scrap
+	 *            the child scrap to be removed from the list of children of
+	 *            this scrap
+	 */
+	public void remove(Scrap scrap) {
+		scraps.remove(scrap);
+		scrap.parent = scrap.previousParent;
 		// refresh the snapshot the next time!
 		contentChanged = true;
 	}
@@ -431,7 +467,10 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void translate(float dx, float dy) {
 		matrix.postTranslate(dx, dy);
+		borderMatrix.postTranslate(dx, dy);
+		outerBorder.transform(borderMatrix);
 		setBoundaries();
+		borderMatrix.reset();
 	}
 
 	/**
@@ -501,6 +540,17 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
+	 * Updates the parent of this scrap to the argument <tt>parent</tt>.
+	 * 
+	 * @param parent
+	 *            this scrap's new parent
+	 */
+	public void setParent(CaliSmallElement parent) {
+		previousParent = this.parent;
+		this.parent = parent;
+	}
+
+	/**
 	 * Prepares this scrap for editing.
 	 * 
 	 * <p>
@@ -537,10 +587,10 @@ public class Scrap extends CaliSmallElement {
 		matrix.postTranslate(-snapOffsetX, -snapOffsetY);
 		topLevelForEdit = false;
 		// update boundaries according to new position
-		outerBorder.transform(matrix);
+		// outerBorder.transform(matrix);
 		outerBorder.mustBeDrawnVectorially(true);
 		for (Stroke stroke : getAllStrokes()) {
-			Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
+			// Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
 			stroke.transform(matrix);
 			stroke.mustBeDrawnVectorially(true);
 		}
@@ -589,12 +639,9 @@ public class Scrap extends CaliSmallElement {
 		Collections.sort(allScraps);
 		for (Scrap test : allScraps) {
 			if (test.contains(element)) {
-				Log.d(CaliSmall.TAG, test + " is the one!");
 				return test;
 			}
-			Log.d(CaliSmall.TAG, "not " + test);
 		}
-		Log.d(CaliSmall.TAG, this + " is the one!");
 		// this method is only called when touchPoint is within this scrap
 		return this;
 	}

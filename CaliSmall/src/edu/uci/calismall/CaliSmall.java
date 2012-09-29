@@ -267,7 +267,7 @@ public class CaliSmall extends Activity {
 		 *            the scrap that should appear selected or <code>null</code>
 		 *            if there shouldn't be any scrap selected
 		 */
-		private void setSelected(Scrap selected) {
+		public void setSelected(Scrap selected) {
 			if (this.selected != null && selected != this.selected)
 				this.selected.deselect();
 			if (selected != null) {
@@ -471,7 +471,7 @@ public class CaliSmall extends Activity {
 				}
 			}
 			if (stroke.addPoint(adjusted, touchTolerance)) {
-				setSelected(getSelectedScrap());
+				setSelected(getSelectedScrap(stroke));
 			}
 		}
 
@@ -513,7 +513,7 @@ public class CaliSmall extends Activity {
 								stroke.reset();
 							}
 						} else {
-							newSelection = getSelectedScrap();
+							newSelection = getSelectedScrap(stroke);
 						}
 						setSelected(newSelection);
 						if (selected != null && !stroke.isEmpty()) {
@@ -539,14 +539,24 @@ public class CaliSmall extends Activity {
 			}
 		}
 
-		private Scrap getSelectedScrap() {
+		/**
+		 * Returns the smallest scrap that contains the argument
+		 * <tt>element</tt>, if any exists.
+		 * 
+		 * @param element
+		 *            the element that must be completely contained within the
+		 *            scrap that this method shall return
+		 * @return the smallest scrap that completely contains the argument
+		 *         element, if any exists, <code>null</code>
+		 */
+		public Scrap getSelectedScrap(CaliSmallElement element) {
 			List<CaliSmallElement> candidates = Scrap.SPACE_OCCUPATION_LIST
-					.findIntersectionCandidates(stroke);
+					.findIntersectionCandidates(element);
 			// sort elements by their size (smallest first)
 			Collections.sort(candidates);
-			for (CaliSmallElement element : candidates) {
-				if (element.contains(stroke)) {
-					return Scrap.class.cast(element).getSmallestTouched(stroke);
+			for (CaliSmallElement candidate : candidates) {
+				if (candidate.contains(element)) {
+					return ((Scrap) (candidate)).getSmallestTouched(element);
 				}
 			}
 			return null;
