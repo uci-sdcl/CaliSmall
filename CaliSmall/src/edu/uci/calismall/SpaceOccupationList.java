@@ -7,9 +7,6 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -27,41 +24,30 @@ public class SpaceOccupationList {
 	 * Tag used for messages about space occupation of elements in LogCat files.
 	 */
 	public static final String SPACE_OCCUPATION = "space";
-	private final Comparator<CaliSmallElement> comparator;
-	private List<CaliSmallElement> sortedByX;
+	/**
+	 * The list of elements kept by this <tt>SpaceOccupationList</tt>.
+	 */
+	protected List<CaliSmallElement> list;
 
 	/**
 	 * Creates a new list.
 	 */
 	public SpaceOccupationList() {
-		sortedByX = new ArrayList<CaliSmallElement>();
-		comparator = new CaliSmallElement.XComparator<CaliSmallElement>();
+		list = new ArrayList<CaliSmallElement>();
 	}
 
 	/**
-	 * Adds an element to this list, keeping the list sorted.
+	 * Appends an element to this list.
 	 * 
 	 * @param element
 	 *            the element to be added to the list
 	 */
 	public void add(CaliSmallElement element) {
-		int position = Collections.binarySearch(sortedByX, element, comparator);
-		if (position < 0) {
-			position = -(position + 1);
-		}
-		if (position == sortedByX.size()) {
-			sortedByX.add(element);
-		} else {
-			sortedByX.add(position, element);
-		}
-		// Log.d(SPACE_OCCUPATION, toString());
-		// Log.d(SPACE_OCCUPATION, "added " + element + " at [" + position +
-		// "]");
+		list.add(element);
 	}
 
 	/**
-	 * Adds all of the elements in the argument list to this list, keeping it
-	 * sorted.
+	 * Appends all of the elements in the argument list to this list.
 	 * 
 	 * @param elements
 	 *            the list of elements that must be added to this list
@@ -69,43 +55,7 @@ public class SpaceOccupationList {
 	public void addAll(List<? extends CaliSmallElement> elements) {
 		if (elements == null || elements.isEmpty())
 			return;
-		// Log.d(SPACE_OCCUPATION, "adding " + elements.size() +
-		// " new elements");
-		if (elements.size() == 1) {
-			add(elements.get(0));
-			return;
-		}
-		List<CaliSmallElement> newList = new ArrayList<CaliSmallElement>(
-				(sortedByX.size() + elements.size()) * 2);
-		Collections.sort(elements, comparator);
-		if (sortedByX.isEmpty()) {
-			newList.addAll(elements);
-			sortedByX = newList;
-			return;
-		}
-		Iterator<? extends CaliSmallElement> newIterator = elements.iterator();
-		Iterator<CaliSmallElement> currentIterator = sortedByX.iterator();
-		CaliSmallElement next = newIterator.next();
-		CaliSmallElement current = currentIterator.next();
-		for (int i = 0; i < elements.size() + sortedByX.size(); i++) {
-			if (comparator.compare(next, current) < 0) {
-				newList.add(next);
-			} else {
-				newList.add(current);
-				if (currentIterator.hasNext())
-					current = currentIterator.next();
-				else
-					current = null;
-				continue;
-			}
-			if (newIterator.hasNext()) {
-				next = newIterator.next();
-			} else {
-				next = null;
-			}
-		}
-		sortedByX = newList;
-		// Log.d(SPACE_OCCUPATION, "new list " + this);
+		list.addAll(elements);
 	}
 
 	/**
@@ -127,18 +77,17 @@ public class SpaceOccupationList {
 	public List<CaliSmallElement> findIntersectionCandidates(
 			CaliSmallElement element) {
 		List<CaliSmallElement> candidates = new ArrayList<CaliSmallElement>();
-		if (!sortedByX.isEmpty()) {
-			// Log.d(INTERSECTION, "###intersection test###");
-			// Log.d(INTERSECTION, "[*] " + element);
-			// Log.d(INTERSECTION, toString());
-			int position = Collections.binarySearch(sortedByX, element,
-					comparator);
-			if (position < 0) {
-				position = -(position + 1) - 1;
+		for (CaliSmallElement candidate : list) {
+			if (candidate.getID().equals(element.getID())) {
+				// don't add the element itself
+				continue;
 			}
-			// look within the element's neighborhood
-			findIntersectingLeftNeighbors(element, position, candidates);
-			findIntersectingRightNeighbors(element, ++position, candidates);
+			if (!candidate.intersectsX(element)) {
+				continue;
+			}
+			if (candidate.intersectsY(element)) {
+				candidates.add(candidate);
+			}
 		}
 		return candidates;
 	}
@@ -147,7 +96,7 @@ public class SpaceOccupationList {
 	 * Removes all elements from this list.
 	 */
 	public void clear() {
-		sortedByX.clear();
+		list.clear();
 	}
 
 	/**
@@ -157,107 +106,18 @@ public class SpaceOccupationList {
 	 *            a list of elements that have been erased
 	 */
 	public void removeAll(List<? extends CaliSmallElement> toBeRemoved) {
-		// TODO check when it's convenient to sort and iterate vs binary search
-		Collections.sort(toBeRemoved, comparator);
-		Iterator<? extends CaliSmallElement> removeIterator = toBeRemoved
-				.iterator();
-		if (!removeIterator.hasNext())
-			return;
-		CaliSmallElement nextToBeRemoved = removeIterator.next();
-		for (Iterator<CaliSmallElement> iterator = sortedByX.iterator(); iterator
-				.hasNext();) {
-			CaliSmallElement next = iterator.next();
-			while (comparator.compare(next, nextToBeRemoved) > 0
-					&& removeIterator.hasNext()) {
-				nextToBeRemoved = removeIterator.next();
-			}
-			if (next.equals(nextToBeRemoved)) {
-				iterator.remove();
-			}
-			if (!removeIterator.hasNext()
-					&& comparator.compare(next, nextToBeRemoved) > 0) {
-				return;
-			}
-		}
-	}
-
-	private void findIntersectingLeftNeighbors(CaliSmallElement element,
-			int position, List<CaliSmallElement> candidates) {
-		if (position == sortedByX.size())
-			position = sortedByX.size() - 1;
-		for (int i = position; i > -1; i--) {
-			CaliSmallElement candidate = sortedByX.get(i);
-			// String testResult = String.format("[%d] <-- [*] ?", i);
-			if (candidate.getID().equals(element.getID())) {
-				// don't add the element itself
-				// testResult += "same!";
-				// Log.d(INTERSECTION, testResult);
-				continue;
-			}
-			if (!candidate.intersectsX(element)) {
-				// testResult += " no intersection";
-				// Log.d(INTERSECTION, testResult);
-				continue;
-			}
-			if (candidate.intersectsY(element)) {
-				candidates.add(candidate);
-				// testResult += " *** intersection ***";
-				// Log.d(INTERSECTION, testResult);
-			}
-		}
-	}
-
-	private void findIntersectingRightNeighbors(CaliSmallElement element,
-			int position, List<CaliSmallElement> candidates) {
-		for (int i = position; i < sortedByX.size(); i++) {
-			CaliSmallElement candidate = sortedByX.get(i);
-			// String testResult = String.format("[*] --> [%d] ?", i);
-			if (candidate.getID().equals(element.getID())) {
-				// don't add the element itself
-				// testResult += "same!";
-				// Log.d(INTERSECTION, testResult);
-				continue;
-			}
-			if (!candidate.intersectsX(element)) {
-				// testResult += " no intersection";
-				// Log.d(INTERSECTION, testResult);
-				continue;
-			}
-			if (candidate.intersectsY(element)) {
-				candidates.add(candidate);
-				// testResult += " *** intersection ***";
-				// Log.d(INTERSECTION, testResult);
-			}
-		}
+		list.removeAll(toBeRemoved);
 	}
 
 	/**
-	 * Removes an element from this list, if present, keeping the list sorted.
+	 * Removes an element from this list, if present.
 	 * 
 	 * @param element
 	 *            the element to be removed from the list
 	 * @return <code>true</code> if the element was found and removed
 	 */
 	public boolean remove(CaliSmallElement element) {
-		boolean removed = false, found = false;
-		int position;
-		for (position = 0; position < sortedByX.size(); position++) {
-			if (sortedByX.get(position).equals(element)) {
-				found = true;
-				break;
-			}
-		}
-		if (found) {
-			removed = sortedByX.remove(position) != null;
-		}
-		// if (removed)
-		// Log.d(SPACE_OCCUPATION, "Removed element at position [" + position
-		// + "], updated list follows");
-		// else
-		// Log.d(SPACE_OCCUPATION, "request to remove " + element
-		// + ", but it's not on the list!");
-		// Log.d(SPACE_OCCUPATION, toString());
-		return removed;
+		return list.remove(element);
 	}
 
 	/**
@@ -268,44 +128,20 @@ public class SpaceOccupationList {
 	 *            the element whose position changed
 	 */
 	public void update(CaliSmallElement element) {
-		if (sortedByX.size() > 1) {
-			boolean sorted = true;
-			int position = -1;
-			CaliSmallElement last = sortedByX.get(0);
-			for (int i = 0; i < sortedByX.size(); i++) {
-				CaliSmallElement next = sortedByX.get(i);
-				if (position > -1) {
-					// if found compare it with its right neighbor
-					sorted = sorted && comparator.compare(element, next) <= 0;
-					break;
-				}
-				if (next.equals(element)) {
-					// found it, check if it changed position
-					position = i;
-					// compare it with its left neighbor
-					sorted = comparator.compare(last, element) <= 0;
-				}
-				last = next;
-			}
-			if (!sorted) {
-				// Log.d(SPACE_OCCUPATION, "updating position of " + element);
-				sortedByX.remove(position);
-				add(element);
-			}
-		}
+		// do nothing, we don't care about the list being sorted
 	}
 
 	public String toString() {
 		StringBuilder builder = new StringBuilder("size is ");
-		builder.append(sortedByX.size());
+		builder.append(list.size());
 		builder.append("\n");
 		String newLine = "";
-		for (int i = 0; i < sortedByX.size(); i++) {
+		for (int i = 0; i < list.size(); i++) {
 			builder.append(newLine);
 			builder.append("[");
 			builder.append(i);
 			builder.append("] ");
-			builder.append(sortedByX.get(i));
+			builder.append(list.get(i));
 			newLine = "\n";
 		}
 		return builder.toString();

@@ -389,7 +389,7 @@ public class BubbleMenu {
 			Log.d(CaliSmall.TAG, "previous: " + previousParent + ", new: "
 					+ newParent);
 			if (newParent != scrap.getParent()) {
-				if (previousParent != null) {
+				if (previousParent != null && previousParent != tempScrap) {
 					Scrap previous = (Scrap) previousParent;
 					previous.remove(scrap);
 				}

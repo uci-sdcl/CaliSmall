@@ -194,6 +194,8 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 			return 0;
 		if (width + height > another.width + another.width)
 			return 1;
+		else if (width + height == another.width + another.width)
+			return 0;
 		return -1;
 	}
 
