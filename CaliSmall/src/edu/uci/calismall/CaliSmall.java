@@ -550,6 +550,7 @@ public class CaliSmall extends Activity {
 		 *         element, if any exists, <code>null</code>
 		 */
 		public Scrap getSelectedScrap(CaliSmallElement element) {
+			// TODO move it to the specific canvas object
 			List<CaliSmallElement> candidates = Scrap.SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(element);
 			// sort elements by their size (smallest first)
@@ -1014,20 +1015,38 @@ public class CaliSmall extends Activity {
 		case LOG_MENU_ID:
 			Log.d(TAG, "{{{SCRAPS}}}\n" + Scrap.SPACE_OCCUPATION_LIST);
 			Log.d(TAG, "{{{STROKES}}}\n" + Stroke.SPACE_OCCUPATION_LIST);
-			StringBuilder builder = new StringBuilder("{{{POINTS}}}\n");
+			StringBuilder builder = new StringBuilder("{{{PARENTING}}}\n");
 			String newLine = "";
-			for (Stroke stroke : view.strokes) {
+			for (Scrap scrap : view.scraps) {
 				builder.append(newLine);
-				builder.append(stroke.getID());
-				builder.append(" ");
-				builder.append(stroke.listPoints());
+				builder.append(scrap.getID());
 				builder.append(" ");
 				builder.append("parent: ");
-				builder.append(stroke.parent == null ? "null" : stroke.parent
-						.getID());
+				builder.append(scrap.getParent() == null ? "null" : scrap
+						.getParent().getID());
+				builder.append(" previous: ");
+				builder.append(scrap.previousParent == null ? "null"
+						: scrap.previousParent.getID());
 				newLine = "\n";
 			}
 			Log.d(TAG, builder.toString());
+			// StringBuilder builder = new StringBuilder("{{{POINTS}}}\n");
+			// String newLine = "";
+			// for (Stroke stroke : view.strokes) {
+			// builder.append(newLine);
+			// builder.append(stroke.getID());
+			// builder.append(" ");
+			// builder.append(stroke.listPoints());
+			// builder.append(" ");
+			// builder.append("parent: ");
+			// builder.append(stroke.getParent() == null ? "null" : stroke
+			// .getParent().getID());
+			// builder.append(" previous: ");
+			// builder.append(stroke.previousParent == null ? "null"
+			// : stroke.previousParent.getID());
+			// newLine = "\n";
+			// }
+			// Log.d(TAG, builder.toString());
 			return true;
 		}
 		return super.onOptionsItemSelected(item);

@@ -88,6 +88,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 * The direct parent of this element.
 	 */
 	protected CaliSmallElement parent;
+
 	/**
 	 * The previous direct parent of this element.
 	 */
@@ -388,6 +389,49 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 */
 	public float getPrevYPos() {
 		return previousTopLeftPoint.y;
+	}
+
+	/**
+	 * Returns the parent element for this element
+	 * 
+	 * @return the parent, may be <code>null</code>
+	 */
+	public CaliSmallElement getParent() {
+		return parent;
+	}
+
+	/**
+	 * Returns the previous parent of this element.
+	 * 
+	 * @return the previous parent of this element
+	 */
+	public CaliSmallElement getPreviousParent() {
+		return previousParent;
+	}
+
+	/**
+	 * Sets the parent of this element to the argument <tt>parent</tt> element,
+	 * also updating the <tt>previousParent</tt> field with the current parent.
+	 * 
+	 * @param parent
+	 *            the parent to set, may be <code>null</code>
+	 */
+	public void setParent(CaliSmallElement parent) {
+		previousParent = this.parent;
+		this.parent = parent;
+	}
+
+	/**
+	 * Sets the previous parent to the argument element.
+	 * 
+	 * <p>
+	 * Used by temp scraps.
+	 * 
+	 * @param previousParent
+	 *            the previous parent to set
+	 */
+	public void setPreviousParent(CaliSmallElement previousParent) {
+		this.previousParent = previousParent;
 	}
 
 	/**

@@ -14,6 +14,7 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
+import android.util.Log;
 import android.view.MotionEvent;
 import edu.uci.calismall.CaliSmall.CaliView;
 
@@ -23,6 +24,8 @@ import edu.uci.calismall.CaliSmall.CaliView;
  * @author Michele Bonazza
  */
 public class BubbleMenu {
+
+	// TODO decouple this class from the CaliSmall object
 
 	private interface ButtonListener {
 		boolean touched(int action, PointF touchPoint, Scrap selected);
@@ -248,6 +251,12 @@ public class BubbleMenu {
 			view.addScrap(newScrap, false);
 			updateHighlighted(newScrap);
 			fixParenting(newScrap);
+			CaliSmallElement scrapParent = newScrap.getParent();
+			if (scrapParent != null) {
+				Scrap parent = (Scrap) scrapParent;
+				parent.removeAll(newScrap.getStrokes(), Stroke.class);
+				parent.removeAll(newScrap.getScraps(), Scrap.class);
+			}
 			touched = null;
 			return true;
 		} else {
@@ -281,7 +290,10 @@ public class BubbleMenu {
 		PointF quantizedMove = moveMenu(selected,
 				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
 		selected.translate(quantizedMove.x, quantizedMove.y);
-		updateHighlighted(selected);
+		if (!(selected instanceof Scrap.Temp)) {
+			// FIXME soooo not OOP!
+			updateHighlighted(selected);
+		}
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform();
 			fixParenting(selected);
@@ -328,7 +340,10 @@ public class BubbleMenu {
 		} else {
 			if (selected.parent != highlighted) {
 				if (selected.parent != null) {
-					((Scrap) selected.parent).remove(selected);
+					Scrap parentScrap = (Scrap) selected.parent;
+					parentScrap.remove(selected);
+					parentScrap.removeAll(selected.getScraps(), Scrap.class);
+					parentScrap.removeAll(selected.getStrokes(), Stroke.class);
 				}
 				if (highlighted != null) {
 					highlighted.add(selected);
@@ -336,16 +351,42 @@ public class BubbleMenu {
 					selected.setParent(highlighted);
 				}
 			}
+			if (highlighted != null) {
+				highlighted.deselect();
+				view.setSelected(highlighted);
+			}
+			highlighted = null;
 		}
-		if (highlighted != null) {
-			highlighted.deselect();
-			view.setSelected(highlighted);
-		}
-		highlighted = null;
+
 	}
 
 	private void fixParenting(Scrap.Temp tempScrap) {
-
+		for (Stroke stroke : tempScrap.getStrokes()) {
+			CaliSmallElement newParent = view.getSelectedScrap(stroke);
+			CaliSmallElement previousParent = stroke.getPreviousParent();
+			if (newParent != previousParent) {
+				if (previousParent != null)
+					((Scrap) previousParent).remove(stroke);
+				if (newParent != null)
+					((Scrap) newParent).add(stroke);
+				stroke.setPreviousParent(newParent);
+			}
+		}
+		for (Scrap scrap : tempScrap.getScraps()) {
+			CaliSmallElement newParent = view.getSelectedScrap(scrap);
+			CaliSmallElement previousParent = scrap.getPreviousParent();
+			Log.d(CaliSmall.TAG, "previous: " + previousParent + ", new: "
+					+ newParent);
+			if (newParent != scrap.getParent()) {
+				if (previousParent != null) {
+					Scrap previous = (Scrap) previousParent;
+					previous.remove(scrap);
+				}
+				if (newParent != null)
+					((Scrap) newParent).add(scrap);
+				scrap.setPreviousParent(newParent);
+			}
+		}
 	}
 
 	/**

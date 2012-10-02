@@ -9,7 +9,6 @@ package edu.uci.calismall;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import android.graphics.Bitmap;
@@ -195,6 +194,20 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
+	 * Adds all of the strokes in the argument list to this scrap.
+	 * 
+	 * @param strokes
+	 *            a list of strokes to be added to this scrap
+	 */
+	public void addAll(List<Stroke> strokes) {
+		this.strokes.addAll(strokes);
+		for (Stroke stroke : strokes)
+			stroke.parent = this;
+		// refresh the snapshot the next time!
+		contentChanged = true;
+	}
+
+	/**
 	 * Adds the argument <tt>scrap</tt> as a child of this scrap.
 	 * 
 	 * @param scrap
@@ -216,6 +229,34 @@ public class Scrap extends CaliSmallElement {
 	public void remove(Stroke stroke) {
 		strokes.remove(stroke);
 		stroke.parent = stroke.previousParent;
+		// refresh the snapshot the next time!
+		contentChanged = true;
+	}
+
+	/**
+	 * Removes all the elements in the argument list from this scrap.
+	 * 
+	 * @param <T>
+	 *            the type of elements to be removed from this scrap
+	 * 
+	 * @param elements
+	 *            the strokes to be removed from this scrap
+	 * @param type
+	 *            the type of elements to be removed
+	 */
+	@SuppressWarnings("unchecked")
+	public <T extends CaliSmallElement> void removeAll(List<T> elements,
+			Class<T> type) {
+		// TODO refactor so that the unchecked cast is not needed
+		List<T> content;
+		if (type.equals(Stroke.class)) {
+			content = (List<T>) strokes;
+		} else {
+			content = (List<T>) scraps;
+		}
+		content.removeAll(elements);
+		for (CaliSmallElement element : elements)
+			element.parent = element.previousParent;
 		// refresh the snapshot the next time!
 		contentChanged = true;
 	}
@@ -307,6 +348,32 @@ public class Scrap extends CaliSmallElement {
 			allStrokes.addAll(scrap.strokes);
 		}
 		return allStrokes;
+	}
+
+	/**
+	 * Returns a list of all strokes whose parent is this scrap.
+	 * 
+	 * <p>
+	 * The list is not defensively copied, so editing the return object will
+	 * alter this scrap's internal status.
+	 * 
+	 * @return this scrap's children strokes
+	 */
+	public List<Stroke> getStrokes() {
+		return strokes;
+	}
+
+	/**
+	 * Returns a list of all scraps whose parent is this scrap.
+	 * 
+	 * <p>
+	 * The list is not defensively copied, so editing the return object will
+	 * alter this scrap's internal status.
+	 * 
+	 * @return this scrap's children scraps
+	 */
+	public List<Scrap> getScraps() {
+		return scraps;
 	}
 
 	/**
@@ -430,18 +497,26 @@ public class Scrap extends CaliSmallElement {
 	 * thread can remove them from the lists.
 	 */
 	public void erase() {
-		parent = null;
+		if (parent != null) {
+			Scrap parentScrap = (Scrap) parent;
+			parentScrap.remove(this);
+			parent = null;
+		}
 		toBeDeleted = true;
 		mustBeDrawnVectorially(false);
 		outerBorder.toBeDeleted = true;
 		for (Stroke stroke : getAllStrokes()) {
 			stroke.toBeDeleted = true;
+			if (stroke.parent != null) {
+				Scrap parentScrap = (Scrap) stroke.parent;
+				parentScrap.remove(stroke);
+			}
 		}
-		for (Iterator<Scrap> iterator = scraps.iterator(); iterator.hasNext();) {
-			Scrap scrap = iterator.next();
-			scrap.erase();
-			if (scrap.parent != this) {
-				iterator.remove();
+		for (Scrap scrap : getAllScraps()) {
+			scrap.toBeDeleted = true;
+			if (scrap.parent != null) {
+				Scrap parentScrap = (Scrap) scrap.parent;
+				parentScrap.remove(scrap);
 			}
 		}
 	}
@@ -714,7 +789,7 @@ public class Scrap extends CaliSmallElement {
 					// is larger than this scrap
 					if (outerBorder.contains(scrap.outerBorder)) {
 						scraps.add(scrap);
-						scrap.previousParent = parent;
+						scrap.previousParent = scrap.parent;
 						scrap.parent = this;
 					}
 				}
