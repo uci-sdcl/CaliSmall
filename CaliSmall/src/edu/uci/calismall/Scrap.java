@@ -288,7 +288,7 @@ public class Scrap extends CaliSmallElement {
 			Scrap newCopy = new Scrap(scrap, true);
 			scraps.add(newCopy);
 		}
-		for (Stroke stroke : copy.getAllStrokes()) {
+		for (Stroke stroke : copy.strokes) {
 			strokes.add(new Stroke(stroke).setBoundaries());
 		}
 	}
@@ -472,6 +472,22 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public boolean isSelected() {
 		return selected;
+	}
+
+	/**
+	 * Resizes this scrap by the argument values.
+	 * 
+	 * @param dx
+	 *            the scale value along the X-axis
+	 * @param dy
+	 *            the scale value along the Y-axis
+	 */
+	public void scale(float dx, float dy) {
+		matrix.postScale(dx, dy);
+		borderMatrix.postScale(dx, dy);
+		outerBorder.transform(borderMatrix);
+		setBoundaries();
+		borderMatrix.reset();
 	}
 
 	/**

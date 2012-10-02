@@ -304,7 +304,18 @@ public class BubbleMenu {
 	}
 
 	private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
-		return (action != MotionEvent.ACTION_UP);
+		if (action == MotionEvent.ACTION_DOWN) {
+			selected.startEditing(scaleFactor);
+		}
+		PointF quantizedMove = moveMenu(selected,
+				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
+		selected.scale(quantizedMove.x, quantizedMove.y);
+		if (action == MotionEvent.ACTION_UP) {
+			selected.applyTransform();
+			touched = null;
+			lastPosition = new PointF();
+		}
+		return true;
 	}
 
 	private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
