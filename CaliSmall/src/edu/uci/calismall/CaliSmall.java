@@ -308,25 +308,12 @@ public class CaliSmall extends Activity {
 		 */
 		public void addScrap(Scrap scrap, boolean addContent) {
 			newSelection = scrap;
-			newScraps.add(scrap);
+			if (!(scrap instanceof Scrap.Temp))
+				newScraps.add(scrap);
 			if (addContent) {
 				newStrokes.addAll(scrap.getAllStrokes());
 				newScraps.addAll(scrap.getAllScraps());
 			}
-		}
-
-		/**
-		 * Adds all strokes in the argument scrap to the canvas.
-		 * 
-		 * <p>
-		 * Called when copying a temp selection.
-		 * 
-		 * @param toBeAdded
-		 *            the temporary selection whose strokes must be added to the
-		 *            canvas
-		 */
-		public void addStrokes(Scrap toBeAdded) {
-			newStrokes.addAll(toBeAdded.getAllStrokes());
 		}
 
 		/**

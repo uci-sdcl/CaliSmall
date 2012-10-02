@@ -268,7 +268,7 @@ public class BubbleMenu {
 		if (action == MotionEvent.ACTION_DOWN) {
 			if (selected instanceof Scrap.Temp) {
 				selected = new Scrap.Temp(selected, scaleFactor);
-				view.addStrokes(selected);
+				view.addScrap(selected, true);
 				view.changeTempScrap(selected);
 			} else {
 				selected = new Scrap(selected, true);
