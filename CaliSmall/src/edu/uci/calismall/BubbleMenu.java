@@ -14,7 +14,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
-import android.util.Log;
 import android.view.MotionEvent;
 import edu.uci.calismall.CaliSmall.CaliView;
 
@@ -145,7 +144,7 @@ public class BubbleMenu {
 	private final Button bottomRight;
 	private final RectF sel, bounds;
 	private final CaliView view;
-	private PointF lastPosition;
+	private PointF lastPosition, initialDistanceToCenter, originalCenter;
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
 			selWidth, selHeight, scaleFactor;
@@ -306,12 +305,22 @@ public class BubbleMenu {
 	private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
 		if (action == MotionEvent.ACTION_DOWN) {
 			selected.startEditing(scaleFactor);
+			Rect bounds = selected.getBounds();
+			originalCenter = new PointF(bounds.centerX(), bounds.centerY());
+			initialDistanceToCenter = calculateDistanceToCenter(touchPoint,
+					selected);
 		}
-		PointF quantizedMove = moveMenu(selected,
-				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
-		selected.scale(quantizedMove.x, quantizedMove.y);
+		// mirror distances along the center's axes
+		final float absScaleX = touchPoint.x >= originalCenter.x ? touchPoint.x
+				- lastPosition.x : lastPosition.x - touchPoint.x;
+		final float absScaleY = touchPoint.y >= originalCenter.y ? touchPoint.y
+				- lastPosition.y : lastPosition.y - touchPoint.y;
+		selected.scale(absScaleX / initialDistanceToCenter.x, absScaleY
+				/ initialDistanceToCenter.y, initialDistanceToCenter);
+		setBounds(selected.getBorder(), scaleFactor, bounds);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform();
+			selected.realignAfterScale(originalCenter);
 			touched = null;
 			lastPosition = new PointF();
 		}
@@ -330,6 +339,14 @@ public class BubbleMenu {
 			scrap(action, touchPoint, selected);
 		}
 		return true;
+	}
+
+	private PointF calculateDistanceToCenter(PointF touchPoint, Scrap selected) {
+		Rect bounds = selected.getBounds();
+		// Math.sqrt(Math.pow(touchPoint.x - bounds.centerX(), 2)
+		// + Math.pow(touchPoint.y - bounds.centerY(), 2));
+		return new PointF((touchPoint.x - bounds.centerX()),
+				(touchPoint.y - bounds.centerY()));
 	}
 
 	private void updateHighlighted(Scrap selected) {
@@ -386,8 +403,6 @@ public class BubbleMenu {
 		for (Scrap scrap : tempScrap.getScraps()) {
 			CaliSmallElement newParent = view.getSelectedScrap(scrap);
 			CaliSmallElement previousParent = scrap.getPreviousParent();
-			Log.d(CaliSmall.TAG, "previous: " + previousParent + ", new: "
-					+ newParent);
 			if (newParent != scrap.getParent()) {
 				if (previousParent != null && previousParent != tempScrap) {
 					Scrap previous = (Scrap) previousParent;

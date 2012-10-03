@@ -245,9 +245,13 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	public void transform(Matrix matrix) {
 		path.transform(matrix);
 		matrix.getValues(matrixValues);
-		final float dx = matrixValues[2];
-		final float dy = matrixValues[5];
+		final float dx = matrixValues[Matrix.MTRANS_X];
+		final float dy = matrixValues[Matrix.MTRANS_Y];
+		final float sx = matrixValues[Matrix.MSCALE_X];
+		final float sy = matrixValues[Matrix.MSCALE_Y];
 		for (PointF point : points) {
+			point.x *= sx;
+			point.y *= sy;
 			point.x += dx;
 			point.y += dy;
 		}

@@ -26,6 +26,7 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.shapes.RoundRectShape;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -481,10 +482,19 @@ public class Scrap extends CaliSmallElement {
 	 *            the scale value along the X-axis
 	 * @param dy
 	 *            the scale value along the Y-axis
+	 * @param centerOffset
+	 *            the distance between the center of the scrap and the topmost
+	 *            left corner of the scraps' bounds
 	 */
-	public void scale(float dx, float dy) {
-		matrix.postScale(dx, dy);
-		borderMatrix.postScale(dx, dy);
+	public void scale(float dx, float dy, PointF centerOffset) {
+		final float scaleX = 1 + dx;
+		final float scaleY = 1 + dy;
+		matrix.preTranslate(centerOffset.x, centerOffset.y);
+		matrix.preScale(scaleX, scaleY);
+		matrix.preTranslate(-centerOffset.x, -centerOffset.y);
+		borderMatrix.preTranslate(centerOffset.x, centerOffset.y);
+		borderMatrix.preScale(scaleX, scaleY);
+		borderMatrix.preTranslate(-centerOffset.x, -centerOffset.y);
 		outerBorder.transform(borderMatrix);
 		setBoundaries();
 		borderMatrix.reset();
@@ -652,7 +662,7 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void startEditing(float scaleFactor) {
 		topLevelForEdit = true;
-		outerBorder.setBoundaries();
+		setBoundaries();
 		Rect size = getBounds();
 		snapOffsetX = size.left;
 		snapOffsetY = size.top;
@@ -677,8 +687,6 @@ public class Scrap extends CaliSmallElement {
 	public void applyTransform() {
 		matrix.postTranslate(-snapOffsetX, -snapOffsetY);
 		topLevelForEdit = false;
-		// update boundaries according to new position
-		// outerBorder.transform(matrix);
 		outerBorder.mustBeDrawnVectorially(true);
 		for (Stroke stroke : getAllStrokes()) {
 			// Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
@@ -693,6 +701,33 @@ public class Scrap extends CaliSmallElement {
 		}
 		matrix.reset();
 		setBoundaries();
+	}
+
+	public void realignAfterScale(PointF originalCenter) {
+		Rect newBounds = getBounds();
+		Log.d(CaliSmall.TAG, "rect " + newBounds.toString() + ", center: ("
+				+ newBounds.centerX() + "," + newBounds.centerY() + ")");
+		Log.d(CaliSmall.TAG, "original center: (" + originalCenter.x + ", "
+				+ originalCenter.y + ")");
+		Log.d(CaliSmall.TAG,
+				String.format("translating: (%.4f, %.4f)", originalCenter.x
+						- newBounds.centerX(),
+						originalCenter.y - newBounds.centerY()));
+		matrix.postTranslate(originalCenter.x - newBounds.centerX(),
+				originalCenter.y - newBounds.centerY());
+		outerBorder.transform(matrix);
+		for (Stroke stroke : getAllStrokes()) {
+			// Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
+			stroke.transform(matrix);
+		}
+		mustBeDrawnVectorially(true);
+		for (Scrap scrap : getAllScraps()) {
+			scrap.outerBorder.transform(matrix);
+			scrap.setBoundaries();
+		}
+		matrix.reset();
+		setBoundaries();
+		contentChanged = true;
 	}
 
 	/**
