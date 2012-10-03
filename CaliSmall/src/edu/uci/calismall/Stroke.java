@@ -375,7 +375,7 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	 */
 	@Override
 	public boolean contains(PointF point) {
-		return false;
+		return boundaries.contains(Math.round(point.x), Math.round(point.y));
 	}
 
 	/*

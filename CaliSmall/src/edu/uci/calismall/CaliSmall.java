@@ -13,7 +13,6 @@ import java.util.List;
 import yuku.ambilwarna.AmbilWarnaDialog;
 import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
 import android.app.Activity;
-import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -85,6 +84,58 @@ public class CaliSmall extends Activity {
 		}
 	}
 
+	private static class LongPressAction implements Runnable {
+
+		private final CaliSmall parent;
+		private boolean completed;
+		private Stroke selected;
+
+		private LongPressAction(CaliSmall parent) {
+			this.parent = parent;
+		}
+
+		@Override
+		public void run() {
+			if (completed) {
+				if (!parent.view.hasMovedEnough()) {
+					parent.view.longPress(selected);
+					selected = null;
+				}
+			} else {
+				if (!parent.view.hasMovedEnough()) {
+					PointF center = parent.stroke.getStartPoint();
+					parent.circleBounds = new RectF(center.x
+							- parent.circleBoundsSize, center.y
+							- parent.circleBoundsSize, center.x
+							+ parent.circleBoundsSize, center.y
+							+ parent.circleBoundsSize);
+					selected = parent.view.getSelectedStroke();
+					if (selected != null) {
+						parent.view.longPressed = true;
+						parent.view.mustShowLongPressCircle = true;
+					}
+				}
+			}
+		}
+
+		/**
+		 * Resets the status for the long press action.
+		 * 
+		 * @param completed
+		 *            whether the user kept the finger/stylus down for the
+		 *            circle to be completely drawn on canvas, and therefore the
+		 *            action should be performed.
+		 */
+		public void reset(boolean completed) {
+			parent.view.longPressed = false;
+			parent.view.mustShowLongPressCircle = false;
+			parent.circleSweepAngle = 0;
+			this.completed = completed;
+			if (completed)
+				parent.view.longPressListener.post(this);
+		}
+	}
+
 	/**
 	 * The {@link SurfaceView} on which the canvas is drawn.
 	 * 
@@ -99,14 +150,7 @@ public class CaliSmall extends Activity {
 		// a list of scraps kept in chronological order (oldest first)
 		private final List<Scrap> scraps;
 		private final Handler longPressListener = new Handler();
-		private final Runnable longPressAction = new Runnable() {
-
-			@Override
-			public void run() {
-				if (!hasMovedEnough())
-					longPress = true;
-			}
-		};
+		private final LongPressAction longPressAction;
 		private Thread worker;
 		private Scrap selected, previousSelection, newSelection, toBeRemoved,
 				tempScrap;
@@ -115,13 +159,14 @@ public class CaliSmall extends Activity {
 		private boolean zoomingOrPanning, running, mustShowLandingZone,
 				strokeAdded, mustClearCanvas, bubbleMenuShown,
 				mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu,
-				longPress;
+				longPressed, mustShowLongPressCircle, skipEvents;
 		private PointF landingZoneCenter;
 		private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
 				screenHeight;
 
-		private CaliView(Context c) {
+		private CaliView(CaliSmall c) {
 			super(c);
+			longPressAction = new LongPressAction(c);
 			getHolder().addCallback(this);
 			strokes = new ArrayList<Stroke>();
 			scraps = new ArrayList<Scrap>();
@@ -136,15 +181,16 @@ public class CaliSmall extends Activity {
 			if (canvas != null) {
 				canvas.drawColor(Color.WHITE);
 				canvas.concat(matrix);
-				if (longPress)
-					canvas.drawText("LONG PRESS!!1!1 ;)", 300, 400, textPaint);
+				if (mustShowLongPressCircle) {
+					drawLongPressAnimation(canvas);
+				}
 				if (mustClearCanvas) {
 					clearCanvas();
 				} else {
 					// canvas.drawPath(canvasBounds, borderPaint);
 					maybeDrawLandingZone(canvas);
-					maybeCreateBubbleMenu();
 					deleteSelected();
+					maybeCreateBubbleMenu();
 					drawTempScrap(canvas);
 					addNewStrokesAndScraps();
 					drawScraps(canvas);
@@ -153,6 +199,15 @@ public class CaliSmall extends Activity {
 						bubbleMenu.draw(canvas);
 					drawNewStroke(canvas);
 				}
+			}
+		}
+
+		private void drawLongPressAnimation(Canvas canvas) {
+			circleSweepAngle += ABS_CIRCLE_SWEEP_INCREMENT;
+			canvas.drawArc(circleBounds, CIRCLE_SWEEP_START, circleSweepAngle,
+					false, circlePaint);
+			if (circleSweepAngle > 360) {
+				longPressAction.reset(true);
 			}
 		}
 
@@ -232,12 +287,26 @@ public class CaliSmall extends Activity {
 		private void deleteSelected() {
 			if (toBeRemoved != null) {
 				toBeRemoved.erase();
-				CaliSmallElement.deleteMarkedFromList(strokes,
-						Stroke.SPACE_OCCUPATION_LIST);
-				CaliSmallElement.deleteMarkedFromList(scraps,
-						Scrap.SPACE_OCCUPATION_LIST);
 				mustShowBubbleMenu = false;
 				toBeRemoved = null;
+			}
+			CaliSmallElement.deleteMarkedFromList(strokes,
+					Stroke.SPACE_OCCUPATION_LIST);
+			CaliSmallElement.deleteMarkedFromList(scraps,
+					Scrap.SPACE_OCCUPATION_LIST);
+		}
+
+		private void longPress(Stroke selected) {
+			Log.d(TAG, "LONG PRESS!!1!1 ;)");
+			skipEvents = true;
+			if (selected != null) {
+				if (selected.parent != null) {
+					((Scrap) selected.parent).remove(selected);
+				}
+				stroke.toBeDeleted = true;
+				activeStroke = selected;
+				tempScrapCreated = true;
+				mustShowBubbleMenu = true;
 			}
 		}
 
@@ -367,30 +436,36 @@ public class CaliSmall extends Activity {
 
 		private void handleDrawingEvent(final MotionEvent event,
 				final int action) {
-			// events in the switch block are in chronological order
-			switch (action) {
-			case MotionEvent.ACTION_DOWN:
-				// first touch with one finger
-				onDown(event);
-				scaleDetector.onTouchEvent(event);
-				break;
-			case MotionEvent.ACTION_MOVE:
-				onMove(event);
-				break;
-			case MotionEvent.ACTION_POINTER_DOWN:
-				// first touch with second finger
-				onPointerDown(event);
-				break;
-			case MotionEvent.ACTION_CANCEL:
-				mustShowLandingZone = false;
-				createNewStroke();
-				break;
-			case MotionEvent.ACTION_UP:
-				// last finger lifted
-				onUp(event);
-				break;
-			default:
-				Log.d(TAG, "default: " + actionToString(action));
+			if (skipEvents) {
+				if (action == MotionEvent.ACTION_UP) {
+					onUp(event);
+				}
+			} else {
+				// events in the switch block are in chronological order
+				switch (action) {
+				case MotionEvent.ACTION_DOWN:
+					// first touch with one finger
+					onDown(event);
+					scaleDetector.onTouchEvent(event);
+					break;
+				case MotionEvent.ACTION_MOVE:
+					onMove(event);
+					break;
+				case MotionEvent.ACTION_POINTER_DOWN:
+					// first touch with second finger
+					onPointerDown(event);
+					break;
+				case MotionEvent.ACTION_CANCEL:
+					mustShowLandingZone = false;
+					createNewStroke();
+					break;
+				case MotionEvent.ACTION_UP:
+					// last finger lifted
+					onUp(event);
+					break;
+				default:
+					Log.d(TAG, "default: " + actionToString(action));
+				}
 			}
 		}
 
@@ -431,7 +506,7 @@ public class CaliSmall extends Activity {
 			PointF adjusted = adjustForZoom(event.getX(), event.getY());
 			mustShowLandingZone = false;
 			mActivePointerId = event.findPointerIndex(0);
-			longPress = false;
+			longPressed = false;
 			if (bubbleMenuShown) {
 				if (onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
 					// a button was touched, redirect actions to bubble menu
@@ -465,51 +540,54 @@ public class CaliSmall extends Activity {
 		private void onUp(MotionEvent event) {
 			mustShowLandingZone = false;
 			longPressListener.removeCallbacks(longPressAction);
-			if (longPress) {
-				longPress = false;
-				// do whatever is supposed to happen with the long press
-				stroke.reset();
+			skipEvents = false;
+			if (zoomingOrPanning) {
+				setSelected(previousSelection);
 			} else {
-				if (!zoomingOrPanning) {
-					final int pointerIndex = event
-							.findPointerIndex(mActivePointerId);
-					mActivePointerId = INVALID_POINTER_ID;
-					final PointF adjusted = adjustForZoom(
-							event.getX(pointerIndex), event.getY(pointerIndex));
-					if (isInLandingZone(adjusted)
-							&& isWideEnoughForBubbleMenu()) {
-						bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
-								screenBounds);
-						mustShowBubbleMenu = true;
-						tempScrapCreated = true;
-					} else {
-						Scrap newSelection;
-						if (!hasMovedEnough()) {
-							PointF center = stroke.getStartPoint();
-							newSelection = getSelectedScrap(center);
-							if (newSelection == previousSelection) {
-								// draw a point (a small circle)
-								stroke.setStyle(Paint.Style.FILL);
-								stroke.getPath().addCircle(center.x, center.y,
-										stroke.getStrokeWidth() / 2,
-										Direction.CW);
-								stroke.setBoundaries();
-							} else {
-								// a single tap selects the scrap w/o being
-								// drawn
-								stroke.reset();
-							}
-						} else {
-							newSelection = getSelectedScrap(stroke);
-						}
-						setSelected(newSelection);
-						if (selected != null && !stroke.isEmpty()) {
-							selected.add(stroke);
-						}
-						createNewStroke();
-					}
+				final int pointerIndex = event
+						.findPointerIndex(mActivePointerId);
+				mActivePointerId = INVALID_POINTER_ID;
+				if (longPressAction.completed) {
+					stroke.reset();
+					createNewStroke();
+					longPressAction.completed = false;
+					return;
+				} else if (longPressed) {
+					// animation has been shown, but the user didn't mean to
+					// long press, so she took her finger/stylus away
+					longPressAction.reset(false);
+				}
+				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
+						event.getY(pointerIndex));
+				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
+					bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
+							screenBounds);
+					mustShowBubbleMenu = true;
+					tempScrapCreated = true;
 				} else {
-					setSelected(previousSelection);
+					Scrap newSelection;
+					if (!hasMovedEnough()) {
+						PointF center = stroke.getStartPoint();
+						newSelection = getSelectedScrap(center);
+						if (newSelection == previousSelection) {
+							// draw a point (a small circle)
+							stroke.setStyle(Paint.Style.FILL);
+							stroke.getPath().addCircle(center.x, center.y,
+									stroke.getStrokeWidth() / 2, Direction.CW);
+							stroke.setBoundaries();
+						} else {
+							// a single tap selects the scrap w/o being
+							// drawn
+							stroke.reset();
+						}
+					} else {
+						newSelection = getSelectedScrap(stroke);
+					}
+					setSelected(newSelection);
+					if (selected != null && !stroke.isEmpty()) {
+						selected.add(stroke);
+					}
+					createNewStroke();
 				}
 			}
 			previousSelection = selected;
@@ -556,6 +634,19 @@ public class CaliSmall extends Activity {
 				Scrap scrap = scraps.get(i);
 				if (scrap.contains(adjusted)) {
 					return scrap.getSmallestTouched(adjusted);
+				}
+			}
+			return null;
+		}
+
+		private Stroke getSelectedStroke() {
+			List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
+					.findIntersectionCandidates(stroke);
+			// sort elements by their size (smallest first)
+			Collections.sort(candidates);
+			for (CaliSmallElement candidate : candidates) {
+				if (candidate.contains(stroke.getStartPoint())) {
+					return (Stroke) candidate;
 				}
 			}
 			return null;
@@ -752,12 +843,14 @@ public class CaliSmall extends Activity {
 		public void onScaleEnd(ScaleGestureDetector detector) {
 			// rescale paint brush and connect circle
 			stroke.setStrokeWidth(ABS_STROKE_WIDTH / scaleFactor);
+			circlePaint.setStrokeWidth(stroke.getStrokeWidth() * 2);
 			landingZoneRadius = ABS_LANDING_ZONE_RADIUS / scaleFactor;
 			minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
 					/ scaleFactor;
 			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET / scaleFactor;
 			touchThreshold = ABS_TOUCH_THRESHOLD / scaleFactor;
 			touchTolerance = ABS_TOUCH_TOLERANCE / scaleFactor;
+			circleBoundsSize = ABS_CIRCLE_BOUNDS_HALF_SIZE / scaleFactor;
 			final float newInterval = ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 			landingZonePaint.setPathEffect(new DashPathEffect(new float[] {
 					newInterval, newInterval }, (float) 1.0));
@@ -776,10 +869,10 @@ public class CaliSmall extends Activity {
 	public static final int ABS_STROKE_WIDTH = 3;
 
 	/**
-	 * The amount of time (in milliseconds) before a tap is considered a long
-	 * press gesture.
+	 * The amount of time (in milliseconds) before the long pressure animation
+	 * is shown.
 	 */
-	public static final long LONG_PRESS_DURATION = 500;
+	public static final long LONG_PRESS_DURATION = 300;
 
 	/**
 	 * A list containing all created scraps sorted by their position in the
@@ -816,6 +909,24 @@ public class CaliSmall extends Activity {
 	 * a move action (to be rescaled by scaleFactor).
 	 */
 	static final float ABS_TOUCH_TOLERANCE = 2;
+
+	/**
+	 * Absolute half the size of the rectangle enclosing the circle displayed on
+	 * long presses (to be rescaled by scaleFactor).
+	 */
+	static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
+
+	/**
+	 * Absolute length of the increment when drawing the long press circle
+	 * between {@link CaliView#draw(Canvas)} calls. This determines the speed at
+	 * which the circle is animated.
+	 */
+	static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
+	/**
+	 * The starting point for the sweep animation for long presses. 0 is the
+	 * rightmost point, -90 is the topmost point.
+	 */
+	static final float CIRCLE_SWEEP_START = -90;
 	private static final float MIN_ZOOM = 1f;
 	private static final float MAX_ZOOM = 4f;
 	private static final int COLOR_MENU_ID = Menu.FIRST;
@@ -824,10 +935,10 @@ public class CaliSmall extends Activity {
 	private BubbleMenu bubbleMenu;
 	private CaliView view;
 	private Matrix matrix;
-	private RectF screenBounds;
+	private RectF screenBounds, circleBounds;
 	private Path canvasBounds;
 	private Stroke stroke, activeStroke;
-	private Paint paint, borderPaint, landingZonePaint, textPaint;
+	private Paint paint, borderPaint, landingZonePaint, textPaint, circlePaint;
 	private ScaleGestureDetector scaleDetector;
 	// variables starting with 'd' are in display-coordinates
 	private float scaleFactor = 1.f, dScaleFactor = 1.f, dScaleCenterX,
@@ -838,7 +949,8 @@ public class CaliSmall extends Activity {
 			minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE,
 			landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET,
 			touchThreshold = ABS_TOUCH_THRESHOLD,
-			touchTolerance = ABS_TOUCH_TOLERANCE;
+			touchTolerance = ABS_TOUCH_TOLERANCE,
+			circleBoundsSize = ABS_CIRCLE_BOUNDS_HALF_SIZE, circleSweepAngle;
 
 	/**
 	 * Returns a string that represents the symbolic name of the specified
@@ -909,6 +1021,14 @@ public class CaliSmall extends Activity {
 		textPaint.setStyle(Style.STROKE);
 		textPaint.setTextSize(80);
 		textPaint.setColor(Color.RED);
+		circlePaint = new Paint();
+		circlePaint.setAntiAlias(true);
+		circlePaint.setDither(true);
+		circlePaint.setStrokeJoin(Paint.Join.ROUND);
+		circlePaint.setStrokeCap(Paint.Cap.ROUND);
+		circlePaint.setStyle(Style.STROKE);
+		circlePaint.setStrokeWidth(ABS_STROKE_WIDTH * 2);
+		circlePaint.setColor(Color.RED);
 		canvasBounds = new Path();
 		landingZonePaint = new Paint();
 		landingZonePaint.setColor(Color.BLACK);
