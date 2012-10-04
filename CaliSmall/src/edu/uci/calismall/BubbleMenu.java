@@ -324,8 +324,7 @@ public class BubbleMenu {
 		final float absScaleY = touchPoint.y >= pivot.y ? touchPoint.y
 				- lastPosition.y : 0;
 		selected.scale(absScaleX / initialDistanceToPivot.x, absScaleY
-				/ initialDistanceToPivot.y, pivot,
-				initialDistanceToPivot);
+				/ initialDistanceToPivot.y, pivot, initialDistanceToPivot);
 		setBounds(selected.getBorder(), scaleFactor, bounds);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform(true);

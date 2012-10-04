@@ -836,6 +836,10 @@ public class Scrap extends CaliSmallElement {
 		 */
 		public Temp(Scrap copy, float scaleFactor) {
 			super(copy, true);
+			for (Stroke stroke : strokes) {
+				// temp scraps are handled differently from regular ones
+				stroke.previousParent = null;
+			}
 			regionColor = TEMP_SCRAP_REGION_COLOR;
 			dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
 		}
@@ -873,13 +877,20 @@ public class Scrap extends CaliSmallElement {
 					}
 				}
 			}
-			// Log.d(CaliSmall.TAG, String.format("*** strokes: %d scraps: %d",
+			// Log.d(CaliSmall.TAG, String.format(
+			// "*** new temp! ID: %s - strokes: %d scraps: %d", getID(),
 			// strokes.size(), scraps.size()));
 			// StringBuilder builder = new StringBuilder("content:\n");
 			// String newline = "";
 			// for (Stroke stroke : strokes) {
 			// builder.append(newline);
 			// builder.append(stroke);
+			// builder.append(" - parent: ");
+			// builder.append(stroke.getParent() == null ? "null" : stroke
+			// .getParent().getID());
+			// builder.append(" - previous parent: ");
+			// builder.append(stroke.getPreviousParent() == null ? "null"
+			// : stroke.getPreviousParent().getID());
 			// newline = "\n";
 			// }
 			// Log.d(CaliSmall.TAG, builder.toString());
