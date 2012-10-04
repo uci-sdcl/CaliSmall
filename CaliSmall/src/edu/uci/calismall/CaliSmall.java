@@ -1137,23 +1137,23 @@ public class CaliSmall extends Activity {
 				newLine = "\n";
 			}
 			Log.d(TAG, builder.toString());
-			// StringBuilder builder = new StringBuilder("{{{POINTS}}}\n");
-			// String newLine = "";
-			// for (Stroke stroke : view.strokes) {
-			// builder.append(newLine);
-			// builder.append(stroke.getID());
-			// builder.append(" ");
-			// builder.append(stroke.listPoints());
-			// builder.append(" ");
-			// builder.append("parent: ");
-			// builder.append(stroke.getParent() == null ? "null" : stroke
-			// .getParent().getID());
-			// builder.append(" previous: ");
-			// builder.append(stroke.previousParent == null ? "null"
-			// : stroke.previousParent.getID());
-			// newLine = "\n";
-			// }
-			// Log.d(TAG, builder.toString());
+			builder = new StringBuilder("{{{POINTS}}}\n");
+			newLine = "";
+			for (Stroke stroke : view.strokes) {
+				builder.append(newLine);
+				builder.append(stroke.getID());
+				builder.append(" ");
+				builder.append(stroke.listPoints());
+				builder.append(" ");
+				builder.append("parent: ");
+				builder.append(stroke.getParent() == null ? "null" : stroke
+						.getParent().getID());
+				builder.append(" previous: ");
+				builder.append(stroke.previousParent == null ? "null"
+						: stroke.previousParent.getID());
+				newLine = "\n";
+			}
+			Log.d(TAG, builder.toString());
 			return true;
 		}
 		return super.onOptionsItemSelected(item);

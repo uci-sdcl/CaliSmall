@@ -510,6 +510,28 @@ public class Scrap extends CaliSmallElement {
 	 *            the point which is used as pivot when scaling the scrap
 	 * @param centerOffset
 	 */
+	public void rotate(float angle, PointF rotationPivot) {
+		snapshotMatrix.preTranslate(-rotationPivot.x, -rotationPivot.y);
+		snapshotMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
+		snapshotMatrix.preTranslate(rotationPivot.x, rotationPivot.y);
+		borderMatrix.setRotate(angle, rotationPivot.x, rotationPivot.y);
+		contentMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
+		outerBorder.transform(borderMatrix);
+		setBoundaries();
+		borderMatrix.reset();
+	}
+
+	/**
+	 * Resizes this scrap by the argument values.
+	 * 
+	 * @param dx
+	 *            the scale value along the X-axis
+	 * @param dy
+	 *            the scale value along the Y-axis
+	 * @param scalePivot
+	 *            the point which is used as pivot when scaling the scrap
+	 * @param centerOffset
+	 */
 	public void scale(float dx, float dy, PointF scalePivot, PointF centerOffset) {
 		final float scaleX = 1 + dx;
 		final float scaleY = 1 + dy;

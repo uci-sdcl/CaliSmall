@@ -335,7 +335,25 @@ public class BubbleMenu {
 	}
 
 	private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
-		return (action != MotionEvent.ACTION_UP);
+		if (action == MotionEvent.ACTION_DOWN) {
+			selected.startEditing(scaleFactor, Transformation.RESIZE);
+			Rect bounds = selected.getBounds();
+			pivot = new PointF(bounds.centerX(), bounds.centerY());
+		}
+		final PointF oldDistanceToCenter = new PointF(lastPosition.x - pivot.x,
+				lastPosition.y - pivot.y);
+		final PointF newDistanceToCenter = new PointF(touchPoint.x - pivot.x,
+				touchPoint.y - pivot.y);
+		selected.rotate(
+				(float) getAngle(oldDistanceToCenter, newDistanceToCenter),
+				pivot);
+		setBounds(selected.getBorder(), scaleFactor, bounds);
+		if (action == MotionEvent.ACTION_UP) {
+			selected.applyTransform(true);
+			touched = null;
+			lastPosition = new PointF();
+		}
+		return true;
 	}
 
 	private boolean shrinkWrapped(int action, PointF touchPoint, Scrap selected) {
@@ -356,6 +374,23 @@ public class BubbleMenu {
 		// (touchPoint.y - bounds.centerY()));
 		return new PointF((touchPoint.x - bounds.left),
 				(touchPoint.y - bounds.top));
+	}
+
+	private double getAngle(PointF point1, PointF point2) {
+		double theta;
+		if (point2.x - point1.x == 0) {
+			if (point2.y > point1.y)
+				theta = 0;
+			else
+				theta = Math.PI;
+		} else {
+			theta = Math.atan((point2.y - point1.y) / (point2.x - point1.x));
+			if (point2.x > point1.x)
+				theta = Math.PI / 2.0f - theta;
+			else
+				theta = Math.PI * 1.5f - theta;
+		}
+		return theta;
 	}
 
 	private void updateHighlighted(Scrap selected) {
