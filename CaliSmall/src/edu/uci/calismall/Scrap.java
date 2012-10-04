@@ -489,12 +489,12 @@ public class Scrap extends CaliSmallElement {
 	public void scale(float dx, float dy, PointF centerOffset) {
 		final float scaleX = 1 + dx;
 		final float scaleY = 1 + dy;
-		matrix.preTranslate(centerOffset.x, centerOffset.y);
-		matrix.preScale(scaleX, scaleY);
 		matrix.preTranslate(-centerOffset.x, -centerOffset.y);
-		borderMatrix.preTranslate(centerOffset.x, centerOffset.y);
-		borderMatrix.preScale(scaleX, scaleY);
+		matrix.preScale(scaleX, scaleY);
+		matrix.preTranslate(centerOffset.x, centerOffset.y);
 		borderMatrix.preTranslate(-centerOffset.x, -centerOffset.y);
+		borderMatrix.preScale(scaleX, scaleY);
+		borderMatrix.preTranslate(centerOffset.x, centerOffset.y);
 		outerBorder.transform(borderMatrix);
 		setBoundaries();
 		borderMatrix.reset();
