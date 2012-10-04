@@ -26,7 +26,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.shapes.RoundRectShape;
-import android.util.Log;
 import android.view.View;
 
 /**
@@ -47,6 +46,23 @@ import android.view.View;
 public class Scrap extends CaliSmallElement {
 
 	/**
+	 * The kind of transformation that is applied to a scrap (and all its
+	 * content).
+	 * 
+	 * @author Michele Bonazza
+	 */
+	public static enum Transformation {
+		/**
+		 * A translation along the (x, y) axes.
+		 */
+		TRANSLATION, /**
+		 * A resize transformation that scales all points of this
+		 * scrap (and those of all its children).
+		 */
+		RESIZE
+	}
+
+	/**
 	 * A list containing all created scraps sorted by their position in the
 	 * canvas.
 	 */
@@ -63,9 +79,9 @@ public class Scrap extends CaliSmallElement {
 			TEMP_BORDER_PAINT = new Paint(), SNAPSHOT_PAINT = new Paint();
 	/**
 	 * The transformation matrix in use when modifying a scrap through bubble
-	 * menu.
+	 * menu that is applied to the bitmap snapshot representing this scrap.
 	 */
-	protected final Matrix matrix;
+	protected final Matrix snapshotMatrix;
 
 	/**
 	 * The transformation matrix in use when modifying a scrap through bubble
@@ -98,6 +114,12 @@ public class Scrap extends CaliSmallElement {
 	 * The color with which to fill the area of this scrap.
 	 */
 	protected int regionColor = SCRAP_REGION_COLOR;
+
+	/**
+	 * The transformation matrix in use when modifying a scrap through bubble
+	 * menu that is applied to the content of the topmost scrap.
+	 */
+	protected Matrix contentMatrix;
 	private boolean topLevelForEdit, contentChanged = true;
 	private float snapOffsetX, snapOffsetY;
 
@@ -141,8 +163,9 @@ public class Scrap extends CaliSmallElement {
 		outerBorder.getPath().close();
 		outerBorder.getPath().setFillType(FillType.WINDING);
 		setBoundaries();
-		matrix = new Matrix();
+		snapshotMatrix = new Matrix();
 		borderMatrix = new Matrix();
+		contentMatrix = new Matrix();
 	}
 
 	/**
@@ -177,8 +200,9 @@ public class Scrap extends CaliSmallElement {
 			scrap.previousParent = this;
 		}
 		setBoundaries();
-		matrix = new Matrix();
+		snapshotMatrix = new Matrix();
 		borderMatrix = new Matrix();
+		contentMatrix = new Matrix();
 	}
 
 	/**
@@ -482,19 +506,18 @@ public class Scrap extends CaliSmallElement {
 	 *            the scale value along the X-axis
 	 * @param dy
 	 *            the scale value along the Y-axis
+	 * @param scalePivot
+	 *            the point which is used as pivot when scaling the scrap
 	 * @param centerOffset
-	 *            the distance between the center of the scrap and the topmost
-	 *            left corner of the scraps' bounds
 	 */
-	public void scale(float dx, float dy, PointF centerOffset) {
+	public void scale(float dx, float dy, PointF scalePivot, PointF centerOffset) {
 		final float scaleX = 1 + dx;
 		final float scaleY = 1 + dy;
-		matrix.preTranslate(-centerOffset.x, -centerOffset.y);
-		matrix.preScale(scaleX, scaleY);
-		matrix.preTranslate(centerOffset.x, centerOffset.y);
-		borderMatrix.preTranslate(-centerOffset.x, -centerOffset.y);
-		borderMatrix.preScale(scaleX, scaleY);
-		borderMatrix.preTranslate(centerOffset.x, centerOffset.y);
+		// snapshotMatrix.preTranslate(centerOffset.x, centerOffset.y);
+		snapshotMatrix.preScale(scaleX, scaleY);
+		// snapshotMatrix.preTranslate(-centerOffset.x, -centerOffset.y);
+		borderMatrix.postScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
+		contentMatrix.postScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
 		outerBorder.transform(borderMatrix);
 		setBoundaries();
 		borderMatrix.reset();
@@ -567,7 +590,7 @@ public class Scrap extends CaliSmallElement {
 	 *            the Y-offset
 	 */
 	public void translate(float dx, float dy) {
-		matrix.postTranslate(dx, dy);
+		snapshotMatrix.postTranslate(dx, dy);
 		borderMatrix.postTranslate(dx, dy);
 		outerBorder.transform(borderMatrix);
 		setBoundaries();
@@ -602,7 +625,7 @@ public class Scrap extends CaliSmallElement {
 			drawShadedRegion(canvas);
 			drawBorder(canvas, scaleFactor);
 		} else if (topLevelForEdit) {
-			canvas.drawBitmap(snapshot, matrix, null);
+			canvas.drawBitmap(snapshot, snapshotMatrix, null);
 		}
 	}
 
@@ -659,8 +682,12 @@ public class Scrap extends CaliSmallElement {
 	 * 
 	 * @param scaleFactor
 	 *            the current scale factor
+	 * @param transformationType
+	 *            the type of transformation that is about to be applied to this
+	 *            scrap
 	 */
-	public void startEditing(float scaleFactor) {
+	public void startEditing(float scaleFactor,
+			Transformation transformationType) {
 		topLevelForEdit = true;
 		setBoundaries();
 		Rect size = getBounds();
@@ -676,58 +703,45 @@ public class Scrap extends CaliSmallElement {
 			this.snapshot = snapshot;
 			contentChanged = false;
 		}
-		matrix.postTranslate(snapOffsetX, snapOffsetY);
+		snapshotMatrix.postTranslate(snapOffsetX, snapOffsetY);
 		// use the bitmap snapshot until applyTransform() is called
 		changeDrawingStatus(false);
+		switch (transformationType) {
+		case TRANSLATION:
+			contentMatrix = snapshotMatrix;
+			break;
+		case RESIZE:
+			contentMatrix = new Matrix();
+		}
 	}
 
 	/**
 	 * Applies the transformations set for this scrap to all of its contents.
+	 * 
+	 * @param forceSnapshotRedraw
+	 *            whether the bitmap snapshot for this scrap should be redrawn
+	 *            (i.e. whether the transformation altered the way this scrap
+	 *            looks)
 	 */
-	public void applyTransform() {
-		matrix.postTranslate(-snapOffsetX, -snapOffsetY);
+	public void applyTransform(boolean forceSnapshotRedraw) {
+		snapshotMatrix.postTranslate(-snapOffsetX, -snapOffsetY);
 		topLevelForEdit = false;
 		outerBorder.mustBeDrawnVectorially(true);
 		for (Stroke stroke : getAllStrokes()) {
 			// Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
-			stroke.transform(matrix);
+			stroke.transform(contentMatrix);
 			stroke.mustBeDrawnVectorially(true);
 		}
 		mustBeDrawnVectorially(true);
 		for (Scrap scrap : getAllScraps()) {
-			scrap.outerBorder.transform(matrix);
+			scrap.outerBorder.transform(contentMatrix);
 			scrap.mustBeDrawnVectorially(true);
 			scrap.setBoundaries();
 		}
-		matrix.reset();
+		snapshotMatrix.reset();
+		contentMatrix.reset();
 		setBoundaries();
-	}
-
-	public void realignAfterScale(PointF originalCenter) {
-		Rect newBounds = getBounds();
-		Log.d(CaliSmall.TAG, "rect " + newBounds.toString() + ", center: ("
-				+ newBounds.centerX() + "," + newBounds.centerY() + ")");
-		Log.d(CaliSmall.TAG, "original center: (" + originalCenter.x + ", "
-				+ originalCenter.y + ")");
-		Log.d(CaliSmall.TAG,
-				String.format("translating: (%.4f, %.4f)", originalCenter.x
-						- newBounds.centerX(),
-						originalCenter.y - newBounds.centerY()));
-		matrix.postTranslate(originalCenter.x - newBounds.centerX(),
-				originalCenter.y - newBounds.centerY());
-		outerBorder.transform(matrix);
-		for (Stroke stroke : getAllStrokes()) {
-			// Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
-			stroke.transform(matrix);
-		}
-		mustBeDrawnVectorially(true);
-		for (Scrap scrap : getAllScraps()) {
-			scrap.outerBorder.transform(matrix);
-			scrap.setBoundaries();
-		}
-		matrix.reset();
-		setBoundaries();
-		contentChanged = true;
+		contentChanged = forceSnapshotRedraw;
 	}
 
 	/**
@@ -902,7 +916,7 @@ public class Scrap extends CaliSmallElement {
 					drawShadedRegion(canvas);
 					drawBorder(canvas, scaleFactor);
 				} else {
-					canvas.drawBitmap(snapshot, matrix, null);
+					canvas.drawBitmap(snapshot, snapshotMatrix, null);
 				}
 			}
 		}

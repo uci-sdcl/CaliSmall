@@ -16,6 +16,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.view.MotionEvent;
 import edu.uci.calismall.CaliSmall.CaliView;
+import edu.uci.calismall.Scrap.Transformation;
 
 /**
  * A pop-up menu shown when the user "closes" a path creating a scrap selection.
@@ -144,7 +145,7 @@ public class BubbleMenu {
 	private final Button bottomRight;
 	private final RectF sel, bounds;
 	private final CaliView view;
-	private PointF lastPosition, initialDistanceToCenter, originalCenter;
+	private PointF lastPosition, initialDistanceToPivot, pivot;
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
 			selWidth, selHeight, scaleFactor;
@@ -284,7 +285,7 @@ public class BubbleMenu {
 
 	private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
 		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing(scaleFactor);
+			selected.startEditing(scaleFactor, Transformation.TRANSLATION);
 		}
 		PointF quantizedMove = moveMenu(selected,
 				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
@@ -294,7 +295,7 @@ public class BubbleMenu {
 			updateHighlighted(selected);
 		}
 		if (action == MotionEvent.ACTION_UP) {
-			selected.applyTransform();
+			selected.applyTransform(false);
 			fixParenting(selected);
 			touched = null;
 			lastPosition = new PointF();
@@ -304,23 +305,30 @@ public class BubbleMenu {
 
 	private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
 		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing(scaleFactor);
+			selected.startEditing(scaleFactor, Transformation.RESIZE);
 			Rect bounds = selected.getBounds();
-			originalCenter = new PointF(bounds.centerX(), bounds.centerY());
-			initialDistanceToCenter = calculateDistanceToCenter(touchPoint,
+			// originalCenter = new PointF(bounds.centerX(), bounds.centerY());
+			pivot = new PointF(bounds.left, bounds.top);
+			initialDistanceToPivot = calculateDistanceToPivot(touchPoint,
 					selected);
 		}
 		// mirror distances along the center's axes
-		final float absScaleX = touchPoint.x >= originalCenter.x ? touchPoint.x
-				- lastPosition.x : lastPosition.x - touchPoint.x;
-		final float absScaleY = touchPoint.y >= originalCenter.y ? touchPoint.y
-				- lastPosition.y : lastPosition.y - touchPoint.y;
-		selected.scale(absScaleX / initialDistanceToCenter.x, absScaleY
-				/ initialDistanceToCenter.y, initialDistanceToCenter);
+		// final float absScaleX = touchPoint.x >= originalCenter.x ?
+		// touchPoint.x
+		// - lastPosition.x : lastPosition.x - touchPoint.x;
+		// final float absScaleY = touchPoint.y >= originalCenter.y ?
+		// touchPoint.y
+		// - lastPosition.y : lastPosition.y - touchPoint.y;
+		final float absScaleX = touchPoint.x >= pivot.x ? touchPoint.x
+				- lastPosition.x : 0;
+		final float absScaleY = touchPoint.y >= pivot.y ? touchPoint.y
+				- lastPosition.y : 0;
+		selected.scale(absScaleX / initialDistanceToPivot.x, absScaleY
+				/ initialDistanceToPivot.y, pivot,
+				initialDistanceToPivot);
 		setBounds(selected.getBorder(), scaleFactor, bounds);
 		if (action == MotionEvent.ACTION_UP) {
-			selected.applyTransform();
-			selected.realignAfterScale(originalCenter);
+			selected.applyTransform(true);
 			touched = null;
 			lastPosition = new PointF();
 		}
@@ -341,12 +349,14 @@ public class BubbleMenu {
 		return true;
 	}
 
-	private PointF calculateDistanceToCenter(PointF touchPoint, Scrap selected) {
+	private PointF calculateDistanceToPivot(PointF touchPoint, Scrap selected) {
 		Rect bounds = selected.getBounds();
 		// Math.sqrt(Math.pow(touchPoint.x - bounds.centerX(), 2)
 		// + Math.pow(touchPoint.y - bounds.centerY(), 2));
-		return new PointF((touchPoint.x - bounds.centerX()),
-				(touchPoint.y - bounds.centerY()));
+		// return new PointF((touchPoint.x - bounds.centerX()),
+		// (touchPoint.y - bounds.centerY()));
+		return new PointF((touchPoint.x - bounds.left),
+				(touchPoint.y - bounds.top));
 	}
 
 	private void updateHighlighted(Scrap selected) {
