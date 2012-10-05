@@ -14,6 +14,7 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
+import android.util.FloatMath;
 import android.view.MotionEvent;
 import edu.uci.calismall.CaliSmall.CaliView;
 import edu.uci.calismall.Scrap.Transformation;
@@ -138,17 +139,17 @@ public class BubbleMenu {
 	 * buttons have this height AND width (i.e. they're contained in a square).
 	 */
 	public static final int ABS_B_SIZE = 48;
-	private static final int MIN_BUTTON_DISTANCE = 3;
+	private static final int BUTTONS_PER_SIDE = 4;
+	private static final float PADDING_TO_BUTTON_SIZE_RATIO = 0.5f;
 	private final Button[] buttons;
-	private final Button topLeft;
-	private final Button topRight;
-	private final Button bottomRight;
+	private final Button shrink, scrap, erase, move, copy, rotate, resize;
+	private final Button topLeft, topRight, bottomRight;
 	private final RectF sel, bounds;
 	private final CaliView view;
 	private PointF lastPosition, initialDistanceToPivot, pivot;
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
-			selWidth, selHeight, scaleFactor;
+			scaleFactor;
 	private Scrap highlighted;
 
 	/**
@@ -162,20 +163,24 @@ public class BubbleMenu {
 		view = parent.getView();
 		sel = new RectF();
 		bounds = new RectF();
-		buttons = initButtons(parent.getResources());
-		topLeft = buttons[0];
-		topRight = buttons[3];
-		bottomRight = buttons[6];
+		Resources resources = parent.getResources();
+		shrink = createButton(resources, R.drawable.shrinkwrapped);
+		scrap = createButton(resources, R.drawable.scrap);
+		erase = createButton(resources, R.drawable.scrap_erase);
+		move = createButton(resources, R.drawable.scrap_move);
+		copy = createButton(resources, R.drawable.scrap_copy);
+		rotate = createButton(resources, R.drawable.scrap_rotate);
+		resize = createButton(resources, R.drawable.scrap_resize);
+		buttons = new Button[] { shrink, scrap, erase, move, copy, rotate,
+				resize };
+		topLeft = shrink;
+		topRight = move;
+		bottomRight = resize;
+		attachListeners();
 		lastPosition = new PointF();
 	}
 
-	private Button[] initButtons(Resources resources) {
-		// TODO check whether the shrink button size is good for every button
-		BitmapDrawable shrinkButton = new BitmapDrawable(resources,
-				BitmapFactory.decodeResource(resources,
-						R.drawable.shrinkwrapped));
-		buttonDisplaySize = shrinkButton.getIntrinsicWidth();
-		Button shrink = new Button(shrinkButton);
+	private void attachListeners() {
 		shrink.listener = new ClickableButtonListener(shrink) {
 
 			@Override
@@ -184,14 +189,6 @@ public class BubbleMenu {
 						|| shrinkWrapped(action, touchPoint, selected);
 			}
 		};
-		Button scrap = createButton(resources, R.drawable.scrap);
-		Button erase = createButton(resources, R.drawable.scrap_erase);
-		Button move = createButton(resources, R.drawable.scrap_move);
-		Button copy = createButton(resources, R.drawable.scrap_copy);
-		Button rotate = createButton(resources, R.drawable.scrap_rotate);
-		Button resize = createButton(resources, R.drawable.scrap_resize);
-		Button[] tmpButtons = new Button[] { shrink, scrap, erase, move, copy,
-				rotate, resize };
 		scrap.listener = new ClickableButtonListener(scrap) {
 
 			@Override
@@ -236,7 +233,6 @@ public class BubbleMenu {
 				return scrapResize(action, touchPoint, selected);
 			}
 		};
-		return tmpButtons;
 	}
 
 	private Button createButton(Resources resources, int buttonID) {
@@ -287,9 +283,9 @@ public class BubbleMenu {
 		if (action == MotionEvent.ACTION_DOWN) {
 			selected.startEditing(scaleFactor, Transformation.TRANSLATION);
 		}
-		PointF quantizedMove = moveMenu(selected,
-				touchPoint.x - lastPosition.x, touchPoint.y - lastPosition.y);
-		selected.translate(quantizedMove.x, quantizedMove.y);
+		selected.translate(touchPoint.x - lastPosition.x, touchPoint.y
+				- lastPosition.y);
+		updateMenu(selected);
 		if (!(selected instanceof Scrap.Temp)) {
 			// FIXME soooo not OOP!
 			updateHighlighted(selected);
@@ -325,7 +321,7 @@ public class BubbleMenu {
 				- lastPosition.y : 0;
 		selected.scale(absScaleX / initialDistanceToPivot.x, absScaleY
 				/ initialDistanceToPivot.y, pivot, initialDistanceToPivot);
-		setBounds(selected.getBorder(), scaleFactor, bounds);
+		updateMenu(selected);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform(true);
 			touched = null;
@@ -347,7 +343,7 @@ public class BubbleMenu {
 		selected.rotate(
 				(float) getAngle(oldDistanceToCenter, newDistanceToCenter),
 				pivot);
-		setBounds(selected.getBorder(), scaleFactor, bounds);
+		updateMenu(selected);
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform(true);
 			touched = null;
@@ -484,7 +480,6 @@ public class BubbleMenu {
 		// if not clicking on buttons hide menu when the touch action is over
 		boolean keepShowingMenu = action != MotionEvent.ACTION_UP;
 		if (touched != null) {
-			restrictWithinBounds(touchPoint);
 			keepShowingMenu = touched.listener.touched(action, touchPoint,
 					selection);
 			lastPosition = touchPoint;
@@ -518,14 +513,6 @@ public class BubbleMenu {
 		return false;
 	}
 
-	private void restrictWithinBounds(PointF touchPoint) {
-		touchPoint.set(
-				Math.max(bounds.left + bSize,
-						Math.min(bounds.right - bSize, touchPoint.x)),
-				Math.min(bounds.bottom - bSize,
-						Math.max(bounds.top, touchPoint.y)));
-	}
-
 	/**
 	 * Draws the menu on the argument canvas.
 	 * 
@@ -554,14 +541,10 @@ public class BubbleMenu {
 		this.scaleFactor = scaleFactor;
 		this.bounds.set(bounds);
 		bSize = buttonDisplaySize / scaleFactor;
-		minSize = bSize * MIN_BUTTON_DISTANCE;
-		padding = bSize / 2;
+		padding = bSize * PADDING_TO_BUTTON_SIZE_RATIO;
+		minSize = bSize * BUTTONS_PER_SIDE + (BUTTONS_PER_SIDE - 1) * padding;
 		if (selectionPath != null) {
-			selectionPath.computeBounds(sel, true);
-			selWidth = sel.right - sel.left;
-			selHeight = sel.bottom - sel.top;
-			updatePivotButtonsPositions(sel);
-			updateButtonsPositions(0, 0);
+			updatePositionAndSize(selectionPath);
 		}
 	}
 
@@ -577,127 +560,183 @@ public class BubbleMenu {
 		setBounds(null, scaleFactor, bounds);
 	}
 
-	private void updatePivotButtonsPositions(RectF sel) {
-		updateBounds(topLeft.position, sel.left - bSize, sel.top - bSize,
-				sel.left, sel.top);
-		updateBounds(topRight.position, sel.right, sel.top - bSize, sel.right
-				+ bSize, sel.top);
-		updateBounds(bottomRight.position, sel.right, sel.bottom, sel.right
-				+ bSize, sel.bottom + bSize);
-	}
-
-	private void updateNonPivotButtonsPositions() {
-		// second button on the left
-		updateBounds(buttons[1].position, topLeft.position.left,
-				topLeft.position.bottom + padding, topLeft.position.right,
-				topLeft.position.bottom + padding + bSize);
-		// button in the bottom-left position
-		updateBounds(buttons[2].position, topLeft.position.left,
-				bottomRight.position.top, topLeft.position.right,
-				bottomRight.position.bottom);
-		// second button on the right
-		updateBounds(buttons[4].position, topRight.position.left,
-				topRight.position.bottom + padding, topRight.position.left
-						+ bSize, topRight.position.bottom + padding + bSize);
-		// second-to-last button on the right
-		updateBounds(buttons[5].position, bottomRight.position.left,
-				bottomRight.position.top - bSize - padding,
-				bottomRight.position.right, bottomRight.position.top - padding);
-	}
-
-	private PointF updateButtonsPositions(float dx, float dy) {
-		Rect pivot = topRight.position;
-		final float oldTop = pivot.top;
-		final float oldLeft = pivot.left;
-		updateBounds(pivot, oldLeft + dx, oldTop + dy, oldLeft + dx + bSize,
-				oldTop + dy + bSize);
-		updateBounds(topLeft.position, pivot.left - selWidth - bSize,
-				pivot.top, pivot.left - selWidth, pivot.top + bSize);
-		updateBounds(bottomRight.position, pivot.left,
-				pivot.bottom + selHeight, pivot.right, pivot.bottom + selHeight
-						+ bSize);
+	private void updatePositionAndSize(Path outerBorder) {
+		outerBorder.computeBounds(sel, true);
+		updatePivotButtonsPosition();
 		applySizeConstraints();
-		updateNonPivotButtonsPositions();
-		return new PointF(pivot.left - oldLeft, pivot.top - oldTop);
+		applySpaceContraints();
+		applySizeConstraintsFixedPivots();
+		updateNonPivotButtonsPosition();
+	}
+
+	private void updatePivotButtonsPosition() {
+		// use floor() and ceil() according to what's closest to the screen
+		// margins
+		topRight.position.left = (int) FloatMath.floor(sel.right);
+		topRight.position.top = (int) FloatMath.ceil(sel.top - bSize);
+		topRight.position.right = (int) FloatMath.floor(topRight.position.left
+				+ bSize);
+		topRight.position.bottom = (int) FloatMath.ceil(topRight.position.top
+				+ bSize);
+		topLeft.position.left = (int) FloatMath.floor(sel.left - bSize);
+		topLeft.position.top = topRight.position.top;
+		topLeft.position.right = (int) FloatMath.floor(topLeft.position.left
+				+ bSize);
+		topLeft.position.bottom = topRight.position.bottom;
+		bottomRight.position.left = topRight.position.left;
+		bottomRight.position.top = (int) FloatMath.floor(sel.bottom);
+		bottomRight.position.right = topRight.position.right;
+		bottomRight.position.bottom = (int) FloatMath
+				.floor(bottomRight.position.top + bSize);
+	}
+
+	private void updateNonPivotButtonsPosition() {
+		scrap.position.left = topLeft.position.left;
+		scrap.position.right = topLeft.position.right;
+		scrap.position.top = (int) FloatMath.floor(topRight.position.bottom
+				+ padding);
+		scrap.position.bottom = (int) FloatMath.floor(scrap.position.top
+				+ bSize);
+		copy.position.left = topRight.position.left;
+		copy.position.right = topRight.position.right;
+		copy.position.top = scrap.position.top;
+		copy.position.bottom = scrap.position.bottom;
+		rotate.position.left = topRight.position.left;
+		rotate.position.right = topRight.position.right;
+		rotate.position.bottom = (int) FloatMath.floor(bottomRight.position.top
+				- padding);
+		rotate.position.top = (int) FloatMath.floor(rotate.position.bottom
+				- bSize);
+		// TODO add scrap_palette here
+		erase.position.left = topLeft.position.left;
+		erase.position.right = topLeft.position.right;
+		erase.position.top = bottomRight.position.top;
+		erase.position.bottom = bottomRight.position.bottom;
+		// TODO add scrap_list here
+		// TODO add scrap_drop here
 	}
 
 	private void applySizeConstraints() {
-		final int curWidth = topRight.position.left - topLeft.position.right;
-		final int curHeight = bottomRight.position.top
-				- topRight.position.bottom;
+		final int curWidth = topRight.position.right - topLeft.position.left;
+		final int curHeight = bottomRight.position.bottom
+				- topRight.position.top;
 		if (curWidth < minSize) {
-			if (topLeft.position.right > bounds.right - bSize - minSize) {
-				// a small scrap on the right of the screen
-				atMostThisRight(topLeft.position, topRight.position.left
-						- minSize);
-			} else {
-				// a small scrap on the left or user is dragging a scrap all the
-				// way to the left beyond the dislay limit
-				atLeastThisRight(topRight.position, topLeft.position.right
-						+ minSize);
-			}
+			// set the bubble menu to its minimum size, center according to
+			// selection
+			topLeft.position.left = (int) FloatMath.ceil(sel.centerX()
+					- minSize / 2);
+			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+					+ bSize);
+			topRight.position.right = (int) FloatMath
+					.floor(topLeft.position.left + minSize);
+			topRight.position.left = (int) FloatMath
+					.ceil(topRight.position.right - bSize);
+			bottomRight.position.left = topRight.position.left;
+			bottomRight.position.right = topRight.position.right;
+		} else if (curWidth > bounds.width()) {
+			topLeft.position.left = (int) FloatMath.floor(bounds.left);
+			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+					+ bSize);
+			topRight.position.right = (int) FloatMath.floor(bounds.right);
+			topRight.position.left = (int) FloatMath
+					.ceil(topRight.position.right - bSize);
+			bottomRight.position.left = topRight.position.left;
+			bottomRight.position.right = topRight.position.right;
 		}
 		if (curHeight < minSize) {
-			if (topRight.position.bottom > bounds.bottom - bSize - minSize) {
-				// a small scrap on the bottom of the screen
-				atMostThisDown(topRight.position, bottomRight.position.top
-						- minSize);
+			topRight.position.top = (int) FloatMath.ceil(sel.centerY()
+					- minSize / 2);
+			topRight.position.bottom = (int) FloatMath
+					.ceil(topRight.position.top + bSize);
+			bottomRight.position.bottom = (int) FloatMath
+					.floor(topRight.position.top + minSize);
+			bottomRight.position.top = (int) FloatMath
+					.floor(bottomRight.position.bottom - bSize);
+			topLeft.position.top = topRight.position.top;
+			topLeft.position.bottom = topRight.position.bottom;
+		} else if (curHeight > bounds.height()) {
+			topRight.position.top = (int) FloatMath.ceil(bounds.top);
+			topRight.position.bottom = (int) FloatMath
+					.ceil(topRight.position.top + bSize);
+			bottomRight.position.bottom = (int) FloatMath.floor(bounds.bottom);
+			bottomRight.position.top = (int) FloatMath
+					.floor(bottomRight.position.bottom - bSize);
+			topLeft.position.top = topRight.position.top;
+			topLeft.position.bottom = topRight.position.bottom;
+		}
+	}
+
+	private void applySpaceContraints() {
+		if (topLeft.position.left <= bounds.left) {
+			// make it appear on screen
+			topLeft.position.left = (int) FloatMath.ceil(bounds.left);
+			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+					+ bSize);
+		}
+		if (topRight.position.right >= bounds.right) {
+			topRight.position.right = (int) FloatMath.floor(bounds.right);
+			topRight.position.left = (int) FloatMath
+					.floor(topRight.position.right - bSize);
+			bottomRight.position.right = topRight.position.right;
+			bottomRight.position.left = topRight.position.left;
+		}
+		if (bottomRight.position.bottom >= bounds.bottom) {
+			bottomRight.position.bottom = (int) FloatMath.floor(bounds.bottom);
+			bottomRight.position.top = (int) FloatMath
+					.floor(bottomRight.position.bottom - bSize);
+		}
+		if (topRight.position.top <= bounds.top) {
+			topRight.position.top = (int) FloatMath.ceil(bounds.top);
+			topRight.position.bottom = (int) FloatMath
+					.ceil(topRight.position.top + bSize);
+			topLeft.position.top = topRight.position.top;
+			topLeft.position.bottom = topRight.position.bottom;
+		}
+	}
+
+	private void applySizeConstraintsFixedPivots() {
+		final int curWidth = topRight.position.right - topLeft.position.left;
+		final int curHeight = bottomRight.position.bottom
+				- topRight.position.top;
+		if (curWidth < minSize) {
+			// decide which point is to be used as pivot according to which one
+			// is closer to the screen margins
+			if (Math.abs(topLeft.position.left - bounds.left) < Math
+					.abs(bounds.right - topRight.position.right)) {
+				// scrap is near the left border of the screen
+				topRight.position.right = (int) FloatMath
+						.floor(topLeft.position.left + minSize);
+				topRight.position.left = (int) FloatMath
+						.floor(topRight.position.right - bSize);
 			} else {
-				// a small scrap on the top
-				atLeastThisDown(bottomRight.position, topRight.position.bottom
-						+ minSize);
+				topLeft.position.left = (int) FloatMath
+						.ceil(topRight.position.right - minSize);
+				topLeft.position.right = (int) FloatMath
+						.ceil(topLeft.position.left + bSize);
 			}
+			bottomRight.position.left = topRight.position.left;
+			bottomRight.position.right = topRight.position.right;
+		}
+		if (curHeight < minSize) {
+			if (Math.abs(topRight.position.top - bounds.top) < Math
+					.abs(bounds.bottom - bottomRight.position.bottom)) {
+				// scrap is near the top border of the screen
+				bottomRight.position.bottom = (int) FloatMath
+						.floor(topRight.position.top + minSize);
+				bottomRight.position.top = (int) FloatMath
+						.floor(bottomRight.position.bottom - bSize);
+			} else {
+				topRight.position.top = (int) FloatMath
+						.ceil(bottomRight.position.bottom - minSize);
+				topRight.position.bottom = (int) FloatMath
+						.ceil(topRight.position.top + bSize);
+			}
+			topLeft.position.top = topRight.position.top;
+			topLeft.position.bottom = topRight.position.bottom;
 		}
 	}
 
-	private void atLeastThisRight(Rect rect, float right) {
-		rect.left = Math.round(Math.max(right, rect.left));
-		rect.right = Math.round(rect.left + bSize);
-	}
-
-	private void atMostThisRight(Rect rect, float right) {
-		rect.right = Math.round(Math.min(right, rect.right));
-		rect.left = Math.round(rect.right - bSize);
-	}
-
-	private void atLeastThisDown(Rect rect, float down) {
-		rect.top = Math.round(Math.max(down, rect.top));
-		rect.bottom = Math.round(rect.top + bSize);
-	}
-
-	private void atMostThisDown(Rect rect, float down) {
-		rect.bottom = Math.round(Math.min(down, rect.bottom));
-		rect.top = Math.round(rect.bottom - bSize);
-	}
-
-	private PointF moveMenu(Scrap selection, float dx, float dy) {
-		return updateButtonsPositions(dx, dy);
-	}
-
-	/**
-	 * Updates the bounds of the argument <tt>rect</tt> using the argument
-	 * coordinates, ensuring that it doesn' go out of the portion of canvas
-	 * currently being shown.
-	 */
-	private void updateBounds(Rect rect, float left, float top, float right,
-			float bottom) {
-		if (left < bounds.left) {
-			left = bounds.left;
-			right = bounds.left + bSize;
-		}
-		if (right > bounds.right) {
-			right = bounds.right;
-			left = bounds.right - bSize;
-		}
-		if (top < bounds.top) {
-			top = bounds.top;
-			bottom = bounds.top + bSize;
-		}
-		if (bottom > bounds.bottom) {
-			bottom = bounds.bottom;
-			top = bounds.bottom - bSize;
-		}
-		rect.set(Math.round(left), Math.round(top), Math.round(right),
-				Math.round(bottom));
+	private void updateMenu(Scrap selection) {
+		updatePositionAndSize(selection.getBorder());
 	}
 }

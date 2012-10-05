@@ -11,7 +11,8 @@
         android:hardwareAccelerated="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@android:style/Theme.NoTitleBar"
+         >
         <activity
             android:name=".CaliSmall"
             android:label="@string/title_activity_cali_small"
@@ -23,6 +24,6 @@
             </intent-filter>
         </activity>
     </application>
-<!--             android:theme="@android:style/Theme.NoTitleBar" -->
+<!--             android:theme="@style/AppTheme" -->
 
 </manifest>

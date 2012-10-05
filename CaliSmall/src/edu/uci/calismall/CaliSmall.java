@@ -559,7 +559,7 @@ public class CaliSmall extends Activity {
 				}
 				final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
 						event.getY(pointerIndex));
-				if (isInLandingZone(adjusted) && isWideEnoughForBubbleMenu()) {
+				if (isInLandingZone(adjusted)) {
 					bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
 							screenBounds);
 					mustShowBubbleMenu = true;
@@ -677,13 +677,6 @@ public class CaliSmall extends Activity {
 			return Math.pow(lastPoint.x - landingZoneCenter.x, 2)
 					+ Math.pow(lastPoint.y - landingZoneCenter.y, 2) <= Math
 						.pow(landingZoneRadius, 2);
-		}
-
-		private boolean isWideEnoughForBubbleMenu() {
-			RectF rect = new RectF();
-			stroke.getPath().computeBounds(rect, true);
-			final float minSize = (BubbleMenu.ABS_B_SIZE / scaleFactor) * 2;
-			return rect.height() >= minSize;
 		}
 
 		private boolean hasMovedEnough() {
