@@ -26,8 +26,8 @@ local.properties
 .buildpath
 
 # built application files
-*.apk
-*.ap_
+#*.apk
+#*.ap_
 
 # files for the dex VM
 *.dex
@@ -39,5 +39,5 @@ local.properties
 gen/
 /assets
 /bin
-/apk
+#/apk
 /.DS_Store
