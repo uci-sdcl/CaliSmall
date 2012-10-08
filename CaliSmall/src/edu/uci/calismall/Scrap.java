@@ -85,11 +85,17 @@ public class Scrap extends CaliSmallElement {
 
 	/**
 	 * The transformation matrix in use when modifying a scrap through bubble
-	 * menu that is applied to the scrap's outer border.
+	 * menu that is applied to the content of the scrap.
 	 */
-	protected final Matrix borderMatrix;
+	protected final Matrix matrix;
 
-	protected final Matrix reverseMatrix;
+	/**
+	 * The transformation matrix that keeps track of how to roll back from the
+	 * last transformation matrix that has been applied to the scrap's border.
+	 * This is kept to handle delta-like actions, since
+	 * {@link Path#transform(Matrix)} only works with incremental updates.
+	 */
+	protected final Matrix rollbackMatrix;
 
 	/**
 	 * All scraps children (but not grand-children) of this scrap.
@@ -166,9 +172,9 @@ public class Scrap extends CaliSmallElement {
 		outerBorder.getPath().setFillType(FillType.WINDING);
 		setBoundaries();
 		snapshotMatrix = new Matrix();
-		borderMatrix = new Matrix();
+		matrix = new Matrix();
 		contentMatrix = new Matrix();
-		reverseMatrix = new Matrix();
+		rollbackMatrix = new Matrix();
 	}
 
 	/**
@@ -204,9 +210,9 @@ public class Scrap extends CaliSmallElement {
 		}
 		setBoundaries();
 		snapshotMatrix = new Matrix();
-		borderMatrix = new Matrix();
+		matrix = new Matrix();
 		contentMatrix = new Matrix();
-		reverseMatrix = new Matrix();
+		rollbackMatrix = new Matrix();
 	}
 
 	/**
@@ -504,28 +510,23 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Resizes this scrap by the argument values.
+	 * Rotates this scrap by the argument values.
 	 * 
-	 * @param dx
-	 *            the scale value along the X-axis
-	 * @param dy
-	 *            the scale value along the Y-axis
-	 * @param scalePivot
-	 *            the point which is used as pivot when scaling the scrap
-	 * @param centerOffset
+	 * @param angle
+	 *            the rotation angle, in degrees
+	 * @param rotationPivot
+	 *            the point which is used as pivot when rotating the scrap
 	 */
 	public void rotate(float angle, PointF rotationPivot) {
-		snapshotMatrix.postConcat(reverseMatrix);
+		snapshotMatrix.postConcat(rollbackMatrix);
 		snapshotMatrix.preTranslate(-rotationPivot.x, -rotationPivot.y);
 		snapshotMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
 		snapshotMatrix.preTranslate(rotationPivot.x, rotationPivot.y);
-		borderMatrix.setRotate(angle, rotationPivot.x, rotationPivot.y);
-		contentMatrix.postConcat(reverseMatrix);
-		contentMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
-		outerBorder.transform(reverseMatrix);
-		outerBorder.transform(borderMatrix);
+		matrix.setRotate(angle, rotationPivot.x, rotationPivot.y);
+		outerBorder.transform(rollbackMatrix);
+		outerBorder.transform(matrix);
 		setBoundaries();
-		reverseMatrix.setRotate(-angle, rotationPivot.x, rotationPivot.y);
+		rollbackMatrix.setRotate(-angle, rotationPivot.x, rotationPivot.y);
 	}
 
 	/**
@@ -541,14 +542,12 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void scale(float scaleX, float scaleY, PointF scalePivot,
 			PointF centerOffset) {
-		snapshotMatrix.postConcat(reverseMatrix);
+		snapshotMatrix.postConcat(rollbackMatrix);
 		snapshotMatrix.preScale(scaleX, scaleY);
-		borderMatrix.setScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
-		contentMatrix.postConcat(reverseMatrix);
-		contentMatrix.postScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
-		outerBorder.transform(reverseMatrix);
-		outerBorder.transform(borderMatrix);
-		reverseMatrix.setScale(1 / scaleX, 1 / scaleY, scalePivot.x,
+		matrix.setScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
+		outerBorder.transform(rollbackMatrix);
+		outerBorder.transform(matrix);
+		rollbackMatrix.setScale(1 / scaleX, 1 / scaleY, scalePivot.x,
 				scalePivot.y);
 		setBoundaries();
 	}
@@ -620,13 +619,13 @@ public class Scrap extends CaliSmallElement {
 	 *            the Y-offset
 	 */
 	public void translate(float dx, float dy) {
-		snapshotMatrix.postConcat(reverseMatrix);
+		snapshotMatrix.postConcat(rollbackMatrix);
 		snapshotMatrix.postTranslate(dx, dy);
-		borderMatrix.setTranslate(dx, dy);
-		outerBorder.transform(reverseMatrix);
-		outerBorder.transform(borderMatrix);
+		matrix.setTranslate(dx, dy);
+		outerBorder.transform(rollbackMatrix);
+		outerBorder.transform(matrix);
 		setBoundaries();
-		reverseMatrix.setTranslate(-dx, -dy);
+		rollbackMatrix.setTranslate(-dx, -dy);
 	}
 
 	/**
@@ -721,7 +720,7 @@ public class Scrap extends CaliSmallElement {
 	public void startEditing(float scaleFactor,
 			Transformation transformationType) {
 		topLevelForEdit = true;
-		reverseMatrix.reset();
+		rollbackMatrix.reset();
 		setBoundaries();
 		Rect size = getBounds();
 		snapOffsetX = size.left;
@@ -761,18 +760,17 @@ public class Scrap extends CaliSmallElement {
 		topLevelForEdit = false;
 		outerBorder.mustBeDrawnVectorially(true);
 		for (Stroke stroke : getAllStrokes()) {
-			// Log.d(CaliSmall.TAG, "applying transformation to " + stroke);
-			stroke.transform(contentMatrix);
+			stroke.transform(matrix);
 			stroke.mustBeDrawnVectorially(true);
 		}
 		mustBeDrawnVectorially(true);
 		for (Scrap scrap : getAllScraps()) {
-			scrap.outerBorder.transform(contentMatrix);
+			scrap.outerBorder.transform(matrix);
 			scrap.mustBeDrawnVectorially(true);
 			scrap.setBoundaries();
 		}
 		snapshotMatrix.reset();
-		contentMatrix.reset();
+		matrix.reset();
 		setBoundaries();
 		contentChanged = forceSnapshotRedraw;
 	}

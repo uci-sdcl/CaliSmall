@@ -304,18 +304,11 @@ public class BubbleMenu {
 		if (action == MotionEvent.ACTION_DOWN) {
 			selected.startEditing(scaleFactor, Transformation.RESIZE);
 			Rect bounds = selected.getBounds();
-			// originalCenter = new PointF(bounds.centerX(), bounds.centerY());
 			pivot = new PointF(bounds.left, bounds.top);
 			initialDistanceToPivot = calculateDistanceToPivot(touchPoint,
 					selected);
 		}
-		// mirror distances along the center's axes
-		// final float absScaleX = touchPoint.x >= originalCenter.x ?
-		// touchPoint.x
-		// - lastPosition.x : lastPosition.x - touchPoint.x;
-		// final float absScaleY = touchPoint.y >= originalCenter.y ?
-		// touchPoint.y
-		// - lastPosition.y : lastPosition.y - touchPoint.y;
+		// avoid reaching 0, as a scale factor of 0 is a point of non-return
 		final float absScaleX = touchPoint.x >= pivot.x ? touchPoint.x
 				- pivot.x : 0.1f;
 		final float absScaleY = touchPoint.y >= pivot.y ? touchPoint.y
