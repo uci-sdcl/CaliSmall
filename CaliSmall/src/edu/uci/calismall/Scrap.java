@@ -891,12 +891,9 @@ public class Scrap extends CaliSmallElement {
 			for (CaliSmallElement element : candidates) {
 				if (outerBorder.contains(element)) {
 					Stroke stroke = (Stroke) element;
-					if (stroke.parent == null
-							|| stroke.parent.getRectSize() > size) {
-						strokes.add(stroke);
-						stroke.previousParent = stroke.parent;
-						stroke.parent = this;
-					}
+					strokes.add(stroke);
+					stroke.previousParent = stroke.parent;
+					stroke.parent = this;
 				}
 			}
 			// Log.d(CaliSmall.TAG, String.format(

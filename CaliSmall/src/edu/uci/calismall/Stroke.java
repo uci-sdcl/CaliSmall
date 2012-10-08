@@ -251,20 +251,13 @@ class Stroke extends CaliSmallElement implements Parcelable {
 		final float sy = matrixValues[Matrix.MSCALE_Y];
 		final float rx = matrixValues[Matrix.MSKEW_X];
 		final float ry = matrixValues[Matrix.MSKEW_Y];
-		if (rx != 0 || ry != 0) {
-			/*
-			 * a rotation: skia messes up with the matrix, so sx and sy actually
-			 * store cosV, rx and ry store -sinV and sinV
-			 */
-			for (PointF point : points) {
-				point.x = point.x * sx + (point.y * rx) + dx;
-				point.y = point.x * ry + (point.y * sy) + dy;
-			}
-		} else {
-			for (PointF point : points) {
-				point.x = point.x * sx + dx;
-				point.y = point.y * sy + dy;
-			}
+		/*
+		 * if rotation: skia messes up with the matrix, so sx and sy actually
+		 * store cosV, rx and ry store -sinV and sinV
+		 */
+		for (PointF point : points) {
+			point.x = point.x * sx + (point.y * rx) + dx;
+			point.y = point.x * ry + (point.y * sy) + dy;
 		}
 		setBoundaries();
 	}

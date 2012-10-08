@@ -149,7 +149,7 @@ public class BubbleMenu {
 	private PointF lastPosition, initialDistanceToPivot, pivot;
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
-			scaleFactor;
+			scaleFactor, lastAngle;
 	private Scrap highlighted;
 
 	/**
@@ -335,17 +335,26 @@ public class BubbleMenu {
 			selected.startEditing(scaleFactor, Transformation.RESIZE);
 			Rect bounds = selected.getBounds();
 			pivot = new PointF(bounds.centerX(), bounds.centerY());
+			lastAngle = (float) (Math.toDegrees(Math.atan2(pivot.y, pivot.x)));
 		}
-		final PointF oldDistanceToCenter = new PointF(lastPosition.x - pivot.x,
-				lastPosition.y - pivot.y);
-		final PointF newDistanceToCenter = new PointF(touchPoint.x - pivot.x,
-				touchPoint.y - pivot.y);
-		selected.rotate(
-				(float) getAngle(oldDistanceToCenter, newDistanceToCenter),
-				pivot);
+		float newAngle = (float) (Math.toDegrees(Math.atan2(touchPoint.y,
+				touchPoint.x)));
+		float rotation = (newAngle - lastAngle);
+		if (rotation < 0) {
+			rotation = FloatMath.floor(rotation);
+		} else {
+			rotation = FloatMath.ceil(rotation);
+		}
+		selected.rotate(rotation, pivot);
+		lastAngle = newAngle;
 		updateMenu(selected);
+		if (!(selected instanceof Scrap.Temp)) {
+			// FIXME soooo not OOP!
+			updateHighlighted(selected);
+		}
 		if (action == MotionEvent.ACTION_UP) {
 			selected.applyTransform(true);
+			fixParenting(selected);
 			touched = null;
 			lastPosition = new PointF();
 		}
