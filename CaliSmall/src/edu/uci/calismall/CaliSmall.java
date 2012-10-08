@@ -36,7 +36,11 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 /**
- * A simple proof of concept for Calico on Android devices.
+ * A small version of Calico for Android devices.
+ * 
+ * <p>
+ * This version is still a standalone app that does no communication with Calico
+ * server(s).
  * 
  * @author Michele Bonazza
  */
@@ -71,10 +75,9 @@ public class CaliSmall extends Activity {
 					}
 				}
 				timer += System.currentTimeMillis();
-				if (timer < 20) {
+				if (timer < SCREEN_REFRESH_TIME) {
 					try {
-						// draw canvas at ~50fps
-						Thread.sleep(20 - timer);
+						Thread.sleep(SCREEN_REFRESH_TIME - timer);
 					} catch (InterruptedException e) {
 						// don't care, it'll be less fluid, big deal
 						Log.d(TAG, "interrupted!");
@@ -139,6 +142,32 @@ public class CaliSmall extends Activity {
 	/**
 	 * The {@link SurfaceView} on which the canvas is drawn.
 	 * 
+	 * <p>
+	 * Drawing takes place within the {@link CaliView#drawView(Canvas)} method,
+	 * which is called roughly every {@link CaliSmall#SCREEN_REFRESH_TIME}
+	 * milliseconds by the <tt>Worker</tt> thread that is spawn by
+	 * {@link CaliView#surfaceCreated(SurfaceHolder)} (which in turn is called
+	 * by the Android Runtime when the app is moved to the foreground).
+	 * 
+	 * <p>
+	 * All data structures accessed by the drawing thread are only edited by the
+	 * drawing thread itself to prevent conflicts (and therefore locking). When
+	 * objects must be added to/removed from the view, they must be put to other
+	 * data structures whose only purpose is to communicate with the drawing
+	 * thread.
+	 * 
+	 * <p>
+	 * Input (touch) events are handles by the
+	 * {@link CaliView#onTouchEvent(MotionEvent)} method, which is called by the
+	 * Android Event Dispatcher Thread (or whatever they call it for Android,
+	 * it's the equivalente of Java's good ol' EDT).
+	 * 
+	 * <p>
+	 * To simplify the code, and to avoid conflicts, all drawing operations are
+	 * performed by the drawing thread (no <tt>postXYZ()</tt> calls), and all
+	 * object creation/editing and border inclusion/intersection computation is
+	 * done by the EDT.
+	 * 
 	 * @author Michele Bonazza
 	 */
 	public class CaliView extends SurfaceView implements SurfaceHolder.Callback {
@@ -177,7 +206,13 @@ public class CaliSmall extends Activity {
 			landingZoneCenter = new PointF();
 		}
 
-		private void drawView(Canvas canvas) {
+		/**
+		 * Draws this view to the argument {@link Canvas}.
+		 * 
+		 * @param canvas
+		 *            the canvas onto which this view is to be drawn
+		 */
+		public void drawView(Canvas canvas) {
 			if (canvas != null) {
 				canvas.drawColor(Color.WHITE);
 				canvas.concat(matrix);
@@ -866,6 +901,14 @@ public class CaliSmall extends Activity {
 	 * is shown.
 	 */
 	public static final long LONG_PRESS_DURATION = 300;
+
+	/**
+	 * Time in milliseconds between two consecutive screen refreshes (i.e. two
+	 * consecutive calls to {@link CaliView#drawView(Canvas)}). To get the FPS
+	 * that this value sets, just divide 1000 by the value (so a
+	 * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
+	 */
+	public static final long SCREEN_REFRESH_TIME = 20;
 
 	/**
 	 * A list containing all created scraps sorted by their position in the

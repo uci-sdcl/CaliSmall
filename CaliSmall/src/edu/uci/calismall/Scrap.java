@@ -726,11 +726,13 @@ public class Scrap extends CaliSmallElement {
 		snapOffsetX = size.left;
 		snapOffsetY = size.top;
 		if (contentChanged || snapshot == null) {
-			// create a new bitmap as large as the scrap and move it
+			// create a new bitmap as large as the scrap
 			Bitmap snapshot = Bitmap.createBitmap(size.width(), size.height(),
 					Config.ARGB_8888);
+			// move the bitmap over the scrap
 			Canvas snapshotCanvas = new Canvas(snapshot);
 			snapshotCanvas.translate(-snapOffsetX, -snapOffsetY);
+			// draw scrap content to the bitmap
 			drawOnBitmap(snapshotCanvas, snapshot, scaleFactor);
 			this.snapshot = snapshot;
 			contentChanged = false;
@@ -756,7 +758,6 @@ public class Scrap extends CaliSmallElement {
 	 *            looks)
 	 */
 	public void applyTransform(boolean forceSnapshotRedraw) {
-		snapshotMatrix.postTranslate(-snapOffsetX, -snapOffsetY);
 		topLevelForEdit = false;
 		outerBorder.mustBeDrawnVectorially(true);
 		for (Stroke stroke : getAllStrokes()) {

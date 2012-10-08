@@ -40,8 +40,8 @@ gen/
 /assets
 /bin
 #/apk
-*.DS_Store
-/Icon
+.DS_Store
+Icon
 
 # UML generated files
 *.ucls
