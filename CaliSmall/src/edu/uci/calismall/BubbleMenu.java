@@ -146,10 +146,10 @@ public class BubbleMenu {
 	private final Button topLeft, topRight, bottomRight;
 	private final RectF sel, bounds;
 	private final CaliView view;
-	private PointF lastPosition, initialDistanceToPivot, pivot;
+	private PointF initialDistanceToPivot, pivot, referencePoint;
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
-			scaleFactor, lastAngle;
+			scaleFactor;
 	private Scrap highlighted;
 
 	/**
@@ -177,7 +177,6 @@ public class BubbleMenu {
 		topRight = move;
 		bottomRight = resize;
 		attachListeners();
-		lastPosition = new PointF();
 	}
 
 	private void attachListeners() {
@@ -282,9 +281,12 @@ public class BubbleMenu {
 	private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
 		if (action == MotionEvent.ACTION_DOWN) {
 			selected.startEditing(scaleFactor, Transformation.TRANSLATION);
+			referencePoint = touchPoint;
 		}
-		selected.translate(touchPoint.x - lastPosition.x, touchPoint.y
-				- lastPosition.y);
+		// selected.translate(touchPoint.x - lastPosition.x, touchPoint.y
+		// - lastPosition.y);
+		selected.translate(touchPoint.x - referencePoint.x, touchPoint.y
+				- referencePoint.y);
 		updateMenu(selected);
 		if (!(selected instanceof Scrap.Temp)) {
 			// FIXME soooo not OOP!
@@ -294,7 +296,6 @@ public class BubbleMenu {
 			selected.applyTransform(false);
 			fixParenting(selected);
 			touched = null;
-			lastPosition = new PointF();
 		}
 		return true;
 	}
@@ -316,37 +317,11 @@ public class BubbleMenu {
 		// touchPoint.y
 		// - lastPosition.y : lastPosition.y - touchPoint.y;
 		final float absScaleX = touchPoint.x >= pivot.x ? touchPoint.x
-				- lastPosition.x : 0;
+				- pivot.x : 0.1f;
 		final float absScaleY = touchPoint.y >= pivot.y ? touchPoint.y
-				- lastPosition.y : 0;
+				- pivot.y : 0.1f;
 		selected.scale(absScaleX / initialDistanceToPivot.x, absScaleY
 				/ initialDistanceToPivot.y, pivot, initialDistanceToPivot);
-		updateMenu(selected);
-		if (action == MotionEvent.ACTION_UP) {
-			selected.applyTransform(true);
-			touched = null;
-			lastPosition = new PointF();
-		}
-		return true;
-	}
-
-	private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
-		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing(scaleFactor, Transformation.RESIZE);
-			Rect bounds = selected.getBounds();
-			pivot = new PointF(bounds.centerX(), bounds.centerY());
-			lastAngle = (float) (Math.toDegrees(Math.atan2(pivot.y, pivot.x)));
-		}
-		float newAngle = (float) (Math.toDegrees(Math.atan2(touchPoint.y,
-				touchPoint.x)));
-		float rotation = (newAngle - lastAngle);
-		if (rotation < 0) {
-			rotation = FloatMath.floor(rotation);
-		} else {
-			rotation = FloatMath.ceil(rotation);
-		}
-		selected.rotate(rotation, pivot);
-		lastAngle = newAngle;
 		updateMenu(selected);
 		if (!(selected instanceof Scrap.Temp)) {
 			// FIXME soooo not OOP!
@@ -356,7 +331,27 @@ public class BubbleMenu {
 			selected.applyTransform(true);
 			fixParenting(selected);
 			touched = null;
-			lastPosition = new PointF();
+		}
+		return true;
+	}
+
+	private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
+		if (action == MotionEvent.ACTION_DOWN) {
+			selected.startEditing(scaleFactor, Transformation.RESIZE);
+			Rect bounds = selected.getBounds();
+			pivot = new PointF(bounds.centerX(), bounds.centerY());
+		}
+		selected.rotate((float) Math.toDegrees(Math.atan2(touchPoint.y
+				- pivot.y, touchPoint.x - pivot.x)), pivot);
+		updateMenu(selected);
+		if (!(selected instanceof Scrap.Temp)) {
+			// FIXME soooo not OOP!
+			updateHighlighted(selected);
+		}
+		if (action == MotionEvent.ACTION_UP) {
+			selected.applyTransform(true);
+			fixParenting(selected);
+			touched = null;
 		}
 		return true;
 	}
@@ -373,29 +368,8 @@ public class BubbleMenu {
 
 	private PointF calculateDistanceToPivot(PointF touchPoint, Scrap selected) {
 		Rect bounds = selected.getBounds();
-		// Math.sqrt(Math.pow(touchPoint.x - bounds.centerX(), 2)
-		// + Math.pow(touchPoint.y - bounds.centerY(), 2));
-		// return new PointF((touchPoint.x - bounds.centerX()),
-		// (touchPoint.y - bounds.centerY()));
 		return new PointF((touchPoint.x - bounds.left),
 				(touchPoint.y - bounds.top));
-	}
-
-	private double getAngle(PointF point1, PointF point2) {
-		double theta;
-		if (point2.x - point1.x == 0) {
-			if (point2.y > point1.y)
-				theta = 0;
-			else
-				theta = Math.PI;
-		} else {
-			theta = Math.atan((point2.y - point1.y) / (point2.x - point1.x));
-			if (point2.x > point1.x)
-				theta = Math.PI / 2.0f - theta;
-			else
-				theta = Math.PI * 1.5f - theta;
-		}
-		return theta;
 	}
 
 	private void updateHighlighted(Scrap selected) {
@@ -430,7 +404,6 @@ public class BubbleMenu {
 			}
 			if (highlighted != null) {
 				highlighted.deselect();
-				view.setSelected(highlighted);
 			}
 			highlighted = null;
 		}
@@ -491,7 +464,6 @@ public class BubbleMenu {
 		if (touched != null) {
 			keepShowingMenu = touched.listener.touched(action, touchPoint,
 					selection);
-			lastPosition = touchPoint;
 		}
 		if (!keepShowingMenu)
 			touched = null;
@@ -515,7 +487,6 @@ public class BubbleMenu {
 		for (Button button : buttons) {
 			if (button.contains(x, y)) {
 				touched = button;
-				lastPosition = touchPoint;
 				return true;
 			}
 		}

@@ -89,6 +89,8 @@ public class Scrap extends CaliSmallElement {
 	 */
 	protected final Matrix borderMatrix;
 
+	protected final Matrix reverseMatrix;
+
 	/**
 	 * All scraps children (but not grand-children) of this scrap.
 	 */
@@ -166,6 +168,7 @@ public class Scrap extends CaliSmallElement {
 		snapshotMatrix = new Matrix();
 		borderMatrix = new Matrix();
 		contentMatrix = new Matrix();
+		reverseMatrix = new Matrix();
 	}
 
 	/**
@@ -203,6 +206,7 @@ public class Scrap extends CaliSmallElement {
 		snapshotMatrix = new Matrix();
 		borderMatrix = new Matrix();
 		contentMatrix = new Matrix();
+		reverseMatrix = new Matrix();
 	}
 
 	/**
@@ -511,38 +515,42 @@ public class Scrap extends CaliSmallElement {
 	 * @param centerOffset
 	 */
 	public void rotate(float angle, PointF rotationPivot) {
+		snapshotMatrix.postConcat(reverseMatrix);
 		snapshotMatrix.preTranslate(-rotationPivot.x, -rotationPivot.y);
 		snapshotMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
 		snapshotMatrix.preTranslate(rotationPivot.x, rotationPivot.y);
 		borderMatrix.setRotate(angle, rotationPivot.x, rotationPivot.y);
+		contentMatrix.postConcat(reverseMatrix);
 		contentMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
+		outerBorder.transform(reverseMatrix);
 		outerBorder.transform(borderMatrix);
 		setBoundaries();
-		borderMatrix.reset();
+		reverseMatrix.setRotate(-angle, rotationPivot.x, rotationPivot.y);
 	}
 
 	/**
 	 * Resizes this scrap by the argument values.
 	 * 
-	 * @param dx
+	 * @param scaleX
 	 *            the scale value along the X-axis
-	 * @param dy
+	 * @param scaleY
 	 *            the scale value along the Y-axis
 	 * @param scalePivot
 	 *            the point which is used as pivot when scaling the scrap
 	 * @param centerOffset
 	 */
-	public void scale(float dx, float dy, PointF scalePivot, PointF centerOffset) {
-		final float scaleX = 1 + dx;
-		final float scaleY = 1 + dy;
-		// snapshotMatrix.preTranslate(centerOffset.x, centerOffset.y);
+	public void scale(float scaleX, float scaleY, PointF scalePivot,
+			PointF centerOffset) {
+		snapshotMatrix.postConcat(reverseMatrix);
 		snapshotMatrix.preScale(scaleX, scaleY);
-		// snapshotMatrix.preTranslate(-centerOffset.x, -centerOffset.y);
-		borderMatrix.postScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
+		borderMatrix.setScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
+		contentMatrix.postConcat(reverseMatrix);
 		contentMatrix.postScale(scaleX, scaleY, scalePivot.x, scalePivot.y);
+		outerBorder.transform(reverseMatrix);
 		outerBorder.transform(borderMatrix);
+		reverseMatrix.setScale(1 / scaleX, 1 / scaleY, scalePivot.x,
+				scalePivot.y);
 		setBoundaries();
-		borderMatrix.reset();
 	}
 
 	/**
@@ -612,11 +620,13 @@ public class Scrap extends CaliSmallElement {
 	 *            the Y-offset
 	 */
 	public void translate(float dx, float dy) {
+		snapshotMatrix.postConcat(reverseMatrix);
 		snapshotMatrix.postTranslate(dx, dy);
-		borderMatrix.postTranslate(dx, dy);
+		borderMatrix.setTranslate(dx, dy);
+		outerBorder.transform(reverseMatrix);
 		outerBorder.transform(borderMatrix);
 		setBoundaries();
-		borderMatrix.reset();
+		reverseMatrix.setTranslate(-dx, -dy);
 	}
 
 	/**
@@ -711,6 +721,7 @@ public class Scrap extends CaliSmallElement {
 	public void startEditing(float scaleFactor,
 			Transformation transformationType) {
 		topLevelForEdit = true;
+		reverseMatrix.reset();
 		setBoundaries();
 		Rect size = getBounds();
 		snapOffsetX = size.left;
