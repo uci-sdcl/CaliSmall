@@ -202,11 +202,11 @@ public class Scrap extends CaliSmallElement {
 		// all strokes are now in this scrap
 		for (Stroke stroke : strokes) {
 			stroke.parent = this;
-			stroke.previousParent = this;
+			stroke.previousParent = null;
 		}
 		for (Scrap scrap : scraps) {
 			scrap.parent = this;
-			scrap.previousParent = this;
+			scrap.previousParent = null;
 		}
 		setBoundaries();
 		snapshotMatrix = new Matrix();
@@ -224,6 +224,7 @@ public class Scrap extends CaliSmallElement {
 	public void add(Stroke stroke) {
 		strokes.add(stroke);
 		stroke.parent = this;
+		stroke.previousParent = null;
 		// refresh the snapshot the next time!
 		contentChanged = true;
 	}
@@ -236,8 +237,10 @@ public class Scrap extends CaliSmallElement {
 	 */
 	public void addAll(List<Stroke> strokes) {
 		this.strokes.addAll(strokes);
-		for (Stroke stroke : strokes)
+		for (Stroke stroke : strokes) {
 			stroke.parent = this;
+			stroke.previousParent = null;
+		}
 		// refresh the snapshot the next time!
 		contentChanged = true;
 	}
@@ -251,6 +254,7 @@ public class Scrap extends CaliSmallElement {
 	public void add(Scrap scrap) {
 		scraps.add(scrap);
 		scrap.parent = this;
+		scrap.previousParent = null;
 		// refresh the snapshot the next time!
 		contentChanged = true;
 	}
@@ -262,10 +266,29 @@ public class Scrap extends CaliSmallElement {
 	 *            the stroke to be removed from this scrap
 	 */
 	public void remove(Stroke stroke) {
-		strokes.remove(stroke);
-		stroke.parent = stroke.previousParent;
-		// refresh the snapshot the next time!
-		contentChanged = true;
+		stroke.parent = null;
+		if (strokes.remove(stroke)) {
+			stroke.previousParent = this;
+			// refresh the snapshot the next time!
+			contentChanged = true;
+		}
+	}
+
+	/**
+	 * Removes the argument <tt>scrap</tt> from the list of children of this
+	 * scrap.
+	 * 
+	 * @param scrap
+	 *            the child scrap to be removed from the list of children of
+	 *            this scrap
+	 */
+	public void remove(Scrap scrap) {
+		scrap.parent = null;
+		if (scraps.remove(scrap)) {
+			scrap.previousParent = this;
+			// refresh the snapshot the next time!
+			contentChanged = true;
+		}
 	}
 
 	/**
@@ -283,32 +306,15 @@ public class Scrap extends CaliSmallElement {
 	public <T extends CaliSmallElement> void removeAll(List<T> elements,
 			Class<T> type) {
 		// TODO refactor so that the unchecked cast is not needed
-		List<T> content;
 		if (type.equals(Stroke.class)) {
-			content = (List<T>) strokes;
+			for (Stroke stroke : (List<Stroke>) elements) {
+				remove(stroke);
+			}
 		} else {
-			content = (List<T>) scraps;
+			for (Scrap scrap : (List<Scrap>) elements) {
+				remove(scrap);
+			}
 		}
-		content.removeAll(elements);
-		for (CaliSmallElement element : elements)
-			element.parent = element.previousParent;
-		// refresh the snapshot the next time!
-		contentChanged = true;
-	}
-
-	/**
-	 * Removes the argument <tt>scrap</tt> from the list of children of this
-	 * scrap.
-	 * 
-	 * @param scrap
-	 *            the child scrap to be removed from the list of children of
-	 *            this scrap
-	 */
-	public void remove(Scrap scrap) {
-		scraps.remove(scrap);
-		scrap.parent = scrap.previousParent;
-		// refresh the snapshot the next time!
-		contentChanged = true;
 	}
 
 	/**
@@ -489,6 +495,32 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
+	 * Returns a description of the content of the argument <tt>scrap</tt>, with
+	 * one element in each line, grouped by type (scraps vs. strokes).
+	 * 
+	 * @param scrap
+	 *            the scrap of which the representation has to be created
+	 * @return a String containing the representation for the argument scrap,
+	 *         ready to be logged
+	 */
+	public static String getContentToLog(Scrap scrap) {
+		StringBuilder builder = new StringBuilder(" content:\n***SCRAPS***\n");
+		String newLine = "\n";
+		for (Scrap child : scrap.scraps) {
+			builder.append(child);
+			builder.append(newLine);
+		}
+		builder.append("***STROKES***\n");
+		newLine = "";
+		for (Stroke stroke : scrap.strokes) {
+			builder.append(newLine);
+			builder.append(stroke);
+			newLine = "\n";
+		}
+		return builder.toString();
+	}
+
+	/**
 	 * Returns whether this scrap is empty (i.e. contains no strokes or other
 	 * scraps).
 	 * 
@@ -560,7 +592,9 @@ public class Scrap extends CaliSmallElement {
 	}
 
 	/**
-	 * Deselects this scrap, returning all strokes that now belong to the canvas
+	 * Deselects this scrap, meaning that it won't be drawn as highlighted
+	 * anymore. The bitmap snapshot created to be shown while editing this scrap
+	 * is dropped and will only be recreated if the scrap is selected and edited
 	 * once again.
 	 */
 	public void deselect() {
@@ -572,7 +606,7 @@ public class Scrap extends CaliSmallElement {
 	/**
 	 * Removes the link to this scrap from the parent scrap and marks all
 	 * strokes and children scraps as <tt>toBeDeleted</tt>, so that the drawing
-	 * thread can remove them from the lists.
+	 * thread can remove them from {@link CaliSmall} lists.
 	 */
 	public void erase() {
 		if (parent != null) {
@@ -636,13 +670,14 @@ public class Scrap extends CaliSmallElement {
 	 * <ol>
 	 * <li>the border delimiting the scrap</li>
 	 * <li>the shaded region that highlights the content of the scrap</li>
-	 * <li>all {@link Scrap}'s within this scrap</li>
 	 * </ol>.
 	 * 
 	 * <p>
-	 * Strokes are <i>always</i> taken by the list in the parent
-	 * {@link CaliSmall} object, <b>except</b> for the outer borders, which are
-	 * always kept inside scraps.
+	 * The content of a scrap is drawn using the objects in {@link CaliSmall}'s
+	 * lists, and never from the lists kept within the scrap object. The only
+	 * exception is the scrap's outer border, which is never stored by the
+	 * parent {@link CaliSmall} object, as it's treated in a different way from
+	 * how regular {@link Stroke}'s are.
 	 * 
 	 * @param parent
 	 *            the main {@link View} of the application
@@ -877,52 +912,53 @@ public class Scrap extends CaliSmallElement {
 		}
 
 		private void findSelected() {
-			// Log.d(CaliSmall.TAG, "*** new temp scrap, border - " +
-			// outerBorder
-			// + ", points: " + outerBorder.listPoints());
 			List<CaliSmallElement> candidates = SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
-			final float size = getRectSize();
-			for (CaliSmallElement candidate : candidates) {
-				Scrap scrap = (Scrap) candidate;
-				if (scrap.parent == null || scrap.parent.getRectSize() > size) {
-					// only include scraps that have no parent or whose parent
-					// is larger than this scrap
+			Collections.sort(candidates);
+			List<Scrap> allScrapsInSelection = new ArrayList<Scrap>();
+			List<Stroke> allStrokesInSelection = new ArrayList<Stroke>();
+			// iterate from largest to smallest
+			for (int i = candidates.size() - 1; i > -1; i--) {
+				Scrap scrap = (Scrap) candidates.get(i);
+				if (!scrap.addedToSelection) {
 					if (outerBorder.contains(scrap.outerBorder)) {
 						scraps.add(scrap);
-						scrap.previousParent = scrap.parent;
+						allScrapsInSelection.add(scrap);
+						if (scrap.parent != null) {
+							((Scrap) scrap.parent).remove(scrap);
+						} else {
+							scrap.previousParent = null;
+						}
 						scrap.parent = this;
+						List<Scrap> newScraps = scrap.getAllScraps();
+						List<Stroke> newStrokes = scrap.getAllStrokes();
+						CaliSmallElement.setAllAddedToSelection(newScraps);
+						CaliSmallElement.setAllAddedToSelection(newStrokes);
+						allScrapsInSelection.addAll(newScraps);
+						allStrokesInSelection.addAll(newStrokes);
 					}
 				}
 			}
+			CaliSmallElement.resetSelectionStatus(allScrapsInSelection);
 			candidates = Stroke.SPACE_OCCUPATION_LIST
 					.findIntersectionCandidates(this);
-			// Log.d(CaliSmall.TAG, "candidates found: " + candidates.size());
 			for (CaliSmallElement element : candidates) {
-				if (outerBorder.contains(element)) {
-					Stroke stroke = (Stroke) element;
-					strokes.add(stroke);
-					stroke.previousParent = stroke.parent;
-					stroke.parent = this;
+				Stroke stroke = (Stroke) element;
+				if (!stroke.addedToSelection) {
+					if (outerBorder.contains(stroke)) {
+						strokes.add(stroke);
+						allStrokesInSelection.add(stroke);
+						stroke.addedToSelection = true;
+						if (stroke.parent != null) {
+							((Scrap) stroke.parent).remove(stroke);
+						} else {
+							stroke.previousParent = null;
+						}
+						stroke.parent = this;
+					}
 				}
 			}
-			// Log.d(CaliSmall.TAG, String.format(
-			// "*** new temp! ID: %s - strokes: %d scraps: %d", getID(),
-			// strokes.size(), scraps.size()));
-			// StringBuilder builder = new StringBuilder("content:\n");
-			// String newline = "";
-			// for (Stroke stroke : strokes) {
-			// builder.append(newline);
-			// builder.append(stroke);
-			// builder.append(" - parent: ");
-			// builder.append(stroke.getParent() == null ? "null" : stroke
-			// .getParent().getID());
-			// builder.append(" - previous parent: ");
-			// builder.append(stroke.getPreviousParent() == null ? "null"
-			// : stroke.getPreviousParent().getID());
-			// newline = "\n";
-			// }
-			// Log.d(CaliSmall.TAG, builder.toString());
+			CaliSmallElement.resetSelectionStatus(allStrokesInSelection);
 		}
 
 		private void highlight(Canvas canvas, float scaleFactor) {
@@ -978,10 +1014,12 @@ public class Scrap extends CaliSmallElement {
 			super.deselect();
 			// remove link to child scraps, rollback
 			for (Scrap scrap : scraps) {
-				scrap.parent = scrap.previousParent;
+				if (scrap.previousParent != null)
+					((Scrap) scrap.previousParent).add(scrap);
 			}
 			for (Stroke stroke : strokes) {
-				stroke.parent = stroke.previousParent;
+				if (stroke.previousParent != null)
+					((Scrap) stroke.previousParent).add(stroke);
 			}
 		}
 

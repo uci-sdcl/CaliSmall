@@ -9,6 +9,8 @@ package edu.uci.calismall;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.graphics.PointF;
+
 /**
  * A list of {@link CaliSmallElement}'s sorted by their position along the two
  * (X, Y) axes.
@@ -88,6 +90,23 @@ public class SpaceOccupationList {
 			if (candidate.intersectsY(element)) {
 				candidates.add(candidate);
 			}
+		}
+		return candidates;
+	}
+
+	/**
+	 * Finds all elements whose area contain the argument <tt>point</tt>.
+	 * 
+	 * @param point
+	 *            the point to be tested
+	 * @return a (potentially empty) list containing all elements that <b>do
+	 *         contain</b> the argument point
+	 */
+	public List<CaliSmallElement> findContainerCandidates(PointF point) {
+		List<CaliSmallElement> candidates = new ArrayList<CaliSmallElement>();
+		for (CaliSmallElement candidate : list) {
+			if (candidate.contains(point))
+				candidates.add(candidate);
 		}
 		return candidates;
 	}

@@ -332,7 +332,6 @@ public class CaliSmall extends Activity {
 		}
 
 		private void longPress(Stroke selected) {
-			Log.d(TAG, "LONG PRESS!!1!1 ;)");
 			skipEvents = true;
 			if (selected != null) {
 				if (selected.parent != null) {
@@ -664,11 +663,13 @@ public class CaliSmall extends Activity {
 		}
 
 		private Scrap getSelectedScrap(PointF adjusted) {
-			for (int i = scraps.size() - 1; i > -1; i--) {
-				// reverse loop because older scraps are behind
-				Scrap scrap = scraps.get(i);
-				if (scrap.contains(adjusted)) {
-					return scrap.getSmallestTouched(adjusted);
+			// TODO move it to the specific canvas object
+			List<CaliSmallElement> candidates = Scrap.SPACE_OCCUPATION_LIST
+					.findContainerCandidates(adjusted);
+			Collections.sort(candidates);
+			for (CaliSmallElement candidate : candidates) {
+				if (candidate.contains(adjusted)) {
+					return ((Scrap) (candidate)).getSmallestTouched(adjusted);
 				}
 			}
 			return null;
@@ -1188,6 +1189,14 @@ public class CaliSmall extends Activity {
 				builder.append(stroke.previousParent == null ? "null"
 						: stroke.previousParent.getID());
 				newLine = "\n";
+			}
+			builder.append(newLine);
+			builder.append("{{{SCRAPS CONTENT}}}\n");
+			for (Scrap scrap : view.scraps) {
+				builder.append("============================\n");
+				builder.append(scrap.getID());
+				builder.append(Scrap.getContentToLog(scrap));
+				builder.append("\n============================");
 			}
 			Log.d(TAG, builder.toString());
 			return true;

@@ -244,19 +244,9 @@ public class BubbleMenu {
 			// FIXME control should be moved outside
 			Scrap newScrap = new Scrap(selected, false);
 			view.addScrap(newScrap, false);
-			updateHighlighted(newScrap);
-			fixParenting(newScrap);
-			CaliSmallElement scrapParent = newScrap.getParent();
-			if (scrapParent != null) {
-				Scrap parent = (Scrap) scrapParent;
-				parent.removeAll(newScrap.getStrokes(), Stroke.class);
-				parent.removeAll(newScrap.getScraps(), Scrap.class);
-			}
 			touched = null;
-			return true;
-		} else {
-			return false;
 		}
+		return true;
 	}
 
 	private boolean scrapCopy(int action, PointF touchPoint, Scrap selected) {
@@ -383,17 +373,16 @@ public class BubbleMenu {
 			fixParenting((Scrap.Temp) selected);
 		} else {
 			if (selected.parent != highlighted) {
+				// parent must be changed
 				if (selected.parent != null) {
-					Scrap parentScrap = (Scrap) selected.parent;
-					parentScrap.remove(selected);
-					parentScrap.removeAll(selected.getScraps(), Scrap.class);
-					parentScrap.removeAll(selected.getStrokes(), Stroke.class);
+					((Scrap) selected.parent).remove(selected);
 				}
 				if (highlighted != null) {
 					highlighted.add(selected);
 				} else {
-					selected.setParent(highlighted);
+					selected.setParent(null);
 				}
+				selected.setPreviousParent(null);
 			}
 			if (highlighted != null) {
 				highlighted.deselect();
@@ -412,7 +401,7 @@ public class BubbleMenu {
 					((Scrap) previousParent).remove(stroke);
 				if (newParent != null)
 					((Scrap) newParent).add(stroke);
-				stroke.setPreviousParent(newParent);
+				stroke.setPreviousParent(null);
 			}
 		}
 		for (Scrap scrap : tempScrap.getScraps()) {
@@ -425,7 +414,7 @@ public class BubbleMenu {
 				}
 				if (newParent != null)
 					((Scrap) newParent).add(scrap);
-				scrap.setPreviousParent(newParent);
+				scrap.setPreviousParent(null);
 			}
 		}
 	}

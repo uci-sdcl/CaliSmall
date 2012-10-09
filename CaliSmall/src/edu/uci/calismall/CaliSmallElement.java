@@ -20,6 +20,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
 import android.util.FloatMath;
+import edu.uci.calismall.Scrap.Temp;
 
 /**
  * A graphical item used in CaliSmall.
@@ -109,6 +110,12 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 	 * {@link ConcurrentModificationException}'s while drawing.
 	 */
 	protected boolean toBeDeleted;
+	/**
+	 * Whether this element has already been added to the list of elements
+	 * within a {@link Temp} and should therefore be ignored when testing for
+	 * elements within the newly created {@link Temp}.
+	 */
+	protected boolean addedToSelection;
 	/**
 	 * The width of the {@link RectF} enclosing this element.
 	 */
@@ -205,6 +212,20 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		if (o == null || !(o instanceof CaliSmallElement))
 			return false;
 		return id.equals(((CaliSmallElement) o).id);
+	}
+
+	public static void resetSelectionStatus(
+			List<? extends CaliSmallElement> elements) {
+		for (CaliSmallElement element : elements) {
+			element.addedToSelection = false;
+		}
+	}
+
+	public static void setAllAddedToSelection(
+			List<? extends CaliSmallElement> elements) {
+		for (CaliSmallElement element : elements) {
+			element.addedToSelection = true;
+		}
 	}
 
 	/**
