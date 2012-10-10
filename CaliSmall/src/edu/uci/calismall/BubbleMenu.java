@@ -595,35 +595,40 @@ public class BubbleMenu {
 			bottomRight.position.left = topRight.position.left;
 			bottomRight.position.right = topRight.position.right;
 		} else if (curWidth > bounds.width()) {
-			topLeft.position.left = (int) FloatMath.floor(bounds.left);
+			topLeft.position.left = (int) Math.max(
+					FloatMath.floor(bounds.left), topLeft.position.left);
 			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
 					+ bSize);
-			topRight.position.right = (int) FloatMath.floor(bounds.right);
+			topRight.position.right = (int) Math.min(
+					FloatMath.floor(bounds.right), topRight.position.right);
 			topRight.position.left = (int) FloatMath
 					.ceil(topRight.position.right - bSize);
 			bottomRight.position.left = topRight.position.left;
 			bottomRight.position.right = topRight.position.right;
 		}
 		if (curHeight < minSize) {
-			topRight.position.top = (int) FloatMath.ceil(sel.centerY()
-					- minSize / 2);
-			topRight.position.bottom = (int) FloatMath
-					.ceil(topRight.position.top + bSize);
+			topLeft.position.top = (int) FloatMath.ceil(sel.centerY() - minSize
+					/ 2);
+			topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+					+ bSize);
 			bottomRight.position.bottom = (int) FloatMath
-					.floor(topRight.position.top + minSize);
+					.floor(topLeft.position.top + minSize);
 			bottomRight.position.top = (int) FloatMath
 					.floor(bottomRight.position.bottom - bSize);
-			topLeft.position.top = topRight.position.top;
-			topLeft.position.bottom = topRight.position.bottom;
+			topRight.position.top = topLeft.position.top;
+			topRight.position.bottom = topLeft.position.bottom;
 		} else if (curHeight > bounds.height()) {
-			topRight.position.top = (int) FloatMath.ceil(bounds.top);
-			topRight.position.bottom = (int) FloatMath
-					.ceil(topRight.position.top + bSize);
-			bottomRight.position.bottom = (int) FloatMath.floor(bounds.bottom);
+			topLeft.position.top = (int) Math.max(FloatMath.ceil(bounds.top),
+					topLeft.position.top);
+			topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+					+ bSize);
+			bottomRight.position.bottom = (int) Math
+					.min(FloatMath.floor(bounds.bottom),
+							bottomRight.position.bottom);
 			bottomRight.position.top = (int) FloatMath
 					.floor(bottomRight.position.bottom - bSize);
-			topLeft.position.top = topRight.position.top;
-			topLeft.position.bottom = topRight.position.bottom;
+			topRight.position.top = topLeft.position.top;
+			topRight.position.bottom = topLeft.position.bottom;
 		}
 	}
 
@@ -683,17 +688,17 @@ public class BubbleMenu {
 					.abs(bounds.bottom - bottomRight.position.bottom)) {
 				// scrap is near the top border of the screen
 				bottomRight.position.bottom = (int) FloatMath
-						.floor(topRight.position.top + minSize);
+						.floor(topLeft.position.top + minSize);
 				bottomRight.position.top = (int) FloatMath
 						.floor(bottomRight.position.bottom - bSize);
 			} else {
-				topRight.position.top = (int) FloatMath
+				topLeft.position.top = (int) FloatMath
 						.ceil(bottomRight.position.bottom - minSize);
-				topRight.position.bottom = (int) FloatMath
-						.ceil(topRight.position.top + bSize);
+				topLeft.position.bottom = (int) FloatMath
+						.ceil(topLeft.position.top + bSize);
 			}
-			topLeft.position.top = topRight.position.top;
-			topLeft.position.bottom = topRight.position.bottom;
+			topRight.position.top = topLeft.position.top;
+			topRight.position.bottom = topLeft.position.bottom;
 		}
 	}
 
