@@ -165,16 +165,16 @@ public class Scrap extends CaliSmallElement {
 	 *            all strokes belonging to this scrap
 	 */
 	public Scrap(Stroke outerBorder, List<Scrap> scraps, List<Stroke> strokes) {
+		snapshotMatrix = new Matrix();
+		matrix = new Matrix();
+		contentMatrix = new Matrix();
+		rollbackMatrix = new Matrix();
 		this.outerBorder = new Stroke(outerBorder);
 		this.scraps = scraps;
 		this.strokes = strokes;
 		outerBorder.getPath().close();
 		outerBorder.getPath().setFillType(FillType.WINDING);
 		setBoundaries();
-		snapshotMatrix = new Matrix();
-		matrix = new Matrix();
-		contentMatrix = new Matrix();
-		rollbackMatrix = new Matrix();
 	}
 
 	/**
@@ -188,7 +188,11 @@ public class Scrap extends CaliSmallElement {
 	 *            by this scrap
 	 */
 	public Scrap(Scrap copy, boolean deepCopy) {
-		this.outerBorder = new Stroke(copy.outerBorder);
+		snapshotMatrix = new Matrix();
+		matrix = new Matrix();
+		contentMatrix = new Matrix();
+		rollbackMatrix = new Matrix();
+		outerBorder = new Stroke(copy.outerBorder);
 		if (deepCopy) {
 			this.scraps = new ArrayList<Scrap>(copy.scraps.size());
 			this.strokes = new ArrayList<Stroke>(copy.strokes.size());
@@ -198,21 +202,17 @@ public class Scrap extends CaliSmallElement {
 			this.strokes = new ArrayList<Stroke>(copy.strokes);
 			this.outerBorder.getPath().close();
 			outerBorder.getPath().setFillType(FillType.WINDING);
-		}
-		// all strokes are now in this scrap
-		for (Stroke stroke : strokes) {
-			stroke.parent = this;
-			stroke.previousParent = null;
-		}
-		for (Scrap scrap : scraps) {
-			scrap.parent = this;
-			scrap.previousParent = null;
+			// all strokes are now in this scrap
+			for (Stroke stroke : strokes) {
+				stroke.parent = this;
+				stroke.previousParent = null;
+			}
+			for (Scrap scrap : scraps) {
+				scrap.parent = this;
+				scrap.previousParent = null;
+			}
 		}
 		setBoundaries();
-		snapshotMatrix = new Matrix();
-		matrix = new Matrix();
-		contentMatrix = new Matrix();
-		rollbackMatrix = new Matrix();
 	}
 
 	/**
@@ -327,10 +327,11 @@ public class Scrap extends CaliSmallElement {
 	public void copyContent(Scrap copy) {
 		for (Scrap scrap : copy.scraps) {
 			Scrap newCopy = new Scrap(scrap, true);
-			scraps.add(newCopy);
+			add(newCopy);
 		}
 		for (Stroke stroke : copy.strokes) {
-			strokes.add(new Stroke(stroke).setBoundaries());
+			Stroke newStroke = new Stroke(stroke);
+			add(newStroke.setBoundaries());
 		}
 	}
 
@@ -504,7 +505,9 @@ public class Scrap extends CaliSmallElement {
 	 *         ready to be logged
 	 */
 	public static String getContentToLog(Scrap scrap) {
-		StringBuilder builder = new StringBuilder(" content:\n***SCRAPS***\n");
+		StringBuilder builder = new StringBuilder(" content:\n***BORDER***\n");
+		builder.append(scrap.outerBorder);
+		builder.append("\n***SCRAPS***\n");
 		String newLine = "\n";
 		for (Scrap child : scrap.scraps) {
 			builder.append(child);

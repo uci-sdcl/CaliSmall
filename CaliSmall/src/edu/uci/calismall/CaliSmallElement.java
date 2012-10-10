@@ -214,6 +214,13 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		return id.equals(((CaliSmallElement) o).id);
 	}
 
+	/**
+	 * Resets the selection status of all the elements in the argument list.
+	 * 
+	 * @param elements
+	 *            a list of elements whose selection status should be set to
+	 *            <code>false</code>
+	 */
 	public static void resetSelectionStatus(
 			List<? extends CaliSmallElement> elements) {
 		for (CaliSmallElement element : elements) {
@@ -221,6 +228,14 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 		}
 	}
 
+	/**
+	 * Sets the selection status of all elements in the argument list to
+	 * <code>true</code>.
+	 * 
+	 * @param elements
+	 *            a list of elements whose selection status should be set to
+	 *            <code>true</code>
+	 */
 	public static void setAllAddedToSelection(
 			List<? extends CaliSmallElement> elements) {
 		for (CaliSmallElement element : elements) {

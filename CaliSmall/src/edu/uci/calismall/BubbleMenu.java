@@ -258,6 +258,7 @@ public class BubbleMenu {
 			} else {
 				selected = new Scrap(selected, true);
 				view.addScrap(selected, true);
+				view.setSelected(selected);
 			}
 		}
 		return scrapMove(action, touchPoint, selected);
@@ -273,8 +274,6 @@ public class BubbleMenu {
 			selected.startEditing(scaleFactor, Transformation.TRANSLATION);
 			referencePoint = touchPoint;
 		}
-		// selected.translate(touchPoint.x - lastPosition.x, touchPoint.y
-		// - lastPosition.y);
 		selected.translate(touchPoint.x - referencePoint.x, touchPoint.y
 				- referencePoint.y);
 		updateMenu(selected);

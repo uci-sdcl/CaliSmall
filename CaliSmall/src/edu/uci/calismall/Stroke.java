@@ -245,19 +245,21 @@ class Stroke extends CaliSmallElement implements Parcelable {
 	public void transform(Matrix matrix) {
 		path.transform(matrix);
 		matrix.getValues(matrixValues);
-		final float dx = matrixValues[Matrix.MTRANS_X];
-		final float dy = matrixValues[Matrix.MTRANS_Y];
-		final float sx = matrixValues[Matrix.MSCALE_X];
-		final float sy = matrixValues[Matrix.MSCALE_Y];
-		final float rx = matrixValues[Matrix.MSKEW_X];
-		final float ry = matrixValues[Matrix.MSKEW_Y];
+		// variable names are the same used by Skia library
+		final float tx = matrixValues[Matrix.MTRANS_X];
+		final float ty = matrixValues[Matrix.MTRANS_Y];
+		final float mx = matrixValues[Matrix.MSCALE_X];
+		final float my = matrixValues[Matrix.MSCALE_Y];
+		final float kx = matrixValues[Matrix.MSKEW_X];
+		final float ky = matrixValues[Matrix.MSKEW_Y];
 		/*
 		 * if rotation: skia messes up with the matrix, so sx and sy actually
 		 * store cosV, rx and ry store -sinV and sinV
 		 */
 		for (PointF point : points) {
-			point.x = point.x * sx + (point.y * rx) + dx;
-			point.y = point.x * ry + (point.y * sy) + dy;
+			final float originalY = point.y;
+			point.y = point.x * ky + (point.y * my) + ty;
+			point.x = point.x * mx + (originalY * kx) + tx;
 		}
 		setBoundaries();
 	}
