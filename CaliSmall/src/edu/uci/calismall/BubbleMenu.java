@@ -141,6 +141,7 @@ public class BubbleMenu {
 	public static final int ABS_B_SIZE = 48;
 	private static final int BUTTONS_PER_SIDE = 4;
 	private static final float PADDING_TO_BUTTON_SIZE_RATIO = 0.5f;
+	private static final int MINIMUM_SIDE_LENGTH_FOR_SCALE = 4;
 	private final Button[] buttons;
 	private final Button shrink, scrap, erase, move, copy, rotate, resize;
 	private final Button topLeft, topRight, bottomRight;
@@ -149,7 +150,7 @@ public class BubbleMenu {
 	private PointF initialDistanceToPivot, pivot, referencePoint;
 	private Button touched;
 	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
-			scaleFactor;
+			scaleFactor, maxXScale, maxYScale;
 	private Scrap highlighted;
 
 	/**
@@ -296,14 +297,22 @@ public class BubbleMenu {
 			pivot = new PointF(bounds.left, bounds.top);
 			initialDistanceToPivot = calculateDistanceToPivot(touchPoint,
 					selected);
+			maxXScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.width;
+			maxYScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.height;
 		}
 		// avoid reaching 0, as a scale factor of 0 is a point of non-return
-		final float absScaleX = touchPoint.x >= pivot.x ? touchPoint.x
-				- pivot.x : 0.1f;
-		final float absScaleY = touchPoint.y >= pivot.y ? touchPoint.y
-				- pivot.y : 0.1f;
-		selected.scale(absScaleX / initialDistanceToPivot.x, absScaleY
-				/ initialDistanceToPivot.y, pivot, initialDistanceToPivot);
+		// minimum size should be a 2x2 area
+		float scaleX = (touchPoint.x - pivot.x) / initialDistanceToPivot.x;
+		if (touchPoint.x <= pivot.x
+				|| (scaleX < 1 && selected.width <= MINIMUM_SIDE_LENGTH_FOR_SCALE)) {
+			scaleX = maxXScale;
+		}
+		float scaleY = (touchPoint.y - pivot.y) / initialDistanceToPivot.y;
+		if (touchPoint.y <= pivot.y
+				|| (scaleY < 1 && selected.height <= MINIMUM_SIDE_LENGTH_FOR_SCALE)) {
+			scaleY = maxYScale;
+		}
+		selected.scale(scaleX, scaleY, pivot, initialDistanceToPivot);
 		updateMenu(selected);
 		if (!(selected instanceof Scrap.Temp)) {
 			// FIXME soooo not OOP!

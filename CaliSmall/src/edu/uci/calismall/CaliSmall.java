@@ -935,7 +935,7 @@ public class CaliSmall extends Activity {
 	 * Where to put the center of the landing zone on a path (to be rescaled by
 	 * scaleFactor).
 	 */
-	static final float ABS_LANDING_ZONE_PATH_OFFSET = 40;
+	static final float ABS_LANDING_ZONE_PATH_OFFSET = 70;
 	/**
 	 * The length over which a Path is no longer considered as a potential tap,
 	 * but is viewed as a stroke instead (to be rescaled by scaleFactor).
