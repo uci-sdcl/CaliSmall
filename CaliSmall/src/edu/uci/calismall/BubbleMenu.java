@@ -1,7 +1,5 @@
 /**
- * BubbleMenu.java
- * Created on Aug 8, 2012
- * Copyright 2012 Michele Bonazza
+ * BubbleMenu.java Created on Aug 8, 2012 Copyright 2012 Michele Bonazza
  * <michele.bonazza@gmail.com>
  */
 package edu.uci.calismall;
@@ -26,692 +24,704 @@ import edu.uci.calismall.Scrap.Transformation;
  */
 public class BubbleMenu {
 
-	// TODO decouple this class from the CaliSmall object
+    // TODO decouple this class from the CaliSmall object
 
-	private interface ButtonListener {
-		boolean touched(int action, PointF touchPoint, Scrap selected);
-	}
+    private interface ButtonListener {
+        boolean touched(int action, PointF touchPoint, Scrap selected);
+    }
 
-	private abstract class ClickableButtonListener implements ButtonListener {
+    private abstract class ClickableButtonListener implements ButtonListener {
 
-		private final Button parent;
-		private boolean moved = false;
+        private final Button parent;
+        private boolean moved = false;
 
-		private ClickableButtonListener(Button parent) {
-			this.parent = parent;
-		}
+        private ClickableButtonListener(Button parent) {
+            this.parent = parent;
+        }
 
-		/**
-		 * Returns <code>true</code> only when the user has clicked this button.
-		 * 
-		 * <p>
-		 * A button is considered clicked when no
-		 * {@link MotionEvent#ACTION_MOVE} events are detected by this listener
-		 * or when they are detected but all of the <tt>touchPoint</tt>'s passed
-		 * as argument since the first call to this method are within the area
-		 * of the button this listener is attached to.
-		 * 
-		 * 
-		 * <p>
-		 * This implementation is designed for overriding: if not overridden
-		 * this method <b>always returns <code>true</code> unless no
-		 * {@link MotionEvent#ACTION_MOVE} events are detected and a
-		 * {@link MotionEvent#ACTION_UP} is detected</b>.
-		 * 
-		 * <p>
-		 * Subclasses should override this method like this: <blockquote>
-		 * 
-		 * <pre>
-		 * &#064;Override
-		 * public boolean touched(int action, PointF touchPoint, Scrap selected) {
-		 * 	return super.touched(action, touchPoint, selected)
-		 * 			|| myMethod(action, touchPoint, selected);
-		 * }
-		 * </pre>
-		 * 
-		 * </blockquote>
-		 * 
-		 * so that <tt>myMethod()</tt> (which is the method that actually
-		 * performs the action associated with the button this listener is
-		 * attached to) is called only when a click has been detected.
-		 * 
-		 * <p>
-		 * This way the overridden implementation always returns
-		 * <code>true</code> as long as the action is not "over" (i.e. until a
-		 * {@link MotionEvent#ACTION_UP} event is detected), and returns
-		 * <tt>myMethod()</tt>'s return value only when a
-		 * {@link MotionEvent#ACTION_UP} event is detected and the user's
-		 * finger/stylus never left the area of the button this listener is
-		 * attached to.
-		 * 
-		 * <p>
-		 * If the user touches the button and then drags the finger/stylus
-		 * outside of the button area, the overridden method should always
-		 * return <code>true</code>, so that the selection doesn't change and
-		 * the bubble menu is always shown; however, the associated action
-		 * should <b>not</b> be performed. Overriding this method like shown
-		 * above guarantees this behavior.
-		 */
-		@Override
-		public boolean touched(int action, PointF touchPoint, Scrap selected) {
-			if (action == MotionEvent.ACTION_MOVE
-					&& !parent.contains(Math.round(touchPoint.x),
-							Math.round(touchPoint.y)))
-				moved = true;
-			boolean returnMe = moved || action != MotionEvent.ACTION_UP;
-			if (action == MotionEvent.ACTION_UP) {
-				// reset
-				moved = false;
-				touched = null;
-			}
-			return returnMe;
-		}
-	}
+        /**
+         * Returns <code>true</code> only when the user has clicked this button.
+         * 
+         * <p>
+         * A button is considered clicked when no
+         * {@link MotionEvent#ACTION_MOVE} events are detected by this listener
+         * or when they are detected but all of the <tt>touchPoint</tt>'s passed
+         * as argument since the first call to this method are within the area
+         * of the button this listener is attached to.
+         * 
+         * 
+         * <p>
+         * This implementation is designed for overriding: if not overridden
+         * this method <b>always returns <code>true</code> unless no
+         * {@link MotionEvent#ACTION_MOVE} events are detected and a
+         * {@link MotionEvent#ACTION_UP} is detected</b>.
+         * 
+         * <p>
+         * Subclasses should override this method like this: <blockquote>
+         * 
+         * <pre>
+         * &#064;Override
+         * public boolean touched(int action, PointF touchPoint, Scrap selected) {
+         *     return super.touched(action, touchPoint, selected)
+         *             || myMethod(action, touchPoint, selected);
+         * }
+         * </pre>
+         * 
+         * </blockquote>
+         * 
+         * so that <tt>myMethod()</tt> (which is the method that actually
+         * performs the action associated with the button this listener is
+         * attached to) is called only when a click has been detected.
+         * 
+         * <p>
+         * This way the overridden implementation always returns
+         * <code>true</code> as long as the action is not "over" (i.e. until a
+         * {@link MotionEvent#ACTION_UP} event is detected), and returns
+         * <tt>myMethod()</tt>'s return value only when a
+         * {@link MotionEvent#ACTION_UP} event is detected and the user's
+         * finger/stylus never left the area of the button this listener is
+         * attached to.
+         * 
+         * <p>
+         * If the user touches the button and then drags the finger/stylus
+         * outside of the button area, the overridden method should always
+         * return <code>true</code>, so that the selection doesn't change and
+         * the bubble menu is always shown; however, the associated action
+         * should <b>not</b> be performed. Overriding this method like shown
+         * above guarantees this behavior.
+         */
+        @Override
+        public boolean touched(int action, PointF touchPoint, Scrap selected) {
+            if (action == MotionEvent.ACTION_MOVE
+                    && !parent.contains(Math.round(touchPoint.x),
+                            Math.round(touchPoint.y)))
+                moved = true;
+            boolean returnMe = moved || action != MotionEvent.ACTION_UP;
+            if (action == MotionEvent.ACTION_UP) {
+                // reset
+                moved = false;
+                touched = null;
+            }
+            return returnMe;
+        }
+    }
 
-	/**
-	 * A clickable button in the bubble menu.
-	 * 
-	 * @author Michele Bonazza
-	 */
-	public static class Button {
+    /**
+     * A clickable button in the bubble menu.
+     * 
+     * @author Michele Bonazza
+     */
+    public static class Button {
 
-		private final BitmapDrawable scaledButton;
-		private final Rect position;
-		private ButtonListener listener;
+        private final BitmapDrawable scaledButton;
+        private final Rect position;
+        private ButtonListener listener;
 
-		private Button(BitmapDrawable bitmap) {
-			scaledButton = bitmap;
-			position = new Rect();
-		}
+        private Button(BitmapDrawable bitmap) {
+            scaledButton = bitmap;
+            position = new Rect();
+        }
 
-		private void draw(Canvas canvas) {
-			scaledButton.setBounds(position);
-			scaledButton.draw(canvas);
-		}
+        private void draw(Canvas canvas) {
+            scaledButton.setBounds(position);
+            scaledButton.draw(canvas);
+        }
 
-		private boolean contains(int x, int y) {
-			return position.contains(x, y);
-		}
-	}
+        private boolean contains(int x, int y) {
+            return position.contains(x, y);
+        }
+    }
 
-	/**
-	 * Absolute size of buttons in bubble menus. This value assumes that all
-	 * buttons have this height AND width (i.e. they're contained in a square).
-	 */
-	public static final int ABS_B_SIZE = 48;
-	private static final int BUTTONS_PER_SIDE = 4;
-	private static final float PADDING_TO_BUTTON_SIZE_RATIO = 0.5f;
-	private static final int MINIMUM_SIDE_LENGTH_FOR_SCALE = 4;
-	private final Button[] buttons;
-	private final Button shrink, scrap, erase, move, copy, rotate, resize;
-	private final Button topLeft, topRight, bottomRight;
-	private final RectF sel, bounds;
-	private final CaliView view;
-	private PointF initialDistanceToPivot, pivot, referencePoint;
-	private Button touched;
-	private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
-			scaleFactor, maxXScale, maxYScale;
-	private Scrap highlighted;
+    /**
+     * Absolute size of buttons in bubble menus. This value assumes that all
+     * buttons have this height AND width (i.e. they're contained in a square).
+     */
+    public static final int ABS_B_SIZE = 48;
+    private static final int BUTTONS_PER_SIDE = 4;
+    private static final float PADDING_TO_BUTTON_SIZE_RATIO = 0.5f;
+    private static final int MINIMUM_SIDE_LENGTH_FOR_SCALE = 4;
+    private final Button[] buttons;
+    private final Button shrink, scrap, erase, move, copy, rotate, resize;
+    private final Button topLeft, topRight, bottomRight;
+    private final RectF sel, bounds;
+    private final CaliView view;
+    private PointF initialDistanceToPivot, pivot, referencePoint;
+    private Button touched;
+    private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
+            scaleFactor, maxXScale, maxYScale, compensationForRotateButtonPos;
+    private Scrap highlighted;
 
-	/**
-	 * Initializes a new BubbleMenu that will pick image files from the
-	 * resources associated to the argument <tt>parent</tt> main activity class.
-	 * 
-	 * @param parent
-	 *            the running instance of CaliSmall
-	 */
-	public BubbleMenu(CaliSmall parent) {
-		view = parent.getView();
-		sel = new RectF();
-		bounds = new RectF();
-		Resources resources = parent.getResources();
-		shrink = createButton(resources, R.drawable.shrinkwrapped);
-		scrap = createButton(resources, R.drawable.scrap);
-		erase = createButton(resources, R.drawable.scrap_erase);
-		move = createButton(resources, R.drawable.scrap_move);
-		copy = createButton(resources, R.drawable.scrap_copy);
-		rotate = createButton(resources, R.drawable.scrap_rotate);
-		resize = createButton(resources, R.drawable.scrap_resize);
-		buttons = new Button[] { shrink, scrap, erase, move, copy, rotate,
-				resize };
-		topLeft = shrink;
-		topRight = move;
-		bottomRight = resize;
-		attachListeners();
-	}
+    /**
+     * Initializes a new BubbleMenu that will pick image files from the
+     * resources associated to the argument <tt>parent</tt> main activity class.
+     * 
+     * @param parent
+     *            the running instance of CaliSmall
+     */
+    public BubbleMenu(CaliSmall parent) {
+        view = parent.getView();
+        sel = new RectF();
+        bounds = new RectF();
+        Resources resources = parent.getResources();
+        shrink = createButton(resources, R.drawable.shrinkwrapped);
+        scrap = createButton(resources, R.drawable.scrap);
+        erase = createButton(resources, R.drawable.scrap_erase);
+        move = createButton(resources, R.drawable.scrap_move);
+        copy = createButton(resources, R.drawable.scrap_copy);
+        rotate = createButton(resources, R.drawable.scrap_rotate);
+        resize = createButton(resources, R.drawable.scrap_resize);
+        buttons = new Button[] { shrink, scrap, erase, move, copy, rotate,
+                resize };
+        topLeft = shrink;
+        topRight = move;
+        bottomRight = resize;
+        attachListeners();
+    }
 
-	private void attachListeners() {
-		shrink.listener = new ClickableButtonListener(shrink) {
+    private void attachListeners() {
+        shrink.listener = new ClickableButtonListener(shrink) {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return super.touched(action, touchPoint, selected)
-						|| shrinkWrapped(action, touchPoint, selected);
-			}
-		};
-		scrap.listener = new ClickableButtonListener(scrap) {
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return super.touched(action, touchPoint, selected)
+                        || shrinkWrapped(action, touchPoint, selected);
+            }
+        };
+        scrap.listener = new ClickableButtonListener(scrap) {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return super.touched(action, touchPoint, selected)
-						|| scrap(action, touchPoint, selected);
-			}
-		};
-		erase.listener = new ClickableButtonListener(erase) {
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return super.touched(action, touchPoint, selected)
+                        || scrap(action, touchPoint, selected);
+            }
+        };
+        erase.listener = new ClickableButtonListener(erase) {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return super.touched(action, touchPoint, selected)
-						|| scrapErase(action, touchPoint, selected);
-			}
-		};
-		move.listener = new ButtonListener() {
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return super.touched(action, touchPoint, selected)
+                        || scrapErase(action, touchPoint, selected);
+            }
+        };
+        move.listener = new ButtonListener() {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return scrapMove(action, touchPoint, selected);
-			}
-		};
-		copy.listener = new ButtonListener() {
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return scrapMove(action, touchPoint, selected);
+            }
+        };
+        copy.listener = new ButtonListener() {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return scrapCopy(action, touchPoint, selected);
-			}
-		};
-		rotate.listener = new ButtonListener() {
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return scrapCopy(action, touchPoint, selected);
+            }
+        };
+        rotate.listener = new ButtonListener() {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return scrapRotate(action, touchPoint, selected);
-			}
-		};
-		resize.listener = new ButtonListener() {
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return scrapRotate(action, touchPoint, selected);
+            }
+        };
+        resize.listener = new ButtonListener() {
 
-			@Override
-			public boolean touched(int action, PointF touchPoint, Scrap selected) {
-				return scrapResize(action, touchPoint, selected);
-			}
-		};
-	}
+            @Override
+            public boolean
+                    touched(int action, PointF touchPoint, Scrap selected) {
+                return scrapResize(action, touchPoint, selected);
+            }
+        };
+    }
 
-	private Button createButton(Resources resources, int buttonID) {
-		return new Button(new BitmapDrawable(resources,
-				BitmapFactory.decodeResource(resources, buttonID)));
-	}
+    private Button createButton(Resources resources, int buttonID) {
+        return new Button(new BitmapDrawable(resources,
+                BitmapFactory.decodeResource(resources, buttonID)));
+    }
 
-	private boolean scrap(int action, PointF touchPoint, Scrap selected) {
-		if (selected instanceof Scrap.Temp) {
-			// FIXME control should be moved outside
-			Scrap newScrap = new Scrap(selected, false);
-			view.addScrap(newScrap, false);
-			touched = null;
-		}
-		return true;
-	}
+    private boolean scrap(int action, PointF touchPoint, Scrap selected) {
+        if (selected instanceof Scrap.Temp) {
+            // FIXME control should be moved outside
+            Scrap newScrap = new Scrap(selected, false);
+            view.addScrap(newScrap, false);
+            touched = null;
+        }
+        return true;
+    }
 
-	private boolean scrapCopy(int action, PointF touchPoint, Scrap selected) {
-		if (action == MotionEvent.ACTION_DOWN) {
-			if (selected instanceof Scrap.Temp) {
-				selected = new Scrap.Temp(selected, scaleFactor);
-				view.addScrap(selected, true);
-				view.changeTempScrap(selected);
-			} else {
-				selected = new Scrap(selected, true);
-				view.addScrap(selected, true);
-				view.setSelected(selected);
-			}
-		}
-		return scrapMove(action, touchPoint, selected);
-	}
+    private boolean scrapCopy(int action, PointF touchPoint, Scrap selected) {
+        if (action == MotionEvent.ACTION_DOWN) {
+            if (selected instanceof Scrap.Temp) {
+                selected = new Scrap.Temp(selected, scaleFactor);
+                view.addScrap(selected, true);
+                view.changeTempScrap(selected);
+            } else {
+                selected = new Scrap(selected, true);
+                view.addScrap(selected, true);
+                view.setSelected(selected);
+            }
+        }
+        return scrapMove(action, touchPoint, selected);
+    }
 
-	private boolean scrapErase(int action, PointF touchPoint, Scrap selected) {
-		view.removeScrap(selected);
-		return false;
-	}
+    private boolean scrapErase(int action, PointF touchPoint, Scrap selected) {
+        view.removeScrap(selected);
+        return false;
+    }
 
-	private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
-		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing(scaleFactor, Transformation.TRANSLATION);
-			referencePoint = touchPoint;
-		}
-		selected.translate(touchPoint.x - referencePoint.x, touchPoint.y
-				- referencePoint.y);
-		updateMenu(selected);
-		if (!(selected instanceof Scrap.Temp)) {
-			// FIXME soooo not OOP!
-			updateHighlighted(selected);
-		}
-		if (action == MotionEvent.ACTION_UP) {
-			selected.applyTransform(false);
-			fixParenting(selected);
-			touched = null;
-		}
-		return true;
-	}
+    private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
+        if (action == MotionEvent.ACTION_DOWN) {
+            selected.startEditing(scaleFactor, Transformation.TRANSLATION);
+            referencePoint = touchPoint;
+        }
+        selected.translate(touchPoint.x - referencePoint.x, touchPoint.y
+                - referencePoint.y);
+        updateMenu(selected);
+        if (!(selected instanceof Scrap.Temp)) {
+            // FIXME soooo not OOP!
+            updateHighlighted(selected);
+        }
+        if (action == MotionEvent.ACTION_UP) {
+            selected.applyTransform(false);
+            fixParenting(selected);
+            touched = null;
+        }
+        return true;
+    }
 
-	private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
-		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing(scaleFactor, Transformation.RESIZE);
-			Rect bounds = selected.getBounds();
-			pivot = new PointF(bounds.left, bounds.top);
-			initialDistanceToPivot = calculateDistanceToPivot(touchPoint,
-					selected);
-			maxXScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.width;
-			maxYScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.height;
-		}
-		// avoid reaching 0, as a scale factor of 0 is a point of non-return
-		// minimum size should be a 2x2 area
-		float scaleX = (touchPoint.x - pivot.x) / initialDistanceToPivot.x;
-		if (touchPoint.x <= pivot.x
-				|| (scaleX < 1 && selected.width <= MINIMUM_SIDE_LENGTH_FOR_SCALE)) {
-			scaleX = maxXScale;
-		}
-		float scaleY = (touchPoint.y - pivot.y) / initialDistanceToPivot.y;
-		if (touchPoint.y <= pivot.y
-				|| (scaleY < 1 && selected.height <= MINIMUM_SIDE_LENGTH_FOR_SCALE)) {
-			scaleY = maxYScale;
-		}
-		selected.scale(scaleX, scaleY, pivot, initialDistanceToPivot);
-		updateMenu(selected);
-		if (!(selected instanceof Scrap.Temp)) {
-			// FIXME soooo not OOP!
-			updateHighlighted(selected);
-		}
-		if (action == MotionEvent.ACTION_UP) {
-			selected.applyTransform(true);
-			fixParenting(selected);
-			touched = null;
-		}
-		return true;
-	}
+    private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
+        if (action == MotionEvent.ACTION_DOWN) {
+            selected.startEditing(scaleFactor, Transformation.RESIZE);
+            Rect bounds = selected.getBounds();
+            pivot = new PointF(bounds.left, bounds.top);
+            initialDistanceToPivot = calculateDistanceToPivot(touchPoint,
+                    selected);
+            maxXScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.width;
+            maxYScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.height;
+        }
+        // avoid reaching 0, as a scale factor of 0 is a point of non-return
+        // minimum size should be a 2x2 area
+        float scaleX = (touchPoint.x - pivot.x) / initialDistanceToPivot.x;
+        if (touchPoint.x <= pivot.x
+                || (scaleX < 1 && selected.width <= MINIMUM_SIDE_LENGTH_FOR_SCALE)) {
+            scaleX = maxXScale;
+        }
+        float scaleY = (touchPoint.y - pivot.y) / initialDistanceToPivot.y;
+        if (touchPoint.y <= pivot.y
+                || (scaleY < 1 && selected.height <= MINIMUM_SIDE_LENGTH_FOR_SCALE)) {
+            scaleY = maxYScale;
+        }
+        selected.scale(scaleX, scaleY, pivot, initialDistanceToPivot);
+        updateMenu(selected);
+        if (!(selected instanceof Scrap.Temp)) {
+            // FIXME soooo not OOP!
+            updateHighlighted(selected);
+        }
+        if (action == MotionEvent.ACTION_UP) {
+            selected.applyTransform(true);
+            fixParenting(selected);
+            touched = null;
+        }
+        return true;
+    }
 
-	private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
-		if (action == MotionEvent.ACTION_DOWN) {
-			selected.startEditing(scaleFactor, Transformation.RESIZE);
-			Rect bounds = selected.getBounds();
-			pivot = new PointF(bounds.centerX(), bounds.centerY());
-		}
-		selected.rotate((float) Math.toDegrees(Math.atan2(touchPoint.y
-				- pivot.y, touchPoint.x - pivot.x)), pivot);
-		updateMenu(selected);
-		if (!(selected instanceof Scrap.Temp)) {
-			// FIXME soooo not OOP!
-			updateHighlighted(selected);
-		}
-		if (action == MotionEvent.ACTION_UP) {
-			selected.applyTransform(true);
-			fixParenting(selected);
-			touched = null;
-		}
-		return true;
-	}
+    private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
+        if (action == MotionEvent.ACTION_DOWN) {
+            selected.startEditing(scaleFactor, Transformation.RESIZE);
+            Rect bounds = selected.getBounds();
+            pivot = new PointF(bounds.centerX(), bounds.centerY());
+            compensationForRotateButtonPos = (float) Math.toDegrees(Math.atan2(
+                    touchPoint.y - pivot.y, touchPoint.x - pivot.x));
+        }
+        float rotation = (float) Math.toDegrees(Math.atan2(touchPoint.y
+                - pivot.y, touchPoint.x - pivot.x))
+                - compensationForRotateButtonPos;
+        selected.rotate(rotation, pivot);
+        updateMenu(selected);
+        if (!(selected instanceof Scrap.Temp)) {
+            // FIXME soooo not OOP!
+            updateHighlighted(selected);
+        }
+        if (action == MotionEvent.ACTION_UP) {
+            selected.applyTransform(true);
+            fixParenting(selected);
+            touched = null;
+        }
+        return true;
+    }
 
-	private boolean shrinkWrapped(int action, PointF touchPoint, Scrap selected) {
-		selected.shrinkBorder(scaleFactor);
-		touched = null;
-		setBounds(selected.getBorder(), scaleFactor, bounds);
-		if (!selected.isEmpty()) {
-			scrap(action, touchPoint, selected);
-		}
-		return true;
-	}
+    private boolean
+            shrinkWrapped(int action, PointF touchPoint, Scrap selected) {
+        selected.shrinkBorder(scaleFactor);
+        touched = null;
+        setBounds(selected.getBorder(), scaleFactor, bounds);
+        if (!selected.isEmpty()) {
+            scrap(action, touchPoint, selected);
+        }
+        return true;
+    }
 
-	private PointF calculateDistanceToPivot(PointF touchPoint, Scrap selected) {
-		Rect bounds = selected.getBounds();
-		return new PointF((touchPoint.x - bounds.left),
-				(touchPoint.y - bounds.top));
-	}
+    private PointF calculateDistanceToPivot(PointF touchPoint, Scrap selected) {
+        Rect bounds = selected.getBounds();
+        return new PointF((touchPoint.x - bounds.left),
+                (touchPoint.y - bounds.top));
+    }
 
-	private void updateHighlighted(Scrap selected) {
-		Scrap toBeHighlighted = view.getSelectedScrap(selected);
-		if (toBeHighlighted != highlighted) {
-			if (toBeHighlighted != null)
-				toBeHighlighted.select();
-			if (highlighted != null) {
-				highlighted.deselect();
-			}
-			highlighted = toBeHighlighted;
-		}
-	}
+    private void updateHighlighted(Scrap selected) {
+        Scrap toBeHighlighted = view.getSelectedScrap(selected);
+        if (toBeHighlighted != highlighted) {
+            if (toBeHighlighted != null)
+                toBeHighlighted.select();
+            if (highlighted != null) {
+                highlighted.deselect();
+            }
+            highlighted = toBeHighlighted;
+        }
+    }
 
-	private void fixParenting(Scrap selected) {
-		if (selected instanceof Scrap.Temp) {
-			// FIXME sooo not OOP!
-			fixParenting((Scrap.Temp) selected);
-		} else {
-			if (selected.parent != highlighted) {
-				// parent must be changed
-				if (selected.parent != null) {
-					((Scrap) selected.parent).remove(selected);
-				}
-				if (highlighted != null) {
-					highlighted.add(selected);
-				} else {
-					selected.setParent(null);
-				}
-				selected.setPreviousParent(null);
-			}
-			if (highlighted != null) {
-				highlighted.deselect();
-			}
-			highlighted = null;
-		}
+    private void fixParenting(Scrap selected) {
+        if (selected instanceof Scrap.Temp) {
+            // FIXME sooo not OOP!
+            fixParenting((Scrap.Temp) selected);
+        } else {
+            if (selected.parent != highlighted) {
+                // parent must be changed
+                if (selected.parent != null) {
+                    ((Scrap) selected.parent).remove(selected);
+                }
+                if (highlighted != null) {
+                    highlighted.add(selected);
+                } else {
+                    selected.setParent(null);
+                }
+                selected.setPreviousParent(null);
+            }
+            if (highlighted != null) {
+                highlighted.deselect();
+            }
+            highlighted = null;
+        }
 
-	}
+    }
 
-	private void fixParenting(Scrap.Temp tempScrap) {
-		for (Stroke stroke : tempScrap.getStrokes()) {
-			CaliSmallElement newParent = view.getSelectedScrap(stroke);
-			CaliSmallElement previousParent = stroke.getPreviousParent();
-			if (newParent != previousParent) {
-				if (previousParent != null)
-					((Scrap) previousParent).remove(stroke);
-				if (newParent != null)
-					((Scrap) newParent).add(stroke);
-				stroke.setPreviousParent(null);
-			}
-		}
-		for (Scrap scrap : tempScrap.getScraps()) {
-			CaliSmallElement newParent = view.getSelectedScrap(scrap);
-			CaliSmallElement previousParent = scrap.getPreviousParent();
-			if (newParent != scrap.getParent()) {
-				if (previousParent != null && previousParent != tempScrap) {
-					Scrap previous = (Scrap) previousParent;
-					previous.remove(scrap);
-				}
-				if (newParent != null)
-					((Scrap) newParent).add(scrap);
-				scrap.setPreviousParent(null);
-			}
-		}
-	}
+    private void fixParenting(Scrap.Temp tempScrap) {
+        for (Stroke stroke : tempScrap.getStrokes()) {
+            CaliSmallElement newParent = view.getSelectedScrap(stroke);
+            CaliSmallElement previousParent = stroke.getPreviousParent();
+            if (newParent != previousParent) {
+                if (previousParent != null)
+                    ((Scrap) previousParent).remove(stroke);
+                if (newParent != null)
+                    ((Scrap) newParent).add(stroke);
+                stroke.setPreviousParent(null);
+            }
+        }
+        for (Scrap scrap : tempScrap.getScraps()) {
+            CaliSmallElement newParent = view.getSelectedScrap(scrap);
+            CaliSmallElement previousParent = scrap.getPreviousParent();
+            if (newParent != scrap.getParent()) {
+                if (previousParent != null && previousParent != tempScrap) {
+                    Scrap previous = (Scrap) previousParent;
+                    previous.remove(scrap);
+                }
+                if (newParent != null)
+                    ((Scrap) newParent).add(scrap);
+                scrap.setPreviousParent(null);
+            }
+        }
+    }
 
-	/**
-	 * Calls <tt>touched()</tt> on the listener set for the button that contains
-	 * <tt>touchPoint</tt> if any does and returns whether the bubble menu
-	 * should keep being displayed.
-	 * 
-	 * <p>
-	 * If <tt>touchPoint</tt> is outside this method does nothing and returns
-	 * <code>false</code>.
-	 * 
-	 * @param action
-	 *            the kind of action that was performed by the user when
-	 *            touching the canvas
-	 * @param touchPoint
-	 *            the point that was touched by the user
-	 * @param selection
-	 *            the current selected scrap
-	 * @return whether the bubble menu should still be displayed on the argument
-	 *         <tt>selection</tt> after this method returns
-	 */
-	public boolean onTouch(int action, PointF touchPoint, Scrap selection) {
-		if (selection == null)
-			return false;
-		// if not clicking on buttons hide menu when the touch action is over
-		boolean keepShowingMenu = action != MotionEvent.ACTION_UP;
-		if (touched != null) {
-			keepShowingMenu = touched.listener.touched(action, touchPoint,
-					selection);
-		}
-		if (!keepShowingMenu)
-			touched = null;
-		return keepShowingMenu;
-	}
+    /**
+     * Calls <tt>touched()</tt> on the listener set for the button that contains
+     * <tt>touchPoint</tt> if any does and returns whether the bubble menu
+     * should keep being displayed.
+     * 
+     * <p>
+     * If <tt>touchPoint</tt> is outside this method does nothing and returns
+     * <code>false</code>.
+     * 
+     * @param action
+     *            the kind of action that was performed by the user when
+     *            touching the canvas
+     * @param touchPoint
+     *            the point that was touched by the user
+     * @param selection
+     *            the current selected scrap
+     * @return whether the bubble menu should still be displayed on the argument
+     *         <tt>selection</tt> after this method returns
+     */
+    public boolean onTouch(int action, PointF touchPoint, Scrap selection) {
+        if (selection == null)
+            return false;
+        // if not clicking on buttons hide menu when the touch action is over
+        boolean keepShowingMenu = action != MotionEvent.ACTION_UP;
+        if (touched != null) {
+            keepShowingMenu = touched.listener.touched(action, touchPoint,
+                    selection);
+        }
+        if (!keepShowingMenu)
+            touched = null;
+        return keepShowingMenu;
+    }
 
-	/**
-	 * Tests whether the argument point is within any of the buttons on this
-	 * menu.
-	 * 
-	 * @param touchPoint
-	 *            the point to be tested
-	 * @return <code>true</code> if <tt>touchPoint</tt> is within any of the
-	 *         buttons
-	 */
-	public boolean buttonTouched(PointF touchPoint) {
-		if (touched != null)
-			return true;
-		int x = Math.round(touchPoint.x);
-		int y = Math.round(touchPoint.y);
-		for (Button button : buttons) {
-			if (button.contains(x, y)) {
-				touched = button;
-				return true;
-			}
-		}
-		return false;
-	}
+    /**
+     * Tests whether the argument point is within any of the buttons on this
+     * menu.
+     * 
+     * @param touchPoint
+     *            the point to be tested
+     * @return <code>true</code> if <tt>touchPoint</tt> is within any of the
+     *         buttons
+     */
+    public boolean buttonTouched(PointF touchPoint) {
+        if (touched != null)
+            return true;
+        int x = Math.round(touchPoint.x);
+        int y = Math.round(touchPoint.y);
+        for (Button button : buttons) {
+            if (button.contains(x, y)) {
+                touched = button;
+                return true;
+            }
+        }
+        return false;
+    }
 
-	/**
-	 * Draws the menu on the argument canvas.
-	 * 
-	 * @param canvas
-	 *            the canvas to which the menu must be drawn.
-	 */
-	public void draw(Canvas canvas) {
-		for (Button button : buttons) {
-			button.draw(canvas);
-		}
-	}
+    /**
+     * Draws the menu on the argument canvas.
+     * 
+     * @param canvas
+     *            the canvas to which the menu must be drawn.
+     */
+    public void draw(Canvas canvas) {
+        for (Button button : buttons) {
+            button.draw(canvas);
+        }
+    }
 
-	/**
-	 * Updates the position of buttons in this menu according to the argument
-	 * <tt>selectionPath</tt> and current <tt>scaleFactor</tt> applied to the
-	 * canvas.
-	 * 
-	 * @param selectionPath
-	 *            the path drawn by the user to select elements in the canvas
-	 * @param scaleFactor
-	 *            the current (cumulative) scale factor applied to the canvas
-	 * @param bounds
-	 *            the portion of the canvas currently displayed
-	 */
-	public void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
-		this.scaleFactor = scaleFactor;
-		this.bounds.set(bounds);
-		bSize = buttonDisplaySize / scaleFactor;
-		padding = bSize * PADDING_TO_BUTTON_SIZE_RATIO;
-		minSize = bSize * BUTTONS_PER_SIDE + (BUTTONS_PER_SIDE - 1) * padding;
-		if (selectionPath != null) {
-			updatePositionAndSize(selectionPath);
-		}
-	}
+    /**
+     * Updates the position of buttons in this menu according to the argument
+     * <tt>selectionPath</tt> and current <tt>scaleFactor</tt> applied to the
+     * canvas.
+     * 
+     * @param selectionPath
+     *            the path drawn by the user to select elements in the canvas
+     * @param scaleFactor
+     *            the current (cumulative) scale factor applied to the canvas
+     * @param bounds
+     *            the portion of the canvas currently displayed
+     */
+    public void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
+        this.scaleFactor = scaleFactor;
+        this.bounds.set(bounds);
+        bSize = buttonDisplaySize / scaleFactor;
+        padding = bSize * PADDING_TO_BUTTON_SIZE_RATIO;
+        minSize = bSize * BUTTONS_PER_SIDE + (BUTTONS_PER_SIDE - 1) * padding;
+        if (selectionPath != null) {
+            updatePositionAndSize(selectionPath);
+        }
+    }
 
-	/**
-	 * Updates the display bounds for bubble menus.
-	 * 
-	 * @param scaleFactor
-	 *            the current (cumulative) scale factor applied to the canvas
-	 * @param bounds
-	 *            the portion of the canvas currently displayed
-	 */
-	public void setBounds(float scaleFactor, RectF bounds) {
-		setBounds(null, scaleFactor, bounds);
-	}
+    /**
+     * Updates the display bounds for bubble menus.
+     * 
+     * @param scaleFactor
+     *            the current (cumulative) scale factor applied to the canvas
+     * @param bounds
+     *            the portion of the canvas currently displayed
+     */
+    public void setBounds(float scaleFactor, RectF bounds) {
+        setBounds(null, scaleFactor, bounds);
+    }
 
-	private void updatePositionAndSize(Path outerBorder) {
-		outerBorder.computeBounds(sel, true);
-		updatePivotButtonsPosition();
-		applySizeConstraints();
-		applySpaceContraints();
-		applySizeConstraintsFixedPivots();
-		updateNonPivotButtonsPosition();
-	}
+    private void updatePositionAndSize(Path outerBorder) {
+        outerBorder.computeBounds(sel, true);
+        updatePivotButtonsPosition();
+        applySizeConstraints();
+        applySpaceContraints();
+        applySizeConstraintsFixedPivots();
+        updateNonPivotButtonsPosition();
+    }
 
-	private void updatePivotButtonsPosition() {
-		// use floor() and ceil() according to what's closest to the screen
-		// margins
-		topRight.position.left = (int) FloatMath.floor(sel.right);
-		topRight.position.top = (int) FloatMath.ceil(sel.top - bSize);
-		topRight.position.right = (int) FloatMath.floor(topRight.position.left
-				+ bSize);
-		topRight.position.bottom = (int) FloatMath.ceil(topRight.position.top
-				+ bSize);
-		topLeft.position.left = (int) FloatMath.floor(sel.left - bSize);
-		topLeft.position.top = topRight.position.top;
-		topLeft.position.right = (int) FloatMath.floor(topLeft.position.left
-				+ bSize);
-		topLeft.position.bottom = topRight.position.bottom;
-		bottomRight.position.left = topRight.position.left;
-		bottomRight.position.top = (int) FloatMath.floor(sel.bottom);
-		bottomRight.position.right = topRight.position.right;
-		bottomRight.position.bottom = (int) FloatMath
-				.floor(bottomRight.position.top + bSize);
-	}
+    private void updatePivotButtonsPosition() {
+        // use floor() and ceil() according to what's closest to the screen
+        // margins
+        topRight.position.left = (int) FloatMath.floor(sel.right);
+        topRight.position.top = (int) FloatMath.ceil(sel.top - bSize);
+        topRight.position.right = (int) FloatMath.floor(topRight.position.left
+                + bSize);
+        topRight.position.bottom = (int) FloatMath.ceil(topRight.position.top
+                + bSize);
+        topLeft.position.left = (int) FloatMath.floor(sel.left - bSize);
+        topLeft.position.top = topRight.position.top;
+        topLeft.position.right = (int) FloatMath.floor(topLeft.position.left
+                + bSize);
+        topLeft.position.bottom = topRight.position.bottom;
+        bottomRight.position.left = topRight.position.left;
+        bottomRight.position.top = (int) FloatMath.floor(sel.bottom);
+        bottomRight.position.right = topRight.position.right;
+        bottomRight.position.bottom = (int) FloatMath
+                .floor(bottomRight.position.top + bSize);
+    }
 
-	private void updateNonPivotButtonsPosition() {
-		scrap.position.left = topLeft.position.left;
-		scrap.position.right = topLeft.position.right;
-		scrap.position.top = (int) FloatMath.floor(topRight.position.bottom
-				+ padding);
-		scrap.position.bottom = (int) FloatMath.floor(scrap.position.top
-				+ bSize);
-		copy.position.left = topRight.position.left;
-		copy.position.right = topRight.position.right;
-		copy.position.top = scrap.position.top;
-		copy.position.bottom = scrap.position.bottom;
-		rotate.position.left = topRight.position.left;
-		rotate.position.right = topRight.position.right;
-		rotate.position.bottom = (int) FloatMath.floor(bottomRight.position.top
-				- padding);
-		rotate.position.top = (int) FloatMath.floor(rotate.position.bottom
-				- bSize);
-		// TODO add scrap_palette here
-		erase.position.left = topLeft.position.left;
-		erase.position.right = topLeft.position.right;
-		erase.position.top = bottomRight.position.top;
-		erase.position.bottom = bottomRight.position.bottom;
-		// TODO add scrap_list here
-		// TODO add scrap_drop here
-	}
+    private void updateNonPivotButtonsPosition() {
+        scrap.position.left = topLeft.position.left;
+        scrap.position.right = topLeft.position.right;
+        scrap.position.top = (int) FloatMath.floor(topRight.position.bottom
+                + padding);
+        scrap.position.bottom = (int) FloatMath.floor(scrap.position.top
+                + bSize);
+        copy.position.left = topRight.position.left;
+        copy.position.right = topRight.position.right;
+        copy.position.top = scrap.position.top;
+        copy.position.bottom = scrap.position.bottom;
+        rotate.position.left = topRight.position.left;
+        rotate.position.right = topRight.position.right;
+        rotate.position.bottom = (int) FloatMath.floor(bottomRight.position.top
+                - padding);
+        rotate.position.top = (int) FloatMath.floor(rotate.position.bottom
+                - bSize);
+        // TODO add scrap_palette here
+        erase.position.left = topLeft.position.left;
+        erase.position.right = topLeft.position.right;
+        erase.position.top = bottomRight.position.top;
+        erase.position.bottom = bottomRight.position.bottom;
+        // TODO add scrap_list here
+        // TODO add scrap_drop here
+    }
 
-	private void applySizeConstraints() {
-		final int curWidth = topRight.position.right - topLeft.position.left;
-		final int curHeight = bottomRight.position.bottom
-				- topRight.position.top;
-		if (curWidth < minSize) {
-			// set the bubble menu to its minimum size, center according to
-			// selection
-			topLeft.position.left = (int) FloatMath.ceil(sel.centerX()
-					- minSize / 2);
-			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
-					+ bSize);
-			topRight.position.right = (int) FloatMath
-					.floor(topLeft.position.left + minSize);
-			topRight.position.left = (int) FloatMath
-					.ceil(topRight.position.right - bSize);
-			bottomRight.position.left = topRight.position.left;
-			bottomRight.position.right = topRight.position.right;
-		} else if (curWidth > bounds.width()) {
-			topLeft.position.left = (int) Math.max(
-					FloatMath.floor(bounds.left), topLeft.position.left);
-			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
-					+ bSize);
-			topRight.position.right = (int) Math.min(
-					FloatMath.floor(bounds.right), topRight.position.right);
-			topRight.position.left = (int) FloatMath
-					.ceil(topRight.position.right - bSize);
-			bottomRight.position.left = topRight.position.left;
-			bottomRight.position.right = topRight.position.right;
-		}
-		if (curHeight < minSize) {
-			topLeft.position.top = (int) FloatMath.ceil(sel.centerY() - minSize
-					/ 2);
-			topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
-					+ bSize);
-			bottomRight.position.bottom = (int) FloatMath
-					.floor(topLeft.position.top + minSize);
-			bottomRight.position.top = (int) FloatMath
-					.floor(bottomRight.position.bottom - bSize);
-			topRight.position.top = topLeft.position.top;
-			topRight.position.bottom = topLeft.position.bottom;
-		} else if (curHeight > bounds.height()) {
-			topLeft.position.top = (int) Math.max(FloatMath.ceil(bounds.top),
-					topLeft.position.top);
-			topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
-					+ bSize);
-			bottomRight.position.bottom = (int) Math
-					.min(FloatMath.floor(bounds.bottom),
-							bottomRight.position.bottom);
-			bottomRight.position.top = (int) FloatMath
-					.floor(bottomRight.position.bottom - bSize);
-			topRight.position.top = topLeft.position.top;
-			topRight.position.bottom = topLeft.position.bottom;
-		}
-	}
+    private void applySizeConstraints() {
+        final int curWidth = topRight.position.right - topLeft.position.left;
+        final int curHeight = bottomRight.position.bottom
+                - topRight.position.top;
+        if (curWidth < minSize) {
+            // set the bubble menu to its minimum size, center according to
+            // selection
+            topLeft.position.left = (int) FloatMath.ceil(sel.centerX()
+                    - minSize / 2);
+            topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+                    + bSize);
+            topRight.position.right = (int) FloatMath
+                    .floor(topLeft.position.left + minSize);
+            topRight.position.left = (int) FloatMath
+                    .ceil(topRight.position.right - bSize);
+            bottomRight.position.left = topRight.position.left;
+            bottomRight.position.right = topRight.position.right;
+        } else if (curWidth > bounds.width()) {
+            topLeft.position.left = (int) Math.max(
+                    FloatMath.floor(bounds.left), topLeft.position.left);
+            topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+                    + bSize);
+            topRight.position.right = (int) Math.min(
+                    FloatMath.floor(bounds.right), topRight.position.right);
+            topRight.position.left = (int) FloatMath
+                    .ceil(topRight.position.right - bSize);
+            bottomRight.position.left = topRight.position.left;
+            bottomRight.position.right = topRight.position.right;
+        }
+        if (curHeight < minSize) {
+            topLeft.position.top = (int) FloatMath.ceil(sel.centerY() - minSize
+                    / 2);
+            topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+                    + bSize);
+            bottomRight.position.bottom = (int) FloatMath
+                    .floor(topLeft.position.top + minSize);
+            bottomRight.position.top = (int) FloatMath
+                    .floor(bottomRight.position.bottom - bSize);
+            topRight.position.top = topLeft.position.top;
+            topRight.position.bottom = topLeft.position.bottom;
+        } else if (curHeight > bounds.height()) {
+            topLeft.position.top = (int) Math.max(FloatMath.ceil(bounds.top),
+                    topLeft.position.top);
+            topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+                    + bSize);
+            bottomRight.position.bottom = (int) Math
+                    .min(FloatMath.floor(bounds.bottom),
+                            bottomRight.position.bottom);
+            bottomRight.position.top = (int) FloatMath
+                    .floor(bottomRight.position.bottom - bSize);
+            topRight.position.top = topLeft.position.top;
+            topRight.position.bottom = topLeft.position.bottom;
+        }
+    }
 
-	private void applySpaceContraints() {
-		if (topLeft.position.left <= bounds.left) {
-			// make it appear on screen
-			topLeft.position.left = (int) FloatMath.ceil(bounds.left);
-			topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
-					+ bSize);
-		}
-		if (topRight.position.right >= bounds.right) {
-			topRight.position.right = (int) FloatMath.floor(bounds.right);
-			topRight.position.left = (int) FloatMath
-					.floor(topRight.position.right - bSize);
-			bottomRight.position.right = topRight.position.right;
-			bottomRight.position.left = topRight.position.left;
-		}
-		if (bottomRight.position.bottom >= bounds.bottom) {
-			bottomRight.position.bottom = (int) FloatMath.floor(bounds.bottom);
-			bottomRight.position.top = (int) FloatMath
-					.floor(bottomRight.position.bottom - bSize);
-		}
-		if (topRight.position.top <= bounds.top) {
-			topRight.position.top = (int) FloatMath.ceil(bounds.top);
-			topRight.position.bottom = (int) FloatMath
-					.ceil(topRight.position.top + bSize);
-			topLeft.position.top = topRight.position.top;
-			topLeft.position.bottom = topRight.position.bottom;
-		}
-	}
+    private void applySpaceContraints() {
+        if (topLeft.position.left <= bounds.left) {
+            // make it appear on screen
+            topLeft.position.left = (int) FloatMath.ceil(bounds.left);
+            topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+                    + bSize);
+        }
+        if (topRight.position.right >= bounds.right) {
+            topRight.position.right = (int) FloatMath.floor(bounds.right);
+            topRight.position.left = (int) FloatMath
+                    .floor(topRight.position.right - bSize);
+            bottomRight.position.right = topRight.position.right;
+            bottomRight.position.left = topRight.position.left;
+        }
+        if (bottomRight.position.bottom >= bounds.bottom) {
+            bottomRight.position.bottom = (int) FloatMath.floor(bounds.bottom);
+            bottomRight.position.top = (int) FloatMath
+                    .floor(bottomRight.position.bottom - bSize);
+        }
+        if (topRight.position.top <= bounds.top) {
+            topRight.position.top = (int) FloatMath.ceil(bounds.top);
+            topRight.position.bottom = (int) FloatMath
+                    .ceil(topRight.position.top + bSize);
+            topLeft.position.top = topRight.position.top;
+            topLeft.position.bottom = topRight.position.bottom;
+        }
+    }
 
-	private void applySizeConstraintsFixedPivots() {
-		final int curWidth = topRight.position.right - topLeft.position.left;
-		final int curHeight = bottomRight.position.bottom
-				- topRight.position.top;
-		if (curWidth < minSize) {
-			// decide which point is to be used as pivot according to which one
-			// is closer to the screen margins
-			if (Math.abs(topLeft.position.left - bounds.left) < Math
-					.abs(bounds.right - topRight.position.right)) {
-				// scrap is near the left border of the screen
-				topRight.position.right = (int) FloatMath
-						.floor(topLeft.position.left + minSize);
-				topRight.position.left = (int) FloatMath
-						.floor(topRight.position.right - bSize);
-			} else {
-				topLeft.position.left = (int) FloatMath
-						.ceil(topRight.position.right - minSize);
-				topLeft.position.right = (int) FloatMath
-						.ceil(topLeft.position.left + bSize);
-			}
-			bottomRight.position.left = topRight.position.left;
-			bottomRight.position.right = topRight.position.right;
-		}
-		if (curHeight < minSize) {
-			if (Math.abs(topRight.position.top - bounds.top) < Math
-					.abs(bounds.bottom - bottomRight.position.bottom)) {
-				// scrap is near the top border of the screen
-				bottomRight.position.bottom = (int) FloatMath
-						.floor(topLeft.position.top + minSize);
-				bottomRight.position.top = (int) FloatMath
-						.floor(bottomRight.position.bottom - bSize);
-			} else {
-				topLeft.position.top = (int) FloatMath
-						.ceil(bottomRight.position.bottom - minSize);
-				topLeft.position.bottom = (int) FloatMath
-						.ceil(topLeft.position.top + bSize);
-			}
-			topRight.position.top = topLeft.position.top;
-			topRight.position.bottom = topLeft.position.bottom;
-		}
-	}
+    private void applySizeConstraintsFixedPivots() {
+        final int curWidth = topRight.position.right - topLeft.position.left;
+        final int curHeight = bottomRight.position.bottom
+                - topRight.position.top;
+        if (curWidth < minSize) {
+            // decide which point is to be used as pivot according to which one
+            // is closer to the screen margins
+            if (Math.abs(topLeft.position.left - bounds.left) < Math
+                    .abs(bounds.right - topRight.position.right)) {
+                // scrap is near the left border of the screen
+                topRight.position.right = (int) FloatMath
+                        .floor(topLeft.position.left + minSize);
+                topRight.position.left = (int) FloatMath
+                        .floor(topRight.position.right - bSize);
+            } else {
+                topLeft.position.left = (int) FloatMath
+                        .ceil(topRight.position.right - minSize);
+                topLeft.position.right = (int) FloatMath
+                        .ceil(topLeft.position.left + bSize);
+            }
+            bottomRight.position.left = topRight.position.left;
+            bottomRight.position.right = topRight.position.right;
+        }
+        if (curHeight < minSize) {
+            if (Math.abs(topRight.position.top - bounds.top) < Math
+                    .abs(bounds.bottom - bottomRight.position.bottom)) {
+                // scrap is near the top border of the screen
+                bottomRight.position.bottom = (int) FloatMath
+                        .floor(topLeft.position.top + minSize);
+                bottomRight.position.top = (int) FloatMath
+                        .floor(bottomRight.position.bottom - bSize);
+            } else {
+                topLeft.position.top = (int) FloatMath
+                        .ceil(bottomRight.position.bottom - minSize);
+                topLeft.position.bottom = (int) FloatMath
+                        .ceil(topLeft.position.top + bSize);
+            }
+            topRight.position.top = topLeft.position.top;
+            topRight.position.bottom = topLeft.position.bottom;
+        }
+    }
 
-	private void updateMenu(Scrap selection) {
-		updatePositionAndSize(selection.getBorder());
-	}
+    private void updateMenu(Scrap selection) {
+        updatePositionAndSize(selection.getBorder());
+    }
 }
