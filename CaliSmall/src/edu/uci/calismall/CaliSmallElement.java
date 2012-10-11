@@ -1,7 +1,5 @@
 /**
- * CalicoElement.java
- * Created on Sep 13, 2012
- * Copyright 2012 Michele Bonazza
+ * CalicoElement.java Created on Sep 13, 2012 Copyright 2012 Michele Bonazza
  * <michele.bonazza@gmail.com>
  */
 package edu.uci.calismall;
@@ -45,479 +43,481 @@ import edu.uci.calismall.Scrap.Temp;
  */
 public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 
-	/**
-	 * A comparator to sort elements by their position along the X coordinate.
-	 * 
-	 * @param <T>
-	 *            the actual type of element to be sorted
-	 * @author Michele Bonazza
-	 */
-	public static class XComparator<T extends CaliSmallElement> implements
-			Comparator<T> {
+    /**
+     * A comparator to sort elements by their position along the X coordinate.
+     * 
+     * @param <T>
+     *            the actual type of element to be sorted
+     * @author Michele Bonazza
+     */
+    public static class XComparator<T extends CaliSmallElement> implements
+            Comparator<T> {
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
-		 */
-		@Override
-		public int compare(T lhs, T rhs) {
-			if (lhs == null)
-				return rhs == null ? 0 : 1;
-			if (rhs == null)
-				return -1;
-			if (lhs.id.equals(rhs.id))
-				return 0;
-			int whichFirst = Float.compare(lhs.topLeftPoint.x,
-					rhs.topLeftPoint.x);
-			if (whichFirst == 0) {
-				return lhs.width < rhs.width ? -1 : 1;
-			}
-			return whichFirst;
-		}
+        /*
+         * (non-Javadoc)
+         * 
+         * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
+         */
+        @Override
+        public int compare(T lhs, T rhs) {
+            if (lhs == null)
+                return rhs == null ? 0 : 1;
+            if (rhs == null)
+                return -1;
+            if (lhs.id.equals(rhs.id))
+                return 0;
+            int whichFirst = Float.compare(lhs.topLeftPoint.x,
+                    rhs.topLeftPoint.x);
+            if (whichFirst == 0) {
+                return lhs.width < rhs.width ? -1 : 1;
+            }
+            return whichFirst;
+        }
 
-	}
+    }
 
-	/**
-	 * The region representing the area of this element.
-	 */
-	protected final Region boundaries = new Region();
+    /**
+     * The region representing the area of this element.
+     */
+    protected final Region boundaries = new Region();
 
-	private final UUID id = UUID.randomUUID();
+    private final UUID id = UUID.randomUUID();
 
-	/**
-	 * The direct parent of this element.
-	 */
-	protected CaliSmallElement parent;
+    /**
+     * The direct parent of this element.
+     */
+    protected CaliSmallElement parent;
 
-	/**
-	 * The previous direct parent of this element.
-	 */
-	protected CaliSmallElement previousParent;
+    /**
+     * The previous direct parent of this element.
+     */
+    protected CaliSmallElement previousParent;
 
-	/**
-	 * The top-left corner of the {@link RectF} enclosing this element.
-	 */
-	protected PointF topLeftPoint = new PointF();
-	/**
-	 * The top-left corner of the {@link RectF} that was enclosing this element
-	 * before the last call to {@link #setArea(RectF)}.
-	 */
-	protected PointF previousTopLeftPoint = topLeftPoint;
-	/**
-	 * Whether this element must be deleted. Elements are only removed from
-	 * lists by the drawing thread, to avoid
-	 * {@link ConcurrentModificationException}'s while drawing.
-	 */
-	protected boolean toBeDeleted;
-	/**
-	 * Whether this element has already been added to the list of elements
-	 * within a {@link Temp} and should therefore be ignored when testing for
-	 * elements within the newly created {@link Temp}.
-	 */
-	protected boolean addedToSelection;
-	/**
-	 * The width of the {@link RectF} enclosing this element.
-	 */
-	protected float width;
-	/**
-	 * The height of the {@link RectF} enclosing this element.
-	 */
-	protected float height;
+    /**
+     * The top-left corner of the {@link RectF} enclosing this element.
+     */
+    protected PointF topLeftPoint = new PointF();
+    /**
+     * The top-left corner of the {@link RectF} that was enclosing this element
+     * before the last call to {@link #setArea(RectF)}.
+     */
+    protected PointF previousTopLeftPoint = topLeftPoint;
+    /**
+     * Whether this element must be deleted. Elements are only removed from
+     * lists by the drawing thread, to avoid
+     * {@link ConcurrentModificationException}'s while drawing.
+     */
+    protected boolean toBeDeleted;
+    /**
+     * Whether this element has already been added to the list of elements
+     * within a {@link Temp} and should therefore be ignored when testing for
+     * elements within the newly created {@link Temp}.
+     */
+    protected boolean addedToSelection;
+    /**
+     * The width of the {@link RectF} enclosing this element.
+     */
+    protected float width;
+    /**
+     * The height of the {@link RectF} enclosing this element.
+     */
+    protected float height;
 
-	private boolean mustBeDrawn = true;
+    private boolean mustBeDrawn = true;
 
-	/**
-	 * Updates the information about the area occupied by this element
-	 * extracting it by the argument <tt>enclosingRect</tt>.
-	 * 
-	 * <p>
-	 * After this method is called, a call to {@link #updateSpaceOccupation()}
-	 * is performed to update the list of space occupations of all elements of
-	 * this kind.
-	 * 
-	 * @param enclosingRect
-	 *            the rectangle enclosing this element
-	 */
-	protected void setArea(RectF enclosingRect) {
-		previousTopLeftPoint.set(topLeftPoint.x, topLeftPoint.y);
-		topLeftPoint.set(enclosingRect.left, enclosingRect.top);
-		width = enclosingRect.width();
-		height = enclosingRect.height();
-		updateSpaceOccupation();
-	}
+    /**
+     * Updates the information about the area occupied by this element
+     * extracting it by the argument <tt>enclosingRect</tt>.
+     * 
+     * <p>
+     * After this method is called, a call to {@link #updateSpaceOccupation()}
+     * is performed to update the list of space occupations of all elements of
+     * this kind.
+     * 
+     * @param enclosingRect
+     *            the rectangle enclosing this element
+     */
+    protected void setArea(RectF enclosingRect) {
+        previousTopLeftPoint.set(topLeftPoint.x, topLeftPoint.y);
+        topLeftPoint.set(enclosingRect.left, enclosingRect.top);
+        width = enclosingRect.width();
+        height = enclosingRect.height();
+        updateSpaceOccupation();
+    }
 
-	/**
-	 * Tests whether this element's X occupation intersect that of the argument
-	 * element.
-	 * 
-	 * @param other
-	 *            the element to be tested against this element for
-	 *            one-dimensional intersection
-	 * @return <code>true</code> if the topmost side of the two rectangles
-	 *         enclosing the two elements overlap
-	 */
-	public boolean intersectsX(CaliSmallElement other) {
-		return (topLeftPoint.x <= other.topLeftPoint.x && topLeftPoint.x
-				+ width >= other.topLeftPoint.x)
-				|| (topLeftPoint.x >= other.topLeftPoint.x && other.topLeftPoint.x
-						+ other.width >= topLeftPoint.x);
-	}
+    /**
+     * Tests whether this element's X occupation intersect that of the argument
+     * element.
+     * 
+     * @param other
+     *            the element to be tested against this element for
+     *            one-dimensional intersection
+     * @return <code>true</code> if the topmost side of the two rectangles
+     *         enclosing the two elements overlap
+     */
+    public boolean intersectsX(CaliSmallElement other) {
+        return (topLeftPoint.x <= other.topLeftPoint.x && topLeftPoint.x
+                + width >= other.topLeftPoint.x)
+                || (topLeftPoint.x >= other.topLeftPoint.x && other.topLeftPoint.x
+                        + other.width >= topLeftPoint.x);
+    }
 
-	/**
-	 * Tests whether this element's Y occupation intersect that of the argument
-	 * element.
-	 * 
-	 * @param other
-	 *            the element to be tested against this element for
-	 *            one-dimensional intersection
-	 * @return <code>true</code> if the left side of the two rectangles
-	 *         enclosing the two elements overlap
-	 */
-	public boolean intersectsY(CaliSmallElement other) {
-		return (topLeftPoint.y <= other.topLeftPoint.y && topLeftPoint.y
-				+ height >= other.topLeftPoint.y)
-				|| (topLeftPoint.y >= other.topLeftPoint.y && other.topLeftPoint.y
-						+ other.height >= topLeftPoint.y);
-	}
+    /**
+     * Tests whether this element's Y occupation intersect that of the argument
+     * element.
+     * 
+     * @param other
+     *            the element to be tested against this element for
+     *            one-dimensional intersection
+     * @return <code>true</code> if the left side of the two rectangles
+     *         enclosing the two elements overlap
+     */
+    public boolean intersectsY(CaliSmallElement other) {
+        return (topLeftPoint.y <= other.topLeftPoint.y && topLeftPoint.y
+                + height >= other.topLeftPoint.y)
+                || (topLeftPoint.y >= other.topLeftPoint.y && other.topLeftPoint.y
+                        + other.height >= topLeftPoint.y);
+    }
 
-	/**
-	 * Updates the space occupation list containing this type of
-	 * <tt>CaliSmallElement</tt>'s to mirror the changes that this element
-	 * underwent.
-	 */
-	protected abstract void updateSpaceOccupation();
+    /**
+     * Updates the space occupation list containing this type of
+     * <tt>CaliSmallElement</tt>'s to mirror the changes that this element
+     * underwent.
+     */
+    protected abstract void updateSpaceOccupation();
 
-	/**
-	 * Returns whether this element is smaller (-1) or bigger (1) than the
-	 * argument element. If the two elements have the same ID, 0 is returned; if
-	 * they're the same size but have different IDs, this method returns -1.
-	 */
-	@Override
-	public int compareTo(CaliSmallElement another) {
-		if (another == null)
-			return -1;
-		if (id.equals(another.id))
-			return 0;
-		return Float.compare(width + height, another.width + another.height);
-	}
+    /**
+     * Returns whether this element is smaller (-1) or bigger (1) than the
+     * argument element. If the two elements have the same ID, 0 is returned; if
+     * they're the same size but have different IDs, this method returns -1.
+     */
+    @Override
+    public int compareTo(CaliSmallElement another) {
+        if (another == null)
+            return -1;
+        if (id.equals(another.id))
+            return 0;
+        return Float.compare(width + height, another.width + another.height);
+    }
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see java.lang.Object#equals(java.lang.Object)
-	 */
-	@Override
-	public final boolean equals(Object o) {
-		if (o == null || !(o instanceof CaliSmallElement))
-			return false;
-		return id.equals(((CaliSmallElement) o).id);
-	}
+    /*
+     * (non-Javadoc)
+     * 
+     * @see java.lang.Object#equals(java.lang.Object)
+     */
+    @Override
+    public final boolean equals(Object o) {
+        if (o == null || !(o instanceof CaliSmallElement))
+            return false;
+        return id.equals(((CaliSmallElement) o).id);
+    }
 
-	/**
-	 * Resets the selection status of all the elements in the argument list.
-	 * 
-	 * @param elements
-	 *            a list of elements whose selection status should be set to
-	 *            <code>false</code>
-	 */
-	public static void resetSelectionStatus(
-			List<? extends CaliSmallElement> elements) {
-		for (CaliSmallElement element : elements) {
-			element.addedToSelection = false;
-		}
-	}
+    /**
+     * Resets the selection status of all the elements in the argument list.
+     * 
+     * @param elements
+     *            a list of elements whose selection status should be set to
+     *            <code>false</code>
+     */
+    public static void resetSelectionStatus(
+            List<? extends CaliSmallElement> elements) {
+        for (CaliSmallElement element : elements) {
+            element.addedToSelection = false;
+        }
+    }
 
-	/**
-	 * Sets the selection status of all elements in the argument list to
-	 * <code>true</code>.
-	 * 
-	 * @param elements
-	 *            a list of elements whose selection status should be set to
-	 *            <code>true</code>
-	 */
-	public static void setAllAddedToSelection(
-			List<? extends CaliSmallElement> elements) {
-		for (CaliSmallElement element : elements) {
-			element.addedToSelection = true;
-		}
-	}
+    /**
+     * Sets the selection status of all elements in the argument list to
+     * <code>true</code>.
+     * 
+     * @param elements
+     *            a list of elements whose selection status should be set to
+     *            <code>true</code>
+     */
+    public static void setAllAddedToSelection(
+            List<? extends CaliSmallElement> elements) {
+        for (CaliSmallElement element : elements) {
+            element.addedToSelection = true;
+        }
+    }
 
-	/**
-	 * Tests whether the argument point is within the area of this element.
-	 * 
-	 * @param point
-	 *            the point to be tested
-	 * @return <code>true</code> if the point is within this element's area
-	 */
-	public abstract boolean contains(PointF point);
+    /**
+     * Tests whether the argument point is within the area of this element.
+     * 
+     * @param point
+     *            the point to be tested, may be <code>null</code>
+     * @return <code>true</code> if the point is within this element's area,
+     *         <code>false</code> if <tt>point</tt> is <code>null</code> or
+     *         outside of this element's area
+     */
+    public abstract boolean contains(PointF point);
 
-	/**
-	 * Tests whether the argument element is completely contained in this
-	 * element.
-	 * 
-	 * @param element
-	 *            the element to be tested
-	 * @return <code>true</code> if the argument element is completely within
-	 *         this element's area
-	 */
-	public boolean contains(CaliSmallElement element) {
-		boolean outliers = false;
-		for (PointF point : element.getPointsForInclusionTests()) {
-			if (!boundaries.contains(Math.round(point.x), Math.round(point.y))) {
-				outliers = true;
-				break;
-			}
-		}
-		return !outliers;
-	}
+    /**
+     * Tests whether the argument element is completely contained in this
+     * element.
+     * 
+     * @param element
+     *            the element to be tested
+     * @return <code>true</code> if the argument element is completely within
+     *         this element's area
+     */
+    public boolean contains(CaliSmallElement element) {
+        boolean outliers = false;
+        for (PointF point : element.getPointsForInclusionTests()) {
+            if (!boundaries.contains(Math.round(point.x), Math.round(point.y))) {
+                outliers = true;
+                break;
+            }
+        }
+        return !outliers;
+    }
 
-	/**
-	 * Returns whether this element must be deleted.
-	 * 
-	 * <p>
-	 * Only the drawing thread can delete elements, otherwise
-	 * {@link ConcurrentModificationException}'s may be thrown.
-	 * 
-	 * @return <code>true</code> if this element must be deleted
-	 */
-	public boolean hasToBeDeleted() {
-		return toBeDeleted;
-	}
+    /**
+     * Returns whether this element must be deleted.
+     * 
+     * <p>
+     * Only the drawing thread can delete elements, otherwise
+     * {@link ConcurrentModificationException}'s may be thrown.
+     * 
+     * @return <code>true</code> if this element must be deleted
+     */
+    public boolean hasToBeDeleted() {
+        return toBeDeleted;
+    }
 
-	/**
-	 * Returns whether this element must be drawn as vector data.
-	 * 
-	 * <p>
-	 * While being edited (moved, scaled, rotated) elements should not be drawn
-	 * using their vector data format, but a "snapshot" bitmap should be
-	 * preferred to speed up the drawing of the Canvas.
-	 * 
-	 * @return <code>true</code> if this element shall be drawn using its vector
-	 *         data format
-	 */
-	public boolean hasToBeDrawnVectorially() {
-		return mustBeDrawn;
-	}
+    /**
+     * Returns whether this element must be drawn as vector data.
+     * 
+     * <p>
+     * While being edited (moved, scaled, rotated) elements should not be drawn
+     * using their vector data format, but a "snapshot" bitmap should be
+     * preferred to speed up the drawing of the Canvas.
+     * 
+     * @return <code>true</code> if this element shall be drawn using its vector
+     *         data format
+     */
+    public boolean hasToBeDrawnVectorially() {
+        return mustBeDrawn;
+    }
 
-	/**
-	 * Sets whether this element must be drawn.
-	 * 
-	 * <p>
-	 * While being edited (moved, scaled, rotated) elements should not be drawn
-	 * using their vector data format, but a "snapshot" bitmap should be
-	 * preferred to speed up the drawing of the Canvas.
-	 * 
-	 * @param mustBeDrawn
-	 *            <code>true</code> if this element shall be drawn using its
-	 *            vector data format
-	 */
-	public void mustBeDrawnVectorially(boolean mustBeDrawn) {
-		this.mustBeDrawn = mustBeDrawn;
-	}
+    /**
+     * Sets whether this element must be drawn.
+     * 
+     * <p>
+     * While being edited (moved, scaled, rotated) elements should not be drawn
+     * using their vector data format, but a "snapshot" bitmap should be
+     * preferred to speed up the drawing of the Canvas.
+     * 
+     * @param mustBeDrawn
+     *            <code>true</code> if this element shall be drawn using its
+     *            vector data format
+     */
+    public void mustBeDrawnVectorially(boolean mustBeDrawn) {
+        this.mustBeDrawn = mustBeDrawn;
+    }
 
-	/**
-	 * Removes all elements marked for deletion from the argument lists.
-	 * 
-	 * <p>
-	 * An element is marked for deletion when {@link #hasToBeDeleted()} returns
-	 * <code>true</code>. This method removes the elements from both lists.
-	 * 
-	 * @param <T>
-	 *            the type of elements that the two lists store
-	 * @param deleteList
-	 *            the list containing all elements of type <tt>T</tt>, including
-	 *            elements that are not to be deleted
-	 * @param spaceOccupationList
-	 *            the space occupation list from which elements are also to be
-	 *            deleted
-	 */
-	public static <T extends CaliSmallElement> void deleteMarkedFromList(
-			List<T> deleteList, SpaceOccupationList spaceOccupationList) {
-		List<T> elementsToRemove = new ArrayList<T>();
-		for (Iterator<T> iterator = deleteList.iterator(); iterator.hasNext();) {
-			T next = iterator.next();
-			if (next.hasToBeDeleted()) {
-				iterator.remove();
-				elementsToRemove.add(next);
-			}
-		}
-		spaceOccupationList.removeAll(elementsToRemove);
-	}
+    /**
+     * Removes all elements marked for deletion from the argument lists.
+     * 
+     * <p>
+     * An element is marked for deletion when {@link #hasToBeDeleted()} returns
+     * <code>true</code>. This method removes the elements from both lists.
+     * 
+     * @param <T>
+     *            the type of elements that the two lists store
+     * @param deleteList
+     *            the list containing all elements of type <tt>T</tt>, including
+     *            elements that are not to be deleted
+     * @param spaceOccupationList
+     *            the space occupation list from which elements are also to be
+     *            deleted
+     */
+    public static <T extends CaliSmallElement> void deleteMarkedFromList(
+            List<T> deleteList, SpaceOccupationList spaceOccupationList) {
+        List<T> elementsToRemove = new ArrayList<T>();
+        for (Iterator<T> iterator = deleteList.iterator(); iterator.hasNext();) {
+            T next = iterator.next();
+            if (next.hasToBeDeleted()) {
+                iterator.remove();
+                elementsToRemove.add(next);
+            }
+        }
+        spaceOccupationList.removeAll(elementsToRemove);
+    }
 
-	/**
-	 * Returns the region enclosing this element.
-	 * 
-	 * @return a new copy of the region enclosing this element
-	 */
-	public Region getBoundaries() {
-		return new Region(boundaries);
-	}
+    /**
+     * Returns the region enclosing this element.
+     * 
+     * @return a new copy of the region enclosing this element
+     */
+    public Region getBoundaries() {
+        return new Region(boundaries);
+    }
 
-	/**
-	 * Updates the boundaries for this element using the argument {@link Path}
-	 * as perimeter for the area of this element.
-	 * 
-	 * @param path
-	 *            the perimeter of the region enclosing this element
-	 */
-	protected void setBoundaries(Path path) {
-		RectF rect = new RectF();
-		path.computeBounds(rect, true);
-		setArea(rect);
-		Rect rounded = new Rect((int) FloatMath.floor(rect.left),
-				(int) FloatMath.floor(rect.top),
-				(int) FloatMath.ceil(rect.right),
-				(int) FloatMath.ceil(rect.bottom));
-		boundaries.setPath(path, new Region(rounded));
-	}
+    /**
+     * Updates the boundaries for this element using the argument {@link Path}
+     * as perimeter for the area of this element.
+     * 
+     * @param path
+     *            the perimeter of the region enclosing this element
+     */
+    protected void setBoundaries(Path path) {
+        RectF rect = new RectF();
+        path.computeBounds(rect, true);
+        setArea(rect);
+        Rect rounded = new Rect((int) FloatMath.floor(rect.left),
+                (int) FloatMath.floor(rect.top),
+                (int) FloatMath.ceil(rect.right),
+                (int) FloatMath.ceil(rect.bottom));
+        boundaries.setPath(path, new Region(rounded));
+    }
 
-	/**
-	 * Returns the identifier for this element.
-	 * 
-	 * <p>
-	 * This id is <b>not</b> the same as the id that is stored in Calico server,
-	 * it's just a local id.
-	 * 
-	 * @return the id for this element
-	 */
-	public UUID getID() {
-		return id;
-	}
+    /**
+     * Returns the identifier for this element.
+     * 
+     * <p>
+     * This id is <b>not</b> the same as the id that is stored in Calico server,
+     * it's just a local id.
+     * 
+     * @return the id for this element
+     */
+    public UUID getID() {
+        return id;
+    }
 
-	/**
-	 * Returns the X-coordinate of the top left point of the rectangle enclosing
-	 * this element.
-	 * 
-	 * @return the X position of the top left point
-	 */
-	public float getXPos() {
-		return topLeftPoint.x;
-	}
+    /**
+     * Returns the X-coordinate of the top left point of the rectangle enclosing
+     * this element.
+     * 
+     * @return the X position of the top left point
+     */
+    public float getXPos() {
+        return topLeftPoint.x;
+    }
 
-	/**
-	 * Returns the Y-coordinate of the top left point of the rectangle enclosing
-	 * this element.
-	 * 
-	 * @return the Y position of the top left point
-	 */
-	public float getYPos() {
-		return topLeftPoint.y;
-	}
+    /**
+     * Returns the Y-coordinate of the top left point of the rectangle enclosing
+     * this element.
+     * 
+     * @return the Y position of the top left point
+     */
+    public float getYPos() {
+        return topLeftPoint.y;
+    }
 
-	/**
-	 * Returns the X-coordinate of the top left point of the rectangle that was
-	 * enclosing this element before the last call to {@link #setArea(RectF)}.
-	 * 
-	 * @return the X position of the top left point
-	 */
-	public float getPrevXPos() {
-		return previousTopLeftPoint.x;
-	}
+    /**
+     * Returns the X-coordinate of the top left point of the rectangle that was
+     * enclosing this element before the last call to {@link #setArea(RectF)}.
+     * 
+     * @return the X position of the top left point
+     */
+    public float getPrevXPos() {
+        return previousTopLeftPoint.x;
+    }
 
-	/**
-	 * Returns the Y-coordinate of the top left point of the rectangle that was
-	 * enclosing this element before the last call to {@link #setArea(RectF)}.
-	 * 
-	 * @return the Y position of the top left point
-	 */
-	public float getPrevYPos() {
-		return previousTopLeftPoint.y;
-	}
+    /**
+     * Returns the Y-coordinate of the top left point of the rectangle that was
+     * enclosing this element before the last call to {@link #setArea(RectF)}.
+     * 
+     * @return the Y position of the top left point
+     */
+    public float getPrevYPos() {
+        return previousTopLeftPoint.y;
+    }
 
-	/**
-	 * Returns the parent element for this element
-	 * 
-	 * @return the parent, may be <code>null</code>
-	 */
-	public CaliSmallElement getParent() {
-		return parent;
-	}
+    /**
+     * Returns the parent element for this element
+     * 
+     * @return the parent, may be <code>null</code>
+     */
+    public CaliSmallElement getParent() {
+        return parent;
+    }
 
-	/**
-	 * Returns the previous parent of this element.
-	 * 
-	 * @return the previous parent of this element
-	 */
-	public CaliSmallElement getPreviousParent() {
-		return previousParent;
-	}
+    /**
+     * Returns the previous parent of this element.
+     * 
+     * @return the previous parent of this element
+     */
+    public CaliSmallElement getPreviousParent() {
+        return previousParent;
+    }
 
-	/**
-	 * Sets the parent of this element to the argument <tt>parent</tt> element,
-	 * also updating the <tt>previousParent</tt> field with the current parent.
-	 * 
-	 * @param parent
-	 *            the parent to set, may be <code>null</code>
-	 */
-	public void setParent(CaliSmallElement parent) {
-		previousParent = this.parent;
-		this.parent = parent;
-	}
+    /**
+     * Sets the parent of this element to the argument <tt>parent</tt> element,
+     * also updating the <tt>previousParent</tt> field with the current parent.
+     * 
+     * @param parent
+     *            the parent to set, may be <code>null</code>
+     */
+    public void setParent(CaliSmallElement parent) {
+        previousParent = this.parent;
+        this.parent = parent;
+    }
 
-	/**
-	 * Sets the previous parent to the argument element.
-	 * 
-	 * <p>
-	 * Used by temp scraps.
-	 * 
-	 * @param previousParent
-	 *            the previous parent to set
-	 */
-	public void setPreviousParent(CaliSmallElement previousParent) {
-		this.previousParent = previousParent;
-	}
+    /**
+     * Sets the previous parent to the argument element.
+     * 
+     * <p>
+     * Used by temp scraps.
+     * 
+     * @param previousParent
+     *            the previous parent to set
+     */
+    public void setPreviousParent(CaliSmallElement previousParent) {
+        this.previousParent = previousParent;
+    }
 
-	/**
-	 * Returns a list of all points that must be tested when performing
-	 * inclusion tests.
-	 * 
-	 * <p>
-	 * This method <b>is not required</b> to make defensive copies, so altering
-	 * the returned may alter the internal state of the object.
-	 * 
-	 * @return a list containing all points of this element that must be
-	 *         included within some area for this element to be contained within
-	 *         said area
-	 */
-	public abstract List<PointF> getPointsForInclusionTests();
+    /**
+     * Returns a list of all points that must be tested when performing
+     * inclusion tests.
+     * 
+     * <p>
+     * This method <b>is not required</b> to make defensive copies, so altering
+     * the returned may alter the internal state of the object.
+     * 
+     * @return a list containing all points of this element that must be
+     *         included within some area for this element to be contained within
+     *         said area
+     */
+    public abstract List<PointF> getPointsForInclusionTests();
 
-	/**
-	 * Returns the sum of the enclosing rectangle's width and height.
-	 * 
-	 * @return the sum of width and height of the rectangle enclosing this
-	 *         element
-	 */
-	public float getRectSize() {
-		return width + height;
-	}
+    /**
+     * Returns the sum of the enclosing rectangle's width and height.
+     * 
+     * @return the sum of width and height of the rectangle enclosing this
+     *         element
+     */
+    public float getRectSize() {
+        return width + height;
+    }
 
-	/**
-	 * Returns the width of the rectangle enclosing this element.
-	 * 
-	 * @return the enclosing rectangle's width
-	 */
-	public float getWidth() {
-		return width;
-	}
+    /**
+     * Returns the width of the rectangle enclosing this element.
+     * 
+     * @return the enclosing rectangle's width
+     */
+    public float getWidth() {
+        return width;
+    }
 
-	/**
-	 * Returns the height of the rectangle enclosing this element.
-	 * 
-	 * @return the enclosing rectangle's height
-	 */
-	public float getHeight() {
-		return height;
-	}
+    /**
+     * Returns the height of the rectangle enclosing this element.
+     * 
+     * @return the enclosing rectangle's height
+     */
+    public float getHeight() {
+        return height;
+    }
 
-	public String toString() {
-		StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-		builder.append(" ").append(id.toString()).append(" ")
-				.append(CaliSmall.pointToString(topLeftPoint)).append(" [")
-				.append(Math.round(width)).append("x")
-				.append(Math.round(height)).append("] ");
-		if (boundaries.isEmpty())
-			builder.append("(empty)");
-		return builder.toString();
-	}
+    public String toString() {
+        StringBuilder builder = new StringBuilder(getClass().getSimpleName());
+        builder.append(" ").append(id.toString()).append(" ")
+                .append(CaliSmall.pointToString(topLeftPoint)).append(" [")
+                .append(Math.round(width)).append("x")
+                .append(Math.round(height)).append("] ");
+        if (boundaries.isEmpty())
+            builder.append("(empty)");
+        return builder.toString();
+    }
 }

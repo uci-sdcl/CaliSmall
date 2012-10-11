@@ -1,8 +1,12 @@
 <resources>
-
     <string name="app_name">CaliSmall</string>
-    <string name="hello_world">Hello world!</string>
     <string name="menu_settings">Settings</string>
     <string name="title_activity_cali_small">CaliSmall</string>
-
+    <string name="cancel">Cancel</string>
+    <string name="save_dialog_title">Save</string>
+    <string name="save_dialog_message">Choose a file name for your project</string>
+    <string name="ok">Ok</string>
+    <string name="save_dialog_fail_title">Error</string>
+    <string name="save_dialog_fail_message">Cannot save on external memory. Save on internal memory instead?</string>
+    <string name="save_dialog_file_not_saved">File not saved!</string>
 </resources>

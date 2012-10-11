@@ -73,8 +73,10 @@
             bootclasspath="${javahome}/jre/lib/rt.jar"
             classpath="/Users/michelebonazza/Documents/android/android-sdk-macosx/platforms/android-16/android.jar"
             destdir="${javadoc.out}"
-            packagenames="edu.uci.*"
-            sourcepath="${src.home}">
+            packagenames="edu.uci.calismall"
+            package="true"
+            sourcepath="${src.home}"
+            windowtitle="CaliSmall Documentation">
             <link offline="true" href="http://d.android.com/reference" packagelistloc="/Users/michelebonazza/Documents/android/android-sdk-macosx/docs/reference" />
         </javadoc>
     </target>
