@@ -5,9 +5,13 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -41,7 +45,7 @@ import android.view.View;
  * 
  * @author Michele Bonazza
  */
-public class Scrap extends CaliSmallElement {
+public class Scrap extends CaliSmallElement implements JSONSerializable {
 
     /**
      * The kind of transformation that is applied to a scrap (and all its
@@ -103,10 +107,13 @@ public class Scrap extends CaliSmallElement {
      * All strokes belonging to this scrap.
      */
     protected final List<Stroke> strokes;
+
+    private List<String> scrapIDs;
+
     /**
      * The enclosing border of this scrap.
      */
-    protected final Stroke outerBorder;
+    protected Stroke outerBorder;
     /**
      * Whether this scrap is currently selected.
      */
@@ -150,6 +157,21 @@ public class Scrap extends CaliSmallElement {
         PAINT.setStrokeCap(Paint.Cap.ROUND);
         PAINT.setColor(TEMP_SCRAP_REGION_COLOR);
         PAINT.setStyle(Style.FILL);
+    }
+
+    /**
+     * Creates an empty scrap.
+     * 
+     * <p>
+     * Used when deserializing data from JSON.
+     */
+    public Scrap() {
+        snapshotMatrix = new Matrix();
+        matrix = new Matrix();
+        contentMatrix = new Matrix();
+        rollbackMatrix = new Matrix();
+        strokes = new ArrayList<Stroke>();
+        scraps = new ArrayList<Scrap>();
     }
 
     /**
@@ -241,6 +263,23 @@ public class Scrap extends CaliSmallElement {
         }
         // refresh the snapshot the next time!
         contentChanged = true;
+    }
+
+    /**
+     * Adds all scraps that are children of this scrap according to the data
+     * stored by JSON.
+     * 
+     * <p>
+     * After adding all children scraps, this method clears the list of Strings
+     * parsed by JSON to save space.
+     */
+    public void addChildrenFromJSON() {
+        if (scrapIDs != null) {
+            for (String id : scrapIDs) {
+                scraps.add((Scrap) Scrap.SPACE_OCCUPATION_LIST.getById(id));
+            }
+            scrapIDs = null;
+        }
     }
 
     /**
@@ -426,7 +465,7 @@ public class Scrap extends CaliSmallElement {
      * @param scaleFactor
      *            the current scale factor applied to the canvas
      */
-    public void shrinkBorder(float scaleFactor) {
+    public void setRect(float scaleFactor) {
         Path collage = new Path();
         if (strokes.isEmpty() && scraps.isEmpty()) {
             collage.addPath(outerBorder.getPath());
@@ -446,8 +485,7 @@ public class Scrap extends CaliSmallElement {
         area.set(area.left - margin, area.top - margin, area.right + margin,
                 area.bottom + margin);
         collage.addRoundRect(area, radius, radius, Direction.CW);
-        outerBorder.replacePath(collage, Arrays.asList(new PointF(area.left,
-                area.top), new PointF(area.right, area.bottom)));
+        outerBorder.setRoundRect(collage, area, radius);
         setBoundaries();
         contentChanged = true;
     }
@@ -800,6 +838,7 @@ public class Scrap extends CaliSmallElement {
     public void applyTransform(boolean forceSnapshotRedraw) {
         topLevelForEdit = false;
         outerBorder.mustBeDrawnVectorially(true);
+        outerBorder.fixRadius(matrix);
         for (Stroke stroke : getAllStrokes()) {
             stroke.transform(matrix);
             stroke.mustBeDrawnVectorially(true);
@@ -1054,6 +1093,61 @@ public class Scrap extends CaliSmallElement {
     @Override
     public List<PointF> getPointsForInclusionTests() {
         return outerBorder.getPointsForInclusionTests();
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.JSONSerializable#toJSON()
+     */
+    @Override
+    public JSONObject toJSON() throws JSONException {
+        JSONObject json = new JSONObject();
+        json.put("id", id.toString());
+        json.put("border", outerBorder.toJSON());
+        JSONArray array = new JSONArray();
+        if (!strokes.isEmpty()) {
+            for (Stroke stroke : strokes) {
+                array.put(stroke.id.toString());
+            }
+            json.put("strokes", array);
+        }
+        if (!scraps.isEmpty()) {
+            for (Scrap scrap : scraps) {
+                array.put(scrap.id.toString());
+            }
+            json.put("scraps", array);
+        }
+        return json;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.JSONSerializable#fromJSON(org.json.JSONObject)
+     */
+    @Override
+    public void fromJSON(JSONObject jsonData) throws JSONException {
+        id = UUID.fromString(jsonData.getString("id"));
+        outerBorder = new Stroke();
+        outerBorder.fromJSON(jsonData.getJSONObject("border"));
+        try {
+            JSONArray array = jsonData.getJSONArray("strokes");
+            for (int i = 0; i < array.length(); i++) {
+                Stroke stroke = (Stroke) Stroke.SPACE_OCCUPATION_LIST
+                        .getById(array.getString(i));
+                if (stroke != null)
+                    strokes.add(stroke);
+            }
+        } catch (JSONException e) { /* it's ok, no strokes */}
+        try {
+            JSONArray array = jsonData.getJSONArray("scraps");
+            scrapIDs = new ArrayList<String>(array.length());
+            for (int i = 0; i < array.length(); i++) {
+                scrapIDs.add(array.getString(i));
+            }
+        } catch (JSONException e) { /* it's ok, no scraps */}
+        setBoundaries();
     }
 
 }

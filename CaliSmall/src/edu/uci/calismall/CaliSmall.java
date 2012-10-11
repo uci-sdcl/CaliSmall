@@ -12,6 +12,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 
 import org.json.JSONArray;
@@ -261,26 +262,34 @@ public class CaliSmall extends Activity implements JSONSerializable {
         public void drawView(Canvas canvas) {
             if (canvas != null) {
                 canvas.drawColor(Color.WHITE);
-                if (!loading) {
-                    canvas.concat(matrix);
-                    if (mustShowLongPressCircle) {
-                        drawLongPressAnimation(canvas);
+                while (loading) {
+                    synchronized (loadingLock) {
+                        try {
+                            if (loading)
+                                loadingLock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
-                    if (mustClearCanvas) {
-                        clearCanvas();
-                    } else {
-                        // canvas.drawPath(canvasBounds, borderPaint);
-                        maybeDrawLandingZone(canvas);
-                        deleteSelected();
-                        maybeCreateBubbleMenu();
-                        drawTempScrap(canvas);
-                        addNewStrokesAndScraps();
-                        drawScraps(canvas);
-                        drawStrokes(canvas);
-                        if (bubbleMenuShown)
-                            bubbleMenu.draw(canvas);
-                        drawNewStroke(canvas);
-                    }
+                }
+                canvas.concat(matrix);
+                if (mustShowLongPressCircle) {
+                    drawLongPressAnimation(canvas);
+                }
+                if (mustClearCanvas) {
+                    clearCanvas();
+                } else {
+                    // canvas.drawPath(canvasBounds, borderPaint);
+                    maybeDrawLandingZone(canvas);
+                    deleteSelected();
+                    maybeCreateBubbleMenu();
+                    drawTempScrap(canvas);
+                    addNewStrokesAndScraps();
+                    drawScraps(canvas);
+                    drawStrokes(canvas);
+                    if (bubbleMenuShown)
+                        bubbleMenu.draw(canvas);
+                    drawNewStroke(canvas);
                 }
             }
         }
@@ -612,7 +621,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
                     landingZoneCenter = new PointF(position[0], position[1]);
                 }
             }
-            if (stroke.addPoint(adjusted, touchTolerance)) {
+            if (stroke.addAndDrawPoint(adjusted, touchTolerance)) {
                 setSelected(getSelectedScrap(stroke));
             }
         }
@@ -652,6 +661,8 @@ public class CaliSmall extends Activity implements JSONSerializable {
                         newSelection = getSelectedScrap(center);
                         if (newSelection == previousSelection) {
                             // draw a point (a small circle)
+                            stroke.reset();
+                            stroke.setStart(center);
                             stroke.setStyle(Paint.Style.FILL);
                             stroke.getPath().addCircle(center.x, center.y,
                                     stroke.getStrokeWidth() / 2, Direction.CW);
@@ -1055,6 +1066,11 @@ public class CaliSmall extends Activity implements JSONSerializable {
      * Whether the app is loading a project from file.
      */
     boolean loading = false;
+    /**
+     * Lock used while loading files to prevent the drawing thread from
+     * encountering {@link ConcurrentModificationException}'s.
+     */
+    Object loadingLock = new Object();
     /**
      * The bubble menu that is drawn whenever users select scraps.
      */
@@ -1606,7 +1622,12 @@ public class CaliSmall extends Activity implements JSONSerializable {
             if (!stroke.isEmpty())
                 strokes.add(stroke.toJSON());
         }
+        List<JSONObject> scraps = new ArrayList<JSONObject>(view.scraps.size());
+        for (Scrap scrap : view.scraps) {
+            scraps.add(scrap.toJSON());
+        }
         json.put("strokes", new JSONArray(strokes));
+        json.put("scraps", new JSONArray(scraps));
         return json;
     }
 
@@ -1618,21 +1639,38 @@ public class CaliSmall extends Activity implements JSONSerializable {
     @Override
     public void fromJSON(JSONObject jsonData) throws JSONException {
         loading = true;
-        matrix = new Matrix();
-        initPaintObjects();
-        view.reset(this);
-        Stroke.SPACE_OCCUPATION_LIST.clear();
-        Scrap.SPACE_OCCUPATION_LIST.clear();
-        JSONArray array = jsonData.getJSONArray("strokes");
-        for (int i = 0; i < array.length(); i++) {
-            Stroke stroke = new Stroke();
-            stroke.fromJSON(array.getJSONObject(i));
-            view.strokes.add(stroke);
+        try {
+            Thread.sleep(SCREEN_REFRESH_TIME);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        Stroke.SPACE_OCCUPATION_LIST.addAll(view.strokes);
-        Stroke.SPACE_OCCUPATION_LIST.addAll(view.scraps);
-        view.createNewStroke();
-        loading = false;
+        synchronized (loadingLock) {
+            matrix = new Matrix();
+            initPaintObjects();
+            view.reset(this);
+            Stroke.SPACE_OCCUPATION_LIST.clear();
+            Scrap.SPACE_OCCUPATION_LIST.clear();
+            JSONArray array = jsonData.getJSONArray("strokes");
+            for (int i = 0; i < array.length(); i++) {
+                Stroke stroke = new Stroke();
+                stroke.fromJSON(array.getJSONObject(i));
+                view.strokes.add(stroke);
+            }
+            Stroke.SPACE_OCCUPATION_LIST.addAll(view.strokes);
+            array = jsonData.getJSONArray("scraps");
+            for (int i = 0; i < array.length(); i++) {
+                Scrap scrap = new Scrap();
+                scrap.fromJSON(array.getJSONObject(i));
+                view.scraps.add(scrap);
+            }
+            Scrap.SPACE_OCCUPATION_LIST.addAll(view.scraps);
+            for (Scrap scrap : view.scraps) {
+                scrap.addChildrenFromJSON();
+            }
+            view.createNewStroke();
+            loading = false;
+            loadingLock.notifyAll();
+        }
     }
 
 }

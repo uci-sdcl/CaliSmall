@@ -358,7 +358,7 @@ public class BubbleMenu {
 
     private boolean
             shrinkWrapped(int action, PointF touchPoint, Scrap selected) {
-        selected.shrinkBorder(scaleFactor);
+        selected.setRect(scaleFactor);
         touched = null;
         setBounds(selected.getBorder(), scaleFactor, bounds);
         if (!selected.isEmpty()) {
