@@ -81,7 +81,10 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     protected final Region boundaries = new Region();
 
-    private final UUID id = UUID.randomUUID();
+    /**
+     * The ID for this element.
+     */
+    protected UUID id = UUID.randomUUID();
 
     /**
      * The direct parent of this element.

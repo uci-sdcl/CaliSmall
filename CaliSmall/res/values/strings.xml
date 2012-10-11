@@ -9,4 +9,6 @@
     <string name="save_dialog_fail_title">Error</string>
     <string name="save_dialog_fail_message">Cannot save on external memory. Save on internal memory instead?</string>
     <string name="save_dialog_file_not_saved">File not saved!</string>
+    <string name="load_dialog_title">Open&#8230;</string>
+    <string name="load_dialog_message">Choose a file to load</string>
 </resources>

@@ -4,9 +4,19 @@
  */
 package edu.uci.calismall;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
 import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
@@ -53,7 +63,7 @@ import edu.uci.calismall.Scrap.Temp;
  * 
  * @author Michele Bonazza
  */
-public class CaliSmall extends Activity {
+public class CaliSmall extends Activity implements JSONSerializable {
 
     private class Worker implements Runnable {
 
@@ -190,7 +200,7 @@ public class CaliSmall extends Activity {
         // a list of scraps kept in chronological order (oldest first)
         private final List<Scrap> scraps;
         private final Handler longPressListener = new Handler();
-        private final LongPressAction longPressAction;
+        private LongPressAction longPressAction;
         private Thread worker;
         private Scrap selected, previousSelection, newSelection, toBeRemoved,
                 tempScrap;
@@ -217,6 +227,31 @@ public class CaliSmall extends Activity {
             landingZoneCenter = new PointF();
         }
 
+        private void reset(CaliSmall c) {
+            longPressAction = new LongPressAction(c);
+            newStrokes = new ArrayList<Stroke>();
+            newScraps = new ArrayList<Scrap>();
+            scaleDetector = new ScaleGestureDetector(c, new ScaleListener());
+            landingZoneCenter = new PointF();
+            strokes.clear();
+            scraps.clear();
+            selected = null;
+            previousSelection = null;
+            newSelection = null;
+            toBeRemoved = null;
+            tempScrap = null;
+            zoomingOrPanning = false;
+            mustShowLandingZone = false;
+            strokeAdded = false;
+            mustClearCanvas = false;
+            bubbleMenuShown = false;
+            tempScrapCreated = false;
+            redirectingToBubbleMenu = false;
+            longPressed = false;
+            mustShowLongPressCircle = false;
+            skipEvents = false;
+        }
+
         /**
          * Draws this view to the argument {@link Canvas}.
          * 
@@ -226,24 +261,26 @@ public class CaliSmall extends Activity {
         public void drawView(Canvas canvas) {
             if (canvas != null) {
                 canvas.drawColor(Color.WHITE);
-                canvas.concat(matrix);
-                if (mustShowLongPressCircle) {
-                    drawLongPressAnimation(canvas);
-                }
-                if (mustClearCanvas) {
-                    clearCanvas();
-                } else {
-                    // canvas.drawPath(canvasBounds, borderPaint);
-                    maybeDrawLandingZone(canvas);
-                    deleteSelected();
-                    maybeCreateBubbleMenu();
-                    drawTempScrap(canvas);
-                    addNewStrokesAndScraps();
-                    drawScraps(canvas);
-                    drawStrokes(canvas);
-                    if (bubbleMenuShown)
-                        bubbleMenu.draw(canvas);
-                    drawNewStroke(canvas);
+                if (!loading) {
+                    canvas.concat(matrix);
+                    if (mustShowLongPressCircle) {
+                        drawLongPressAnimation(canvas);
+                    }
+                    if (mustClearCanvas) {
+                        clearCanvas();
+                    } else {
+                        // canvas.drawPath(canvasBounds, borderPaint);
+                        maybeDrawLandingZone(canvas);
+                        deleteSelected();
+                        maybeCreateBubbleMenu();
+                        drawTempScrap(canvas);
+                        addNewStrokesAndScraps();
+                        drawScraps(canvas);
+                        drawStrokes(canvas);
+                        if (bubbleMenuShown)
+                            bubbleMenu.draw(canvas);
+                        drawNewStroke(canvas);
+                    }
                 }
             }
         }
@@ -594,6 +631,7 @@ public class CaliSmall extends Activity {
                     stroke.reset();
                     createNewStroke();
                     longPressAction.completed = false;
+                    landingZoneCenter.set(-1, -1);
                     return;
                 } else if (longPressed) {
                     // animation has been shown, but the user didn't mean to
@@ -634,8 +672,7 @@ public class CaliSmall extends Activity {
                 }
             }
             previousSelection = selected;
-            // Log.d(TAG, "selected = " + selected + ", old selected = "
-            // + previousSelection);
+            landingZoneCenter.set(-1, -1);
         }
 
         private void createNewStroke() {
@@ -1015,6 +1052,10 @@ public class CaliSmall extends Activity {
      ************************************************************************/
 
     /**
+     * Whether the app is loading a project from file.
+     */
+    boolean loading = false;
+    /**
      * The bubble menu that is drawn whenever users select scraps.
      */
     BubbleMenu bubbleMenu;
@@ -1216,8 +1257,12 @@ public class CaliSmall extends Activity {
     private static final int COLOR_MENU_ID = Menu.FIRST;
     private static final int CLEAR_MENU_ID = Menu.FIRST + 1;
     private static final int LOG_MENU_ID = Menu.FIRST + 2;
-    private static final int SAVE_MENU_ID = Menu.FIRST + 3;
-    private AlertDialog saveDialog;
+    private static final int LOAD_MENU_ID = Menu.FIRST + 3;
+    private static final int SAVE_MENU_ID = Menu.FIRST + 4;
+    private static final String FILE_EXTENSION = ".csf";
+    private String[] fileList;
+    private FilenameFilter fileNameFilter;
+    private AlertDialog saveDialog, loadDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -1229,6 +1274,14 @@ public class CaliSmall extends Activity {
         initPaintObjects();
         view.createNewStroke();
         bubbleMenu = new BubbleMenu(this);
+        fileNameFilter = new FilenameFilter() {
+
+            @Override
+            public boolean accept(File dir, String filename) {
+                File test = new File(dir, filename);
+                return (filename.endsWith(FILE_EXTENSION) && test.canRead());
+            }
+        };
         final EditText input = new EditText(this);
         input.setSingleLine();
         input.setOnEditorActionListener(new OnEditorActionListener() {
@@ -1244,7 +1297,7 @@ public class CaliSmall extends Activity {
             }
         });
         // @formatter:off
-		saveDialog = new AlertDialog.Builder(this)
+        saveDialog = new AlertDialog.Builder(this)
 		                            .setTitle(R.string.save_dialog_title)
 		                            .setMessage(R.string.save_dialog_message)
 		                            .setView(input)
@@ -1283,6 +1336,14 @@ public class CaliSmall extends Activity {
                 ABS_LANDING_ZONE_INTERVAL, ABS_LANDING_ZONE_INTERVAL },
                 (float) 1.0));
         landingZonePaint.setStyle(Style.STROKE);
+    }
+
+    private void initFileList() {
+        if (Environment.MEDIA_MOUNTED.equals(Environment
+                .getExternalStorageState())) {
+            fileList = getApplicationContext().getExternalFilesDir(null).list(
+                    fileNameFilter);
+        }
     }
 
     /**
@@ -1333,6 +1394,7 @@ public class CaliSmall extends Activity {
         menu.add(0, COLOR_MENU_ID, 0, "Color").setShortcut('3', 'c');
         menu.add(0, CLEAR_MENU_ID, 0, "Clear").setShortcut('4', 'x');
         menu.add(0, LOG_MENU_ID, 0, "Print Log").setShortcut('5', 'l');
+        menu.add(0, LOAD_MENU_ID, 0, "Open").setShortcut('2', 'o');
         menu.add(0, SAVE_MENU_ID, 0, "Save").setShortcut('1', 's');
         return true;
     }
@@ -1391,7 +1453,21 @@ public class CaliSmall extends Activity {
     private void save(final Editable input) {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-            Log.d(TAG, "save with name " + input);
+            try {
+                String json = toJSON().toString();
+                String fileName = input.toString();
+                FileWriter writer = new FileWriter(new File(
+                        getApplicationContext().getExternalFilesDir(null),
+                        fileName.endsWith(FILE_EXTENSION) ? fileName : fileName
+                                + FILE_EXTENSION));
+                writer.write(json);
+                writer.flush();
+                writer.close();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } else {
             new AlertDialog.Builder(this)
                     .setTitle(R.string.save_dialog_fail_title)
@@ -1413,6 +1489,26 @@ public class CaliSmall extends Activity {
                                             Toast.LENGTH_SHORT).show();
                                 }
                             }).create();
+        }
+    }
+
+    private void load(String file) {
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(new File(
+                    getApplicationContext().getExternalFilesDir(null), file)));
+            String input, newLine = "";
+            StringBuilder builder = new StringBuilder();
+            while ((input = reader.readLine()) != null) {
+                builder.append(newLine);
+                builder.append(input);
+                newLine = "\n";
+            }
+            JSONObject json = new JSONObject(builder.toString());
+            fromJSON(json);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
     }
 
@@ -1445,11 +1541,26 @@ public class CaliSmall extends Activity {
         case LOG_MENU_ID:
             printLog();
             return true;
+        case LOAD_MENU_ID:
+            showLoadDialog();
+            return true;
         case SAVE_MENU_ID:
             saveDialog.show();
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showLoadDialog() {
+        initFileList();
+        loadDialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.load_dialog_message)
+                .setItems(fileList, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        load(fileList[which]);
+                    }
+                }).create();
+        loadDialog.show();
     }
 
     /**
@@ -1479,6 +1590,49 @@ public class CaliSmall extends Activity {
     public static String pointToString(Point point) {
         return new StringBuilder("(").append(point.x).append(",")
                 .append(point.y).append(")").toString();
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.JSONSerializable#toJSON()
+     */
+    @Override
+    public JSONObject toJSON() throws JSONException {
+        JSONObject json = new JSONObject();
+        List<JSONObject> strokes = new ArrayList<JSONObject>(
+                view.strokes.size());
+        for (Stroke stroke : view.strokes) {
+            if (!stroke.isEmpty())
+                strokes.add(stroke.toJSON());
+        }
+        json.put("strokes", new JSONArray(strokes));
+        return json;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.JSONSerializable#fromJSON(org.json.JSONObject)
+     */
+    @Override
+    public void fromJSON(JSONObject jsonData) throws JSONException {
+        loading = true;
+        matrix = new Matrix();
+        initPaintObjects();
+        view.reset(this);
+        Stroke.SPACE_OCCUPATION_LIST.clear();
+        Scrap.SPACE_OCCUPATION_LIST.clear();
+        JSONArray array = jsonData.getJSONArray("strokes");
+        for (int i = 0; i < array.length(); i++) {
+            Stroke stroke = new Stroke();
+            stroke.fromJSON(array.getJSONObject(i));
+            view.strokes.add(stroke);
+        }
+        Stroke.SPACE_OCCUPATION_LIST.addAll(view.strokes);
+        Stroke.SPACE_OCCUPATION_LIST.addAll(view.scraps);
+        view.createNewStroke();
+        loading = false;
     }
 
 }

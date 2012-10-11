@@ -5,16 +5,20 @@
 package edu.uci.calismall;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.graphics.Color;
-import android.graphics.MaskFilter;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.PointF;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.view.View;
 
 /**
@@ -28,7 +32,7 @@ import android.view.View;
  * 
  * @author Michele Bonazza
  */
-class Stroke extends CaliSmallElement implements Parcelable {
+class Stroke extends CaliSmallElement implements JSONSerializable {
 
     /**
      * A list containing all created strokes sorted by their position in the
@@ -43,7 +47,18 @@ class Stroke extends CaliSmallElement implements Parcelable {
     private Paint.Style style = DEFAULT_STYLE;
     private float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
     private int color = DEFAULT_COLOR;
-    private MaskFilter maskFilter;
+
+    /**
+     * Creates an empty stroke.
+     * 
+     * <p>
+     * Used when deserializing data from JSON.
+     */
+    Stroke() {
+        path = new Path();
+        points = new ArrayList<PointF>();
+        matrixValues = new float[9];
+    }
 
     /**
      * Creates a new stroke, called when the user lifts her finger after drawing
@@ -62,7 +77,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
         if (previousStroke != null) {
             this.strokeWidth = previousStroke.getStrokeWidth();
             this.color = previousStroke.getColor();
-            this.maskFilter = previousStroke.getMaskFilter();
         }
     }
 
@@ -276,28 +290,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
     }
 
     /**
-     * Returns the mask filter applied to this stroke.
-     * 
-     * @return the maskFilter to be passed to
-     *         {@link Paint#setMaskFilter(MaskFilter)} to display this stroke
-     */
-    public MaskFilter getMaskFilter() {
-        return maskFilter;
-    }
-
-    /**
-     * Sets the mask filter for this stroke.
-     * 
-     * @param maskFilter
-     *            the maskFilter to set to this stroke
-     * @return a reference to this object, so calls can be chained
-     */
-    public Stroke setMaskFilter(MaskFilter maskFilter) {
-        this.maskFilter = maskFilter;
-        return this;
-    }
-
-    /**
      * Computes the boundaries for this stroke.
      * 
      * <p>
@@ -360,28 +352,6 @@ class Stroke extends CaliSmallElement implements Parcelable {
     /*
      * (non-Javadoc)
      * 
-     * @see android.os.Parcelable#describeContents()
-     */
-    @Override
-    public int describeContents() {
-        // TODO Auto-generated method stub
-        return 0;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see android.os.Parcelable#writeToParcel(android.os.Parcel, int)
-     */
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        // TODO Auto-generated method stub
-
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
      * @see edu.uci.calismall.CaliSmallElement#updateSpaceOccupation()
      */
     @Override
@@ -410,4 +380,55 @@ class Stroke extends CaliSmallElement implements Parcelable {
     public List<PointF> getPointsForInclusionTests() {
         return points;
     }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.JSONSerializable#toJSON()
+     */
+    @Override
+    public JSONObject toJSON() throws JSONException {
+        JSONObject json = new JSONObject();
+        json.put("id", getID().toString());
+        json.put("color", color);
+        json.put("width", strokeWidth);
+        json.put("style", style.name());
+        json.put("points", pointsToList());
+        return json;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.JSONSerializable#fromJSON(edu.uci.calismall.
+     * JSONSerializable, org.json.JSONObject)
+     */
+    @Override
+    public void fromJSON(JSONObject jsonData) throws JSONException {
+        id = UUID.fromString(jsonData.getString("id"));
+        color = jsonData.getInt("color");
+        strokeWidth = (float) jsonData.getDouble("width");
+        style = Style.valueOf(jsonData.getString("style"));
+        JSONArray array = jsonData.getJSONArray("points");
+        if (array.length() > 0) {
+            setStart(new PointF((float) array.getJSONArray(0).getDouble(0),
+                    (float) array.getJSONArray(0).getDouble(1)));
+        }
+        for (int i = 1; i < array.length(); i++) {
+            JSONArray point = array.getJSONArray(i);
+            addPoint(
+                    new PointF((float) point.getDouble(0),
+                            (float) point.getDouble(1)), -1f);
+        }
+        setBoundaries();
+    }
+
+    private JSONArray pointsToList() {
+        JSONArray array = new JSONArray();
+        for (PointF point : points) {
+            array.put(new JSONArray(Arrays.asList(point.x, point.y)));
+        }
+        return array;
+    }
+
 }
