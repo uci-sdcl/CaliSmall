@@ -22,7 +22,6 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Path;
-import android.graphics.Path.Direction;
 import android.graphics.Path.FillType;
 import android.graphics.PointF;
 import android.graphics.Rect;
@@ -45,7 +44,7 @@ import android.view.View;
  * 
  * @author Michele Bonazza
  */
-public class Scrap extends CaliSmallElement implements JSONSerializable {
+public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
 
     /**
      * The kind of transformation that is applied to a scrap (and all its
@@ -134,7 +133,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
      */
     protected Matrix contentMatrix;
     private boolean topLevelForEdit, contentChanged = true;
-    private float snapOffsetX, snapOffsetY, rotation;
+    private float snapOffsetX, snapOffsetY;
 
     static {
         BORDER_PAINT.setAntiAlias(true);
@@ -484,8 +483,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
         final float margin = ABS_SHRINK_BORDER_MARGIN / scaleFactor;
         area.set(area.left - margin, area.top - margin, area.right + margin,
                 area.bottom + margin);
-        collage.addRoundRect(area, radius, radius, Direction.CW);
-        outerBorder.setRoundRect(collage, area, radius);
+        outerBorder = new RectStroke(outerBorder, area, radius);
         setBoundaries();
         contentChanged = true;
     }
@@ -592,7 +590,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
      *            the point which is used as pivot when rotating the scrap
      */
     public void rotate(float angle, PointF rotationPivot) {
-        rotation = angle;
         snapshotMatrix.postConcat(rollbackMatrix);
         snapshotMatrix.preTranslate(-rotationPivot.x, -rotationPivot.y);
         snapshotMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
@@ -839,7 +836,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
     public void applyTransform(boolean forceSnapshotRedraw) {
         topLevelForEdit = false;
         outerBorder.mustBeDrawnVectorially(true);
-        outerBorder.fixIfRect(matrix, rotation);
         for (Stroke stroke : getAllStrokes()) {
             stroke.transform(matrix);
             stroke.mustBeDrawnVectorially(true);
@@ -1128,7 +1124,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
      * @see edu.uci.calismall.JSONSerializable#fromJSON(org.json.JSONObject)
      */
     @Override
-    public void fromJSON(JSONObject jsonData) throws JSONException {
+    public Scrap fromJSON(JSONObject jsonData) throws JSONException {
         id = UUID.fromString(jsonData.getString("id"));
         outerBorder = new Stroke();
         outerBorder.fromJSON(jsonData.getJSONObject("border"));
@@ -1150,6 +1146,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
             }
         } catch (JSONException e) { /* it's ok, no scraps */}
         setBoundaries();
+        return this;
     }
 
 }

@@ -13,6 +13,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -20,8 +21,6 @@ import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.Path.Direction;
 import android.graphics.PointF;
-import android.graphics.RectF;
-import android.util.FloatMath;
 import android.view.View;
 
 /**
@@ -35,7 +34,7 @@ import android.view.View;
  * 
  * @author Michele Bonazza
  */
-class Stroke extends CaliSmallElement implements JSONSerializable {
+class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
 
     /**
      * A list containing all created strokes sorted by their position in the
@@ -44,14 +43,27 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
     static final SpaceOccupationList SPACE_OCCUPATION_LIST = new SpaceOccupationList();
     private static final int DEFAULT_COLOR = Color.BLACK;
     private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
-    private final Path path;
-    private final List<PointF> points;
+    /**
+     * The list of points that this stroke contains.
+     */
+    protected final List<PointF> points;
+    /**
+     * The path that is created when drawing this stroke.
+     */
+    protected final Path path;
+    /**
+     * The style used to draw this stroke.
+     */
+    protected Paint.Style style = DEFAULT_STYLE;
+    /**
+     * The stroke width used to draw this stroke.
+     */
+    protected float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
+    /**
+     * The color of this stroke.
+     */
+    protected int color = DEFAULT_COLOR;
     private final float[] matrixValues;
-    private Paint.Style style = DEFAULT_STYLE;
-    private float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
-    private boolean isRect;
-    private float radiusX, radiusY, rAngle;
-    private int color = DEFAULT_COLOR;
 
     /**
      * Creates an empty stroke.
@@ -71,17 +83,17 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
      * 
      * @param path
      *            the path currently being drawn
-     * @param previousStroke
+     * @param copyStyleFrom
      *            the stroke in use from which style is to be copied, if
      *            <code>null</code> all default values are used
      */
-    Stroke(Path path, Stroke previousStroke) {
+    Stroke(Path path, Stroke copyStyleFrom) {
         this.path = path;
         points = new ArrayList<PointF>();
         matrixValues = new float[9];
-        if (previousStroke != null) {
-            this.strokeWidth = previousStroke.getStrokeWidth();
-            this.color = previousStroke.getColor();
+        if (copyStyleFrom != null) {
+            this.strokeWidth = copyStyleFrom.getStrokeWidth();
+            this.color = copyStyleFrom.getColor();
         }
     }
 
@@ -100,10 +112,6 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         for (PointF point : copy.points) {
             points.add(new PointF(point.x, point.y));
         }
-        radiusX = copy.radiusX;
-        radiusY = copy.radiusY;
-        isRect = copy.isRect;
-        rAngle = copy.rAngle;
     }
 
     /**
@@ -298,24 +306,6 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
     }
 
     /**
-     * If this stroke is a rounded rectangle, fixes the radius according to the
-     * scale values in the argument <tt>matrix</tt> and the rectangle according
-     * to the argument <tt>rotation</tt>.
-     * 
-     * @param matrix
-     *            the matrix containing scale values.
-     * @param rotation
-     */
-    public void fixIfRect(Matrix matrix, float rotation) {
-        if (isRect) {
-            matrix.getValues(matrixValues);
-            radiusX *= matrixValues[Matrix.MSCALE_X];
-            radiusY *= matrixValues[Matrix.MSCALE_Y];
-            this.rAngle += rotation;
-        }
-    }
-
-    /**
      * Computes the boundaries for this stroke.
      * 
      * <p>
@@ -357,37 +347,6 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         setBoundaries();
     }
 
-    /**
-     * Resets this stroke replacing its path with the argument <tt>path</tt> and
-     * replacing the current points with the 4 corners of the argument border.
-     * 
-     * <p>
-     * While the path is needed to draw this stroke for this session, the
-     * rectangle and the radius are used for inclusion tests and for
-     * saving/restoring this object's state to disk/network.
-     * 
-     * @param newPath
-     *            the new path that replaces this stroke's
-     * @param border
-     *            the rectangle enclosing the path
-     * @param radius
-     *            the radius with which the rectangle should be rounded
-     */
-    public void setRoundRect(Path newPath, RectF border, float radius) {
-        this.path.reset();
-        this.path.addPath(newPath);
-        this.path.setFillType(newPath.getFillType());
-        points.clear();
-        setStart(new PointF(border.left, border.top));
-        points.add(new PointF(border.right, border.top));
-        points.add(new PointF(border.right, border.bottom));
-        points.add(new PointF(border.left, border.bottom));
-        isRect = true;
-        this.radiusX = radius;
-        this.radiusY = radius;
-        setBoundaries();
-    }
-
     /*
      * (non-Javadoc)
      * 
@@ -408,6 +367,21 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         if (point == null)
             return false;
         return boundaries.contains(Math.round(point.x), Math.round(point.y));
+    }
+
+    /**
+     * Draws this stroke on the argument canvas.
+     * 
+     * @param canvas
+     *            the canvas on which to draw the stroke
+     * @param paint
+     *            the paint with which this stroke must be drawn
+     */
+    public void draw(Canvas canvas, Paint paint) {
+        paint.setColor(color);
+        paint.setStrokeWidth(strokeWidth);
+        paint.setStyle(style);
+        canvas.drawPath(path, paint);
     }
 
     /*
@@ -432,11 +406,6 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         json.put("color", color);
         json.put("width", strokeWidth);
         json.put("style", style.name());
-        if (isRect) {
-            json.put("rX", radiusX);
-            json.put("rY", radiusY);
-            json.put("rA", rAngle);
-        }
         json.put("points", pointsToList());
         return json;
     }
@@ -448,45 +417,35 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
      * JSONSerializable, org.json.JSONObject)
      */
     @Override
-    public void fromJSON(JSONObject jsonData) throws JSONException {
-        id = UUID.fromString(jsonData.getString("id"));
-        color = jsonData.getInt("color");
-        strokeWidth = (float) jsonData.getDouble("width");
-        style = Style.valueOf(jsonData.getString("style"));
+    public Stroke fromJSON(JSONObject jsonData) throws JSONException {
         try {
-            // if radius is set it means it's a rounded rect, otherwise a
-            // JSONException is thrown and this code is skipped
-            radiusX = (float) jsonData.getDouble("rX");
-            isRect = true;
-            radiusY = (float) jsonData.getDouble("rY");
-            rAngle = (float) jsonData.getDouble("rA");
-            points.addAll(parsePoints(jsonData));
-            PointF topLeft = points.get(0);
-            PointF topRight = points.get(1);
-            PointF bottomLeft = points.get(3);
-            float dx = topRight.x - topLeft.x;
-            float dy = topRight.y - topLeft.y;
-            float width = FloatMath.sqrt(dx * dx + dy * dy);
-            dx = bottomLeft.x - topLeft.x;
-            dy = bottomLeft.y - topLeft.y;
-            float height = FloatMath.sqrt(dx * dx + dy * dy);
-            RectF rect = new RectF(topLeft.x, topLeft.y, topLeft.x + width,
-                    topLeft.y + height);
-            path.addRoundRect(rect, radiusX, radiusY, Direction.CW);
-            Matrix rotation = new Matrix();
-            rotation.postTranslate(-topLeft.x, -topLeft.y);
-            rotation.postRotate(rAngle);
-            rotation.postTranslate(topLeft.x, topLeft.y);
-            transform(rotation);
+            jsonData.getBoolean("rect");
+            // a RectStroke
+            return new RectStroke().fromJSON(jsonData);
         } catch (JSONException e) {
-            // not a rounded rect stroke
+            // not a RectStroke
+            id = UUID.fromString(jsonData.getString("id"));
+            color = jsonData.getInt("color");
+            strokeWidth = (float) jsonData.getDouble("width");
+            style = Style.valueOf(jsonData.getString("style"));
             for (PointF point : parsePoints(jsonData))
                 addAndDrawPoint(point, -1f);
+            setBoundaries();
+            return this;
         }
-        setBoundaries();
     }
 
-    private List<PointF> parsePoints(JSONObject jsonData) throws JSONException {
+    /**
+     * Parses points from a JSON file and adds them to this stroke.
+     * 
+     * @param jsonData
+     *            the data coming from file
+     * @return a list containing all points in this stroke's path
+     * @throws JSONException
+     *             in case something is wrong with the file format
+     */
+    protected List<PointF> parsePoints(JSONObject jsonData)
+            throws JSONException {
         List<PointF> newPoints = new ArrayList<PointF>();
         JSONArray array = jsonData.getJSONArray("points");
         if (array.length() > 0) {

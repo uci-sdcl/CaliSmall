@@ -68,7 +68,7 @@ import edu.uci.calismall.Scrap.Temp;
  * 
  * @author Michele Bonazza
  */
-public class CaliSmall extends Activity implements JSONSerializable {
+public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private class Worker implements Runnable {
 
@@ -124,6 +124,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
         @Override
         public void run() {
             if (completed) {
+                Log.d(TAG, "long press");
                 if (!parent.view.hasMovedEnough()) {
                     parent.view.longPress(selected);
                     selected = null;
@@ -309,7 +310,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
             landingZoneCircleSweepAngle += ABS_CIRCLE_SWEEP_INCREMENT;
             canvas.drawArc(longPressCircleBounds, CIRCLE_SWEEP_START,
                     landingZoneCircleSweepAngle, false, longPressCirclePaint);
-            if (landingZoneCircleSweepAngle > 360) {
+            if (landingZoneCircleSweepAngle >= 360) {
                 longPressAction.reset(true);
             }
         }
@@ -334,7 +335,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
         private void drawStrokes(Canvas canvas) {
             for (Stroke stroke : strokes) {
                 if (stroke.hasToBeDrawnVectorially())
-                    drawStroke(stroke, canvas);
+                    stroke.draw(canvas, paint);
             }
         }
 
@@ -346,7 +347,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
 
         private void drawNewStroke(Canvas canvas) {
             if (!strokeAdded) {
-                drawStroke(stroke, canvas);
+                stroke.draw(canvas, paint);
                 strokes.add(stroke);
                 Stroke.SPACE_OCCUPATION_LIST.add(stroke);
                 strokeAdded = true;
@@ -497,21 +498,6 @@ public class CaliSmall extends Activity implements JSONSerializable {
             toBeRemoved = scrap;
         }
 
-        /**
-         * Draws the argument stroke on the argument canvas.
-         * 
-         * @param stroke
-         *            the stroke to be drawn
-         * @param canvas
-         *            the canvas on which to draw the stroke
-         */
-        public void drawStroke(Stroke stroke, Canvas canvas) {
-            paint.setColor(stroke.getColor());
-            paint.setStrokeWidth(stroke.getStrokeWidth());
-            paint.setStyle(stroke.getStyle());
-            canvas.drawPath(stroke.getPath(), paint);
-        }
-
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             final int action = event.getAction() & MotionEvent.ACTION_MASK;
@@ -603,6 +589,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
         }
 
         private void onDown(MotionEvent event) {
+            actionStart = -System.currentTimeMillis();
             PointF adjusted = adjustForZoom(event.getX(), event.getY());
             mustShowLandingZone = false;
             mActivePointerId = event.findPointerIndex(0);
@@ -638,6 +625,8 @@ public class CaliSmall extends Activity implements JSONSerializable {
         }
 
         private void onUp(MotionEvent event) {
+            long time = actionStart + System.currentTimeMillis();
+            Log.d(TAG, "time: " + time);
             mustShowLandingZone = false;
             longPressListener.removeCallbacks(longPressAction);
             skipEvents = false;
@@ -805,6 +794,8 @@ public class CaliSmall extends Activity implements JSONSerializable {
         }
 
         private boolean mustShowLandingZone() {
+            if (actionStart + System.currentTimeMillis() < LANDING_ZONE_TIME_THRESHOLD)
+                return false;
             pathMeasure.setPath(stroke.getPath(), false);
             return pathMeasure.getLength() > minPathLengthForLandingZone;
         }
@@ -986,6 +977,11 @@ public class CaliSmall extends Activity implements JSONSerializable {
     public static final long LONG_PRESS_DURATION = 300;
 
     /**
+     * Time in milliseconds after which the landing zone can be shown.
+     */
+    public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
+
+    /**
      * Time in milliseconds between two consecutive screen refreshes (i.e. two
      * consecutive calls to {@link CaliView#drawView(Canvas)}). To get the FPS
      * that this value sets, just divide 1000 by the value (so a
@@ -1154,8 +1150,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
      * Every {@link Stroke} stores values for how this <tt>Paint</tt> object
      * should be modified before actually drawing it, including the stroke
      * width, color and fill type. These are set in the
-     * {@link CaliView#drawStroke(Stroke, Canvas)} method for every stroke to be
-     * drawn.
+     * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
      */
     Paint paint;
     /**
@@ -1175,6 +1170,11 @@ public class CaliSmall extends Activity implements JSONSerializable {
      * The detector that handles all multi-touch events.
      */
     ScaleGestureDetector scaleDetector;
+    /**
+     * The instant at which the drawing of the current stroke started (in
+     * milliseconds after the Epoch).
+     */
+    long actionStart;
     /**
      * The current scale factor.
      * 
@@ -1706,7 +1706,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
      * @see edu.uci.calismall.JSONSerializable#fromJSON(org.json.JSONObject)
      */
     @Override
-    public void fromJSON(JSONObject jsonData) throws JSONException {
+    public CaliSmall fromJSON(JSONObject jsonData) throws JSONException {
         matrix = new Matrix();
         initPaintObjects();
         view.reset(this);
@@ -1730,6 +1730,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
             scrap.addChildrenFromJSON();
         }
         view.createNewStroke();
+        return this;
     }
 
     private void syncAndLoad(JSONObject jsonData) throws JSONException {

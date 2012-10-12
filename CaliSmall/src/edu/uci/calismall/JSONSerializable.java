@@ -10,9 +10,18 @@ import org.json.JSONObject;
 /**
  * An object that can be serialized to JSON format.
  * 
+ * <p>
+ * The type information is used to let deserialization of subtypes happen: if
+ * the deserialization results in an object of a subtype, that object can be
+ * created and return by the {@link #fromJSON(JSONObject)} method. Otherwise,
+ * <tt>this</tt> is going to be returned.
+ * 
  * @author Michele Bonazza
+ * @param <T>
+ *            the type of objects that are returned as an output of the
+ *            deserialization
  */
-public interface JSONSerializable {
+public interface JSONSerializable<T> {
 
     /**
      * Serializes this object to JSON format.
@@ -30,8 +39,10 @@ public interface JSONSerializable {
      * 
      * @param jsonData
      *            an object parsed from a JSON string
+     * @return the object that was populated with all data coming from the JSON
+     *         representation
      * @throws JSONException
      *             if anything goes wrong while parsing data from JSON
      */
-    void fromJSON(JSONObject jsonData) throws JSONException;
+    T fromJSON(JSONObject jsonData) throws JSONException;
 }
