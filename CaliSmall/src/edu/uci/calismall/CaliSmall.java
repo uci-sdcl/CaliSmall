@@ -1629,6 +1629,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
     }
 
     private void loadNext() {
+        initFileList();
         if (fileList != null && fileList.length > 0) {
             fileIndex++;
             fileIndex = fileIndex % fileList.length;
@@ -1637,6 +1638,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
     }
 
     private void loadPrevious() {
+        initFileList();
         if (fileList != null && fileList.length > 0) {
             fileIndex--;
             fileIndex = fileIndex % fileList.length;
