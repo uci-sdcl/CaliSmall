@@ -14,6 +14,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -262,15 +266,8 @@ public class CaliSmall extends Activity implements JSONSerializable {
         public void drawView(Canvas canvas) {
             if (canvas != null) {
                 canvas.drawColor(Color.WHITE);
-                while (loading) {
-                    synchronized (loadingLock) {
-                        try {
-                            if (loading)
-                                loadingLock.wait();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
+                while (wantToOpenFile) {
+                    waitForFileOpen();
                 }
                 canvas.concat(matrix);
                 if (mustShowLongPressCircle) {
@@ -291,6 +288,20 @@ public class CaliSmall extends Activity implements JSONSerializable {
                         bubbleMenu.draw(canvas);
                     drawNewStroke(canvas);
                 }
+            }
+        }
+
+        private void waitForFileOpen() {
+            try {
+                lock.lock();
+                drawingThreadSleeping = true;
+                drawingThreadWaiting.signalAll();
+                fileOpened.await();
+                drawingThreadSleeping = false;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
         }
 
@@ -1063,9 +1074,30 @@ public class CaliSmall extends Activity implements JSONSerializable {
      ************************************************************************/
 
     /**
-     * Whether the app is loading a project from file.
+     * A lock that is shared between the drawing thread and the Event Dispatch
+     * Thread used when opening files.
      */
-    boolean loading = false;
+    Lock lock = new ReentrantLock();
+    /**
+     * Whether a file dialog should be displayed after the user has clicked on
+     * the menu.
+     */
+    boolean wantToOpenFile = false;
+    /**
+     * Whether the drawing thread has received the request for a file to be
+     * opened and it set itselft to sleep.
+     */
+    boolean drawingThreadSleeping = false;
+    /**
+     * Condition that is signalled by the drawing thread just before setting
+     * itself to sleep.
+     */
+    Condition drawingThreadWaiting = lock.newCondition();
+    /**
+     * Condition that is signalled by the file opening thread just after having
+     * loaded a project file.
+     */
+    Condition fileOpened = lock.newCondition();
     /**
      * Lock used while loading files to prevent the drawing thread from
      * encountering {@link ConcurrentModificationException}'s.
@@ -1273,10 +1305,14 @@ public class CaliSmall extends Activity implements JSONSerializable {
     private static final int COLOR_MENU_ID = Menu.FIRST;
     private static final int CLEAR_MENU_ID = Menu.FIRST + 1;
     private static final int LOG_MENU_ID = Menu.FIRST + 2;
-    private static final int LOAD_MENU_ID = Menu.FIRST + 3;
-    private static final int SAVE_MENU_ID = Menu.FIRST + 4;
+    private static final int SAVE_MENU_ID = Menu.FIRST + 3;
+    private static final int LOAD_MENU_ID = Menu.FIRST + 4;
+    private static final int LOAD_NEXT_MENU_ID = Menu.FIRST + 5;
+    private static final int LOAD_PREVIOUS_MENU_ID = Menu.FIRST + 6;
     private static final String FILE_EXTENSION = ".csf";
     private String[] fileList;
+    private int fileIndex = -1;
+    private EditText input;
     private FilenameFilter fileNameFilter;
     private AlertDialog saveDialog, loadDialog;
 
@@ -1299,6 +1335,7 @@ public class CaliSmall extends Activity implements JSONSerializable {
             }
         };
         final EditText input = new EditText(this);
+        this.input = input;
         input.setSingleLine();
         input.setOnEditorActionListener(new OnEditorActionListener() {
 
@@ -1408,10 +1445,13 @@ public class CaliSmall extends Activity implements JSONSerializable {
     public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
         menu.add(0, COLOR_MENU_ID, 0, "Color").setShortcut('3', 'c');
-        menu.add(0, CLEAR_MENU_ID, 0, "Clear").setShortcut('4', 'x');
-        menu.add(0, LOG_MENU_ID, 0, "Print Log").setShortcut('5', 'l');
+        menu.add(0, CLEAR_MENU_ID, 0, "Clear").setShortcut('5', 'x');
+        menu.add(0, LOG_MENU_ID, 0, "Print Log").setShortcut('9', 'l');
+        menu.add(0, SAVE_MENU_ID, 0, "Save").setShortcut('5', 's');
         menu.add(0, LOAD_MENU_ID, 0, "Open").setShortcut('2', 'o');
-        menu.add(0, SAVE_MENU_ID, 0, "Save").setShortcut('1', 's');
+        menu.add(0, LOAD_NEXT_MENU_ID, 0, "Open Next").setShortcut('6', 'n');
+        menu.add(0, LOAD_PREVIOUS_MENU_ID, 0, "Open Previous").setShortcut('4',
+                'p');
         return true;
     }
 
@@ -1510,17 +1550,19 @@ public class CaliSmall extends Activity implements JSONSerializable {
 
     private void load(String file) {
         try {
+            input.setText(file.endsWith(FILE_EXTENSION) ? file.substring(0,
+                    file.lastIndexOf(FILE_EXTENSION)) : file);
             BufferedReader reader = new BufferedReader(new FileReader(new File(
                     getApplicationContext().getExternalFilesDir(null), file)));
-            String input, newLine = "";
+            String in, newLine = "";
             StringBuilder builder = new StringBuilder();
-            while ((input = reader.readLine()) != null) {
+            while ((in = reader.readLine()) != null) {
                 builder.append(newLine);
-                builder.append(input);
+                builder.append(in);
                 newLine = "\n";
             }
             JSONObject json = new JSONObject(builder.toString());
-            fromJSON(json);
+            syncAndLoad(json);
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
@@ -1557,11 +1599,17 @@ public class CaliSmall extends Activity implements JSONSerializable {
         case LOG_MENU_ID:
             printLog();
             return true;
+        case SAVE_MENU_ID:
+            saveDialog.show();
+            return true;
         case LOAD_MENU_ID:
             showLoadDialog();
             return true;
-        case SAVE_MENU_ID:
-            saveDialog.show();
+        case LOAD_NEXT_MENU_ID:
+            loadNext();
+            return true;
+        case LOAD_PREVIOUS_MENU_ID:
+            loadPrevious();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -1573,10 +1621,29 @@ public class CaliSmall extends Activity implements JSONSerializable {
                 .setTitle(R.string.load_dialog_message)
                 .setItems(fileList, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
+                        fileIndex = which;
                         load(fileList[which]);
                     }
                 }).create();
         loadDialog.show();
+    }
+
+    private void loadNext() {
+        if (fileList != null && fileList.length > 0) {
+            fileIndex++;
+            fileIndex = fileIndex % fileList.length;
+            load(fileList[fileIndex]);
+        }
+    }
+
+    private void loadPrevious() {
+        if (fileList != null && fileList.length > 0) {
+            fileIndex--;
+            fileIndex = fileIndex % fileList.length;
+            if (fileIndex < 0)
+                fileIndex += fileList.length;
+            load(fileList[fileIndex]);
+        }
     }
 
     /**
@@ -1638,38 +1705,45 @@ public class CaliSmall extends Activity implements JSONSerializable {
      */
     @Override
     public void fromJSON(JSONObject jsonData) throws JSONException {
-        loading = true;
+        matrix = new Matrix();
+        initPaintObjects();
+        view.reset(this);
+        Stroke.SPACE_OCCUPATION_LIST.clear();
+        Scrap.SPACE_OCCUPATION_LIST.clear();
+        JSONArray array = jsonData.getJSONArray("strokes");
+        for (int i = 0; i < array.length(); i++) {
+            Stroke stroke = new Stroke();
+            stroke.fromJSON(array.getJSONObject(i));
+            view.strokes.add(stroke);
+        }
+        Stroke.SPACE_OCCUPATION_LIST.addAll(view.strokes);
+        array = jsonData.getJSONArray("scraps");
+        for (int i = 0; i < array.length(); i++) {
+            Scrap scrap = new Scrap();
+            scrap.fromJSON(array.getJSONObject(i));
+            view.scraps.add(scrap);
+        }
+        Scrap.SPACE_OCCUPATION_LIST.addAll(view.scraps);
+        for (Scrap scrap : view.scraps) {
+            scrap.addChildrenFromJSON();
+        }
+        view.createNewStroke();
+    }
+
+    private void syncAndLoad(JSONObject jsonData) throws JSONException {
         try {
-            Thread.sleep(SCREEN_REFRESH_TIME);
+            lock.lock();
+            wantToOpenFile = true;
+            while (!drawingThreadSleeping)
+                drawingThreadWaiting.await(SCREEN_REFRESH_TIME,
+                        TimeUnit.MILLISECONDS);
+            fromJSON(jsonData);
+            wantToOpenFile = false;
+            fileOpened.signalAll();
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }
-        synchronized (loadingLock) {
-            matrix = new Matrix();
-            initPaintObjects();
-            view.reset(this);
-            Stroke.SPACE_OCCUPATION_LIST.clear();
-            Scrap.SPACE_OCCUPATION_LIST.clear();
-            JSONArray array = jsonData.getJSONArray("strokes");
-            for (int i = 0; i < array.length(); i++) {
-                Stroke stroke = new Stroke();
-                stroke.fromJSON(array.getJSONObject(i));
-                view.strokes.add(stroke);
-            }
-            Stroke.SPACE_OCCUPATION_LIST.addAll(view.strokes);
-            array = jsonData.getJSONArray("scraps");
-            for (int i = 0; i < array.length(); i++) {
-                Scrap scrap = new Scrap();
-                scrap.fromJSON(array.getJSONObject(i));
-                view.scraps.add(scrap);
-            }
-            Scrap.SPACE_OCCUPATION_LIST.addAll(view.scraps);
-            for (Scrap scrap : view.scraps) {
-                scrap.addChildrenFromJSON();
-            }
-            view.createNewStroke();
-            loading = false;
-            loadingLock.notifyAll();
+        } finally {
+            lock.unlock();
         }
     }
 

@@ -134,7 +134,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
      */
     protected Matrix contentMatrix;
     private boolean topLevelForEdit, contentChanged = true;
-    private float snapOffsetX, snapOffsetY;
+    private float snapOffsetX, snapOffsetY, rotation;
 
     static {
         BORDER_PAINT.setAntiAlias(true);
@@ -592,6 +592,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
      *            the point which is used as pivot when rotating the scrap
      */
     public void rotate(float angle, PointF rotationPivot) {
+        rotation = angle;
         snapshotMatrix.postConcat(rollbackMatrix);
         snapshotMatrix.preTranslate(-rotationPivot.x, -rotationPivot.y);
         snapshotMatrix.postRotate(angle, rotationPivot.x, rotationPivot.y);
@@ -838,7 +839,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
     public void applyTransform(boolean forceSnapshotRedraw) {
         topLevelForEdit = false;
         outerBorder.mustBeDrawnVectorially(true);
-        outerBorder.fixRadius(matrix);
+        outerBorder.fixIfRect(matrix, rotation);
         for (Stroke stroke : getAllStrokes()) {
             stroke.transform(matrix);
             stroke.mustBeDrawnVectorially(true);
@@ -1131,6 +1132,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable {
         id = UUID.fromString(jsonData.getString("id"));
         outerBorder = new Stroke();
         outerBorder.fromJSON(jsonData.getJSONObject("border"));
+        outerBorder.getPath().close();
         try {
             JSONArray array = jsonData.getJSONArray("strokes");
             for (int i = 0; i < array.length(); i++) {

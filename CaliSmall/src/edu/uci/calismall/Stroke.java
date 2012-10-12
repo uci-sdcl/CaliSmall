@@ -21,6 +21,7 @@ import android.graphics.Path;
 import android.graphics.Path.Direction;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.util.FloatMath;
 import android.view.View;
 
 /**
@@ -48,7 +49,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
     private final float[] matrixValues;
     private Paint.Style style = DEFAULT_STYLE;
     private float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
-    private float radiusX = -1f, radiusY = -1f;
+    private boolean isRect;
+    private float radiusX, radiusY, rAngle;
     private int color = DEFAULT_COLOR;
 
     /**
@@ -100,6 +102,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         }
         radiusX = copy.radiusX;
         radiusY = copy.radiusY;
+        isRect = copy.isRect;
+        rAngle = copy.rAngle;
     }
 
     /**
@@ -295,16 +299,19 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
 
     /**
      * If this stroke is a rounded rectangle, fixes the radius according to the
-     * scale values in the argument <tt>matrix</tt>.
+     * scale values in the argument <tt>matrix</tt> and the rectangle according
+     * to the argument <tt>rotation</tt>.
      * 
      * @param matrix
      *            the matrix containing scale values.
+     * @param rotation
      */
-    public void fixRadius(Matrix matrix) {
-        matrix.getValues(matrixValues);
-        if (radiusX > -1) {
+    public void fixIfRect(Matrix matrix, float rotation) {
+        if (isRect) {
+            matrix.getValues(matrixValues);
             radiusX *= matrixValues[Matrix.MSCALE_X];
             radiusY *= matrixValues[Matrix.MSCALE_Y];
+            this.rAngle += rotation;
         }
     }
 
@@ -375,6 +382,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         points.add(new PointF(border.right, border.top));
         points.add(new PointF(border.right, border.bottom));
         points.add(new PointF(border.left, border.bottom));
+        isRect = true;
         this.radiusX = radius;
         this.radiusY = radius;
         setBoundaries();
@@ -424,11 +432,12 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         json.put("color", color);
         json.put("width", strokeWidth);
         json.put("style", style.name());
-        json.put("points", pointsToList());
-        if (radiusX > -1f) {
+        if (isRect) {
             json.put("rX", radiusX);
             json.put("rY", radiusY);
+            json.put("rA", rAngle);
         }
+        json.put("points", pointsToList());
         return json;
     }
 
@@ -444,6 +453,41 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
         color = jsonData.getInt("color");
         strokeWidth = (float) jsonData.getDouble("width");
         style = Style.valueOf(jsonData.getString("style"));
+        try {
+            // if radius is set it means it's a rounded rect, otherwise a
+            // JSONException is thrown and this code is skipped
+            radiusX = (float) jsonData.getDouble("rX");
+            isRect = true;
+            radiusY = (float) jsonData.getDouble("rY");
+            rAngle = (float) jsonData.getDouble("rA");
+            points.addAll(parsePoints(jsonData));
+            PointF topLeft = points.get(0);
+            PointF topRight = points.get(1);
+            PointF bottomLeft = points.get(3);
+            float dx = topRight.x - topLeft.x;
+            float dy = topRight.y - topLeft.y;
+            float width = FloatMath.sqrt(dx * dx + dy * dy);
+            dx = bottomLeft.x - topLeft.x;
+            dy = bottomLeft.y - topLeft.y;
+            float height = FloatMath.sqrt(dx * dx + dy * dy);
+            RectF rect = new RectF(topLeft.x, topLeft.y, topLeft.x + width,
+                    topLeft.y + height);
+            path.addRoundRect(rect, radiusX, radiusY, Direction.CW);
+            Matrix rotation = new Matrix();
+            rotation.postTranslate(-topLeft.x, -topLeft.y);
+            rotation.postRotate(rAngle);
+            rotation.postTranslate(topLeft.x, topLeft.y);
+            transform(rotation);
+        } catch (JSONException e) {
+            // not a rounded rect stroke
+            for (PointF point : parsePoints(jsonData))
+                addAndDrawPoint(point, -1f);
+        }
+        setBoundaries();
+    }
+
+    private List<PointF> parsePoints(JSONObject jsonData) throws JSONException {
+        List<PointF> newPoints = new ArrayList<PointF>();
         JSONArray array = jsonData.getJSONArray("points");
         if (array.length() > 0) {
             setStart(new PointF((float) array.getJSONArray(0).getDouble(0),
@@ -453,33 +497,13 @@ class Stroke extends CaliSmallElement implements JSONSerializable {
             path.addCircle(points.get(0).x, points.get(0).y, strokeWidth / 2,
                     Direction.CW);
         } else {
-            try {
-                radiusX = (float) jsonData.getDouble("rX");
-                radiusY = (float) jsonData.getDouble("rY");
-                // if radius is set it means it's a rounded rect
-                JSONArray topLeft = array.getJSONArray(0);
-                JSONArray bottomRight = array.getJSONArray(2);
-                RectF rect = new RectF((float) topLeft.getDouble(0),
-                        (float) topLeft.getDouble(1),
-                        (float) bottomRight.getDouble(0),
-                        (float) bottomRight.getDouble(1));
-                path.addRoundRect(rect, radiusX, radiusY, Direction.CW);
-                for (int i = 1; i < array.length(); i++) {
-                    JSONArray point = array.getJSONArray(i);
-                    points.add(new PointF((float) point.getDouble(0),
-                            (float) point.getDouble(1)));
-                }
-            } catch (JSONException e) {
-                // not a rounded rect stroke
-                for (int i = 1; i < array.length(); i++) {
-                    JSONArray point = array.getJSONArray(i);
-                    addAndDrawPoint(new PointF((float) point.getDouble(0),
-                            (float) point.getDouble(1)), -1f);
-                }
+            for (int i = 1; i < array.length(); i++) {
+                JSONArray point = array.getJSONArray(i);
+                newPoints.add(new PointF((float) point.getDouble(0),
+                        (float) point.getDouble(1)));
             }
-
         }
-        setBoundaries();
+        return newPoints;
     }
 
     private JSONArray pointsToList() {
