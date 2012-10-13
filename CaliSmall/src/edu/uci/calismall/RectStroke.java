@@ -77,6 +77,7 @@ public class RectStroke extends Stroke {
             path.lineTo(firstAnchor.x, firstAnchor.y);
             path.quadTo(corner.x, corner.y, secondAnchor.x, secondAnchor.y);
         }
+        path.close();
     }
 
     /*

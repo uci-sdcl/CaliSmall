@@ -11,6 +11,7 @@ import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
@@ -35,7 +36,6 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.Path;
-import android.graphics.Path.Direction;
 import android.graphics.PathMeasure;
 import android.graphics.Point;
 import android.graphics.PointF;
@@ -661,12 +661,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                         newSelection = getSelectedScrap(center);
                         if (newSelection == previousSelection) {
                             // draw a point (a small circle)
-                            stroke.reset();
-                            stroke.setStart(center);
-                            stroke.setStyle(Paint.Style.FILL);
-                            stroke.getPath().addCircle(center.x, center.y,
-                                    stroke.getStrokeWidth() / 2, Direction.CW);
-                            stroke.setBoundaries();
+                            stroke.turnIntoDot();
                         } else {
                             // a single tap selects the scrap w/o being
                             // drawn
@@ -1311,7 +1306,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private static final int LOAD_PREVIOUS_MENU_ID = Menu.FIRST + 6;
     private static final String FILE_EXTENSION = ".csf";
     private String[] fileList;
-    private int fileIndex = -1;
+    private String chosenFile;
     private EditText input;
     private FilenameFilter fileNameFilter;
     private AlertDialog saveDialog, loadDialog;
@@ -1512,6 +1507,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             try {
                 String json = toJSON().toString();
                 String fileName = input.toString();
+                chosenFile = fileName;
                 FileWriter writer = new FileWriter(new File(
                         getApplicationContext().getExternalFilesDir(null),
                         fileName.endsWith(FILE_EXTENSION) ? fileName : fileName
@@ -1550,6 +1546,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void load(String file) {
         try {
+            chosenFile = file;
             input.setText(file.endsWith(FILE_EXTENSION) ? file.substring(0,
                     file.lastIndexOf(FILE_EXTENSION)) : file);
             BufferedReader reader = new BufferedReader(new FileReader(new File(
@@ -1621,7 +1618,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 .setTitle(R.string.load_dialog_message)
                 .setItems(fileList, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
-                        fileIndex = which;
                         load(fileList[which]);
                     }
                 }).create();
@@ -1631,8 +1627,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void loadNext() {
         initFileList();
         if (fileList != null && fileList.length > 0) {
+            int fileIndex = Arrays.binarySearch(fileList, chosenFile);
             fileIndex++;
             fileIndex = fileIndex % fileList.length;
+            if (fileIndex < 0)
+                fileIndex += fileList.length;
             load(fileList[fileIndex]);
         }
     }
@@ -1640,6 +1639,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void loadPrevious() {
         initFileList();
         if (fileList != null && fileList.length > 0) {
+            int fileIndex = Arrays.binarySearch(fileList, chosenFile);
             fileIndex--;
             fileIndex = fileIndex % fileList.length;
             if (fileIndex < 0)

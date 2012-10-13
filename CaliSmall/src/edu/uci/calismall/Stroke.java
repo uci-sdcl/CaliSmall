@@ -64,6 +64,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      */
     protected int color = DEFAULT_COLOR;
     private final float[] matrixValues;
+    private boolean isDot;
 
     /**
      * Creates an empty stroke.
@@ -112,6 +113,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         for (PointF point : copy.points) {
             points.add(new PointF(point.x, point.y));
         }
+        if (copy.isDot)
+            turnIntoDot();
     }
 
     /**
@@ -231,6 +234,21 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         if (points.isEmpty())
             return null;
         return points.get(points.size() - 1);
+    }
+
+    /**
+     * Turns this stroke into a dot centered on the first point of this stroke,
+     * having a width of half the stroke's width.
+     */
+    public void turnIntoDot() {
+        isDot = true;
+        PointF center = points.get(0);
+        path.reset();
+        points.clear();
+        points.add(center);
+        style = Paint.Style.FILL;
+        path.addCircle(center.x, center.y, strokeWidth / 2, Direction.CW);
+        setBoundaries();
     }
 
     /**
@@ -452,16 +470,13 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
             setStart(new PointF((float) array.getJSONArray(0).getDouble(0),
                     (float) array.getJSONArray(0).getDouble(1)));
         }
-        if (array.length() == 1) {
-            path.addCircle(points.get(0).x, points.get(0).y, strokeWidth / 2,
-                    Direction.CW);
-        } else {
-            for (int i = 1; i < array.length(); i++) {
-                JSONArray point = array.getJSONArray(i);
-                newPoints.add(new PointF((float) point.getDouble(0),
-                        (float) point.getDouble(1)));
-            }
+        for (int i = 1; i < array.length(); i++) {
+            JSONArray point = array.getJSONArray(i);
+            newPoints.add(new PointF((float) point.getDouble(0), (float) point
+                    .getDouble(1)));
         }
+        if (array.length() == 1)
+            turnIntoDot();
         return newPoints;
     }
 
