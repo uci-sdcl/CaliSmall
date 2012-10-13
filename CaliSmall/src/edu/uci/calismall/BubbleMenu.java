@@ -150,6 +150,7 @@ public class BubbleMenu {
     private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
             scaleFactor, maxXScale, maxYScale, compensationForRotateButtonPos;
     private Scrap highlighted;
+    private boolean topLeftPinned;
 
     /**
      * Initializes a new BubbleMenu that will pick image files from the
@@ -304,6 +305,7 @@ public class BubbleMenu {
                     selected);
             maxXScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.width;
             maxYScale = MINIMUM_SIDE_LENGTH_FOR_SCALE / selected.height;
+            topLeftPinned = true;
         }
         // avoid reaching 0, as a scale factor of 0 is a point of non-return
         // minimum size should be a 2x2 area
@@ -327,6 +329,7 @@ public class BubbleMenu {
             selected.applyTransform(true);
             fixParenting(selected);
             touched = null;
+            topLeftPinned = false;
         }
         return true;
     }
@@ -603,52 +606,71 @@ public class BubbleMenu {
         if (curWidth < minSize) {
             // set the bubble menu to its minimum size, center according to
             // selection
+            fixTooNarrow();
+        } else if (curWidth > bounds.width()) {
+            fixTooWide();
+        }
+        if (curHeight < minSize) {
+            fixTooShort();
+        } else if (curHeight > bounds.height()) {
+            fixTooHigh();
+        }
+    }
+
+    private void fixTooNarrow() {
+        if (!topLeftPinned) {
             topLeft.position.left = (int) FloatMath.ceil(sel.centerX()
                     - minSize / 2);
             topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
                     + bSize);
-            topRight.position.right = (int) FloatMath
-                    .floor(topLeft.position.left + minSize);
-            topRight.position.left = (int) FloatMath
-                    .ceil(topRight.position.right - bSize);
-            bottomRight.position.left = topRight.position.left;
-            bottomRight.position.right = topRight.position.right;
-        } else if (curWidth > bounds.width()) {
-            topLeft.position.left = (int) Math.max(
-                    FloatMath.floor(bounds.left), topLeft.position.left);
-            topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
-                    + bSize);
-            topRight.position.right = (int) Math.min(
-                    FloatMath.floor(bounds.right), topRight.position.right);
-            topRight.position.left = (int) FloatMath
-                    .ceil(topRight.position.right - bSize);
-            bottomRight.position.left = topRight.position.left;
-            bottomRight.position.right = topRight.position.right;
         }
-        if (curHeight < minSize) {
+        topRight.position.right = (int) FloatMath.floor(topLeft.position.left
+                + minSize);
+        topRight.position.left = (int) FloatMath.ceil(topRight.position.right
+                - bSize);
+        bottomRight.position.left = topRight.position.left;
+        bottomRight.position.right = topRight.position.right;
+    }
+
+    private void fixTooWide() {
+        topLeft.position.left = (int) Math.max(FloatMath.floor(bounds.left),
+                topLeft.position.left);
+        topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+                + bSize);
+        topRight.position.right = (int) Math.min(FloatMath.floor(bounds.right),
+                topRight.position.right);
+        topRight.position.left = (int) FloatMath.ceil(topRight.position.right
+                - bSize);
+        bottomRight.position.left = topRight.position.left;
+        bottomRight.position.right = topRight.position.right;
+    }
+
+    private void fixTooShort() {
+        if (!topLeftPinned) {
             topLeft.position.top = (int) FloatMath.ceil(sel.centerY() - minSize
                     / 2);
             topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
                     + bSize);
-            bottomRight.position.bottom = (int) FloatMath
-                    .floor(topLeft.position.top + minSize);
-            bottomRight.position.top = (int) FloatMath
-                    .floor(bottomRight.position.bottom - bSize);
-            topRight.position.top = topLeft.position.top;
-            topRight.position.bottom = topLeft.position.bottom;
-        } else if (curHeight > bounds.height()) {
-            topLeft.position.top = (int) Math.max(FloatMath.ceil(bounds.top),
-                    topLeft.position.top);
-            topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
-                    + bSize);
-            bottomRight.position.bottom = (int) Math
-                    .min(FloatMath.floor(bounds.bottom),
-                            bottomRight.position.bottom);
-            bottomRight.position.top = (int) FloatMath
-                    .floor(bottomRight.position.bottom - bSize);
-            topRight.position.top = topLeft.position.top;
-            topRight.position.bottom = topLeft.position.bottom;
         }
+        bottomRight.position.bottom = (int) FloatMath
+                .floor(topLeft.position.top + minSize);
+        bottomRight.position.top = (int) FloatMath
+                .floor(bottomRight.position.bottom - bSize);
+        topRight.position.top = topLeft.position.top;
+        topRight.position.bottom = topLeft.position.bottom;
+    }
+
+    private void fixTooHigh() {
+        topLeft.position.top = (int) Math.max(FloatMath.ceil(bounds.top),
+                topLeft.position.top);
+        topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+                + bSize);
+        bottomRight.position.bottom = (int) Math.min(
+                FloatMath.floor(bounds.bottom), bottomRight.position.bottom);
+        bottomRight.position.top = (int) FloatMath
+                .floor(bottomRight.position.bottom - bSize);
+        topRight.position.top = topLeft.position.top;
+        topRight.position.bottom = topLeft.position.bottom;
     }
 
     private void applySpaceContraints() {

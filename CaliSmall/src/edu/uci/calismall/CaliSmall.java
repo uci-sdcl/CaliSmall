@@ -625,8 +625,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
 
         private void onUp(MotionEvent event) {
-            long time = actionStart + System.currentTimeMillis();
-            Log.d(TAG, "time: " + time);
             mustShowLandingZone = false;
             longPressListener.removeCallbacks(longPressAction);
             skipEvents = false;
