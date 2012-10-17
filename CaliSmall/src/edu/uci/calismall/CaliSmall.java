@@ -1189,7 +1189,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     Condition drawingThreadWaiting = lock.newCondition();
     /**
      * Condition that is signalled by the file opening thread just after having
-     * loaded a project file.
+     * loaded a sketch file.
      */
     Condition fileOpened = lock.newCondition();
     /**
@@ -1404,7 +1404,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
     private static final long AUTO_SAVE_TIME = 20 * 1000,
-            AUTO_BACKUP_TIME = 5 * 60 * 1000;
+            AUTO_BACKUP_TIME = 3 * 60 * 1000;
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 50 * 1024;
     private String[] fileList;
     private String chosenFile, autoSaveName;
@@ -1611,15 +1611,17 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void save(final String input) {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
+
             try {
+                lock.lock();
+                File path = getApplicationContext().getExternalFilesDir(null);
+                File newFile = new File(path, input + FILE_EXTENSION);
                 if (userPickedANewName) {
                     // delete the "Unnamed Sketch" file
                     fileList = null;
                     if (chosenFile.startsWith(autoSaveName)) {
-                        new File(getApplicationContext().getExternalFilesDir(
-                                null), chosenFile + FILE_EXTENSION).delete();
-                        new File(getApplicationContext().getExternalFilesDir(
-                                null), "~" + chosenFile + FILE_EXTENSION)
+                        new File(path, chosenFile + FILE_EXTENSION).delete();
+                        new File(path, "~" + chosenFile + FILE_EXTENSION)
                                 .delete();
                     }
                     fileList = initFileList();
@@ -1628,9 +1630,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     restartAutoSaving();
                 }
                 String json = toJSON().toString();
-                // create a recovery file
-                File newFile = new File(getApplicationContext()
-                        .getExternalFilesDir(null), input + FILE_EXTENSION);
                 FileWriter writer = new FileWriter(newFile);
                 writer.write(json);
                 writer.flush();
@@ -1639,6 +1638,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
         } else {
             new AlertDialog.Builder(this)
@@ -1721,10 +1722,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             printLog();
             return true;
         case R.id.menu_save:
-            if (chosenFile.startsWith(autoSaveName))
-                saveDialog.show();
-            else
-                save(chosenFile);
+            saveButtonClicked();
             return true;
         case R.id.save:
             saveDialog.show();
@@ -1752,6 +1750,20 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         input.setText("");
         setTitle("CaliSmall - "
                 + getResources().getString(R.string.unnamed_files));
+    }
+
+    private void saveButtonClicked() {
+        if (chosenFile.startsWith(autoSaveName))
+            saveDialog.show();
+        else {
+            restartAutoSaving();
+            save(chosenFile);
+            Toast.makeText(
+                    getApplicationContext(),
+                    String.format(
+                            getResources().getString(R.string.file_saved),
+                            chosenFile), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private String generateAutoSaveName() {
