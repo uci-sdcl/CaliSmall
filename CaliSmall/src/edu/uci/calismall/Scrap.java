@@ -1104,14 +1104,14 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         json.put("border", outerBorder.toJSON());
         JSONArray array = new JSONArray();
         if (!strokes.isEmpty()) {
-            for (Stroke stroke : strokes) {
-                array.put(stroke.id.toString());
+            for (int i = 0; i < strokes.size(); i++) {
+                array.put(strokes.get(i).id.toString());
             }
             json.put("strokes", array);
         }
         if (!scraps.isEmpty()) {
-            for (Scrap scrap : scraps) {
-                array.put(scrap.id.toString());
+            for (int i = 0; i < scraps.size(); i++) {
+                array.put(scraps.get(i).id.toString());
             }
             json.put("scraps", array);
         }

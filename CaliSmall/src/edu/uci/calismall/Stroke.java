@@ -207,6 +207,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      */
     public Stroke setStart(PointF startPoint) {
         path.moveTo(startPoint.x, startPoint.y);
+        // this is here so that the path is not empty and press and hold relies
+        // on that. DO NOT DELETE!
+        path.lineTo(startPoint.x, startPoint.y);
         points.add(startPoint);
         setBoundaries();
         return this;
@@ -482,7 +485,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
 
     private JSONArray pointsToList() {
         JSONArray array = new JSONArray();
-        for (PointF point : points) {
+        for (int i = 0; i < points.size(); i++) {
+            PointF point = points.get(i);
             array.put(new JSONArray(Arrays.asList(point.x, point.y)));
         }
         return array;

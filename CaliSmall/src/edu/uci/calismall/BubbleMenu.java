@@ -364,9 +364,7 @@ public class BubbleMenu {
         selected.setRect(scaleFactor);
         touched = null;
         setBounds(selected.getBorder(), scaleFactor, bounds);
-        if (!selected.isEmpty()) {
-            scrap(action, touchPoint, selected);
-        }
+        scrap(action, touchPoint, selected);
         return true;
     }
 

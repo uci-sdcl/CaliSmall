@@ -6,18 +6,19 @@
     <uses-sdk
         android:minSdkVersion="14"
         android:targetSdkVersion="15" />
+
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 
     <application
         android:hardwareAccelerated="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme"
-         >
+        android:theme="@style/AppTheme" >
+
         <activity
             android:name=".CaliSmall"
             android:label="@string/title_activity_cali_small"
-            android:screenOrientation="landscape">
+            android:screenOrientation="landscape" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -25,8 +26,9 @@
             </intent-filter>
         </activity>
     </application>
-<!--       android:theme="@android:style/Theme.NoTitleBar"       
+    <!--
+           android:theme="@android:style/Theme.NoTitleBar"       
             android:configChanges="keyboardHidden|orientation|screenSize"
--->
+    -->
 
 </manifest>
