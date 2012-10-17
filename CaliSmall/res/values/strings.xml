@@ -17,4 +17,7 @@
     <string name="load_dialog_progress">Loading</string>
     <string name="load_dialog_progress_message">Opening file&#8230;</string>
     <string name="load_file_message">File: %1$s</string>
+    <string name="share_message_subject">My Calico sketch</string>
+    <string name="share_message_text">Checkout this new sketch I made with CaliSmall&#153;!</string>
+    <string name="share_message">Share via</string>
 </resources>

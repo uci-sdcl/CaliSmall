@@ -6,10 +6,13 @@ package edu.uci.calismall;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,6 +37,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -46,6 +50,7 @@ import android.graphics.PathMeasure;
 import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
@@ -1476,9 +1481,33 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                                        }
 		                            }).create();
 		// @formatter:on
-        if (chosenFile == null)
-            newProject();
-        restartAutoSaving();
+        final Intent intent = getIntent();
+        if (intent != null) {
+            final android.net.Uri data = intent.getData();
+            if (data != null) {
+                if (chosenFile != null)
+                    save(chosenFile);
+                new Handler().postDelayed(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        try {
+                            /**
+                             * The load call must be delayed because if the app
+                             * was started through an intent the drawing thread
+                             * is not started until this method ends, causing a
+                             * deadlock on the load function
+                             */
+                            load(getContentResolver().openInputStream(data));
+                        } catch (FileNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, SCREEN_REFRESH_TIME * 2);
+            }
+            if (chosenFile == null)
+                newProject();
+        }
     }
 
     private void initPaintObjects() {
@@ -1667,7 +1696,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void load(File toBeLoaded) {
         try {
-            BufferedReader reader = new BufferedReader(new FileReader(
+            load(new FileInputStream(toBeLoaded));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void load(InputStream toBeLoaded) {
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(
                     toBeLoaded));
             String in, newLine = "";
             StringBuilder builder = new StringBuilder();
@@ -1676,6 +1713,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 builder.append(in);
                 newLine = "\n";
             }
+            reader.close();
             JSONObject json = new JSONObject(builder.toString());
             syncAndLoad(json);
         } catch (IOException e) {
@@ -1739,6 +1777,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         case R.id.create_new:
             newProject();
             return true;
+        case R.id.share:
+            share();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -1764,6 +1805,21 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                             getResources().getString(R.string.file_saved),
                             chosenFile), Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void share() {
+        save(chosenFile);
+        File path = getApplicationContext().getExternalFilesDir(null);
+        File newFile = new File(path, chosenFile + FILE_EXTENSION);
+        Intent intent = new Intent(android.content.Intent.ACTION_SEND);
+        intent.setType("application/octet-stream");
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(newFile));
+        intent.putExtra(Intent.EXTRA_SUBJECT, R.string.share_message_subject);
+        intent.putExtra(Intent.EXTRA_TEXT,
+                getResources().getString(R.string.share_message_text));
+        startActivity(Intent.createChooser(intent,
+                getResources().getString(R.string.share_message)));
     }
 
     private String generateAutoSaveName() {

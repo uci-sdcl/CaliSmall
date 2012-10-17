@@ -1,15 +1,86 @@
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/menu_save"
-          android:icon="@drawable/ic_save"
-          android:title="@string/menu_save"
-          android:showAsAction="ifRoom"
-          android:orderInCategory="0" />
-    <item android:id="@+id/color" android:title="Color" android:alphabeticShortcut="c" android:menuCategory="secondary" android:orderInCategory="4" android:icon="@drawable/ic_color" android:showAsAction="ifRoom"></item>
-    <item android:id="@+id/clear" android:title="Clear" android:alphabeticShortcut="x" android:menuCategory="secondary" android:orderInCategory="5" android:icon="@drawable/ic_clear" android:showAsAction="ifRoom"></item>
-    <item android:id="@+id/log" android:title="Print Log" android:alphabeticShortcut="l" android:menuCategory="secondary" android:orderInCategory="6"></item>
-    <item android:id="@+id/save" android:title="Save&#8230;" android:alphabeticShortcut="s" android:menuCategory="secondary" android:orderInCategory="7"></item>
-    <item android:id="@+id/open" android:title="Open&#8230;" android:alphabeticShortcut="o" android:menuCategory="secondary" android:orderInCategory="1" android:showAsAction="ifRoom" android:icon="@drawable/ic_open"></item>
-    <item android:id="@+id/open_next" android:title="Open Next" android:titleCondensed="Next" android:alphabeticShortcut="n" android:menuCategory="secondary" android:orderInCategory="3" android:showAsAction="always" android:icon="@drawable/ic_next"></item>
-    <item android:id="@+id/open_previous" android:title="Open Previous" android:titleCondensed="Previous" android:alphabeticShortcut="p" android:menuCategory="secondary" android:orderInCategory="2" android:showAsAction="always" android:icon="@drawable/ic_previous"></item>
-    <item android:id="@+id/create_new" android:title="New" android:alphabeticShortcut="a" android:menuCategory="secondary" android:orderInCategory="8" android:showAsAction="ifRoom" android:icon="@drawable/ic_new"></item>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <item
+        android:id="@+id/menu_save"
+        android:icon="@drawable/ic_save"
+        android:orderInCategory="0"
+        android:showAsAction="ifRoom"
+        android:title="@string/menu_save"/>
+    <item
+        android:id="@+id/open"
+        android:alphabeticShortcut="o"
+        android:icon="@drawable/ic_open"
+        android:menuCategory="secondary"
+        android:orderInCategory="1"
+        android:showAsAction="ifRoom"
+        android:title="Open…">
+    </item>
+    <item
+        android:id="@+id/open_previous"
+        android:alphabeticShortcut="p"
+        android:icon="@drawable/ic_previous"
+        android:menuCategory="secondary"
+        android:orderInCategory="2"
+        android:showAsAction="always"
+        android:title="Open Previous"
+        android:titleCondensed="Previous">
+    </item>
+    <item
+        android:id="@+id/open_next"
+        android:alphabeticShortcut="n"
+        android:icon="@drawable/ic_next"
+        android:menuCategory="secondary"
+        android:orderInCategory="3"
+        android:showAsAction="always"
+        android:title="Open Next"
+        android:titleCondensed="Next">
+    </item>
+    <item
+        android:id="@+id/color"
+        android:alphabeticShortcut="c"
+        android:icon="@drawable/ic_color"
+        android:menuCategory="secondary"
+        android:orderInCategory="4"
+        android:showAsAction="ifRoom"
+        android:title="Color">
+    </item>
+    <item
+        android:id="@+id/clear"
+        android:alphabeticShortcut="x"
+        android:icon="@drawable/ic_clear"
+        android:menuCategory="secondary"
+        android:orderInCategory="5"
+        android:showAsAction="ifRoom"
+        android:title="Clear">
+    </item>
+    <item
+        android:id="@+id/log"
+        android:alphabeticShortcut="l"
+        android:menuCategory="secondary"
+        android:orderInCategory="6"
+        android:title="Print Log">
+    </item>
+    <item
+        android:id="@+id/save"
+        android:alphabeticShortcut="s"
+        android:menuCategory="secondary"
+        android:orderInCategory="7"
+        android:title="Save…">
+    </item>
+    <item
+        android:id="@+id/create_new"
+        android:alphabeticShortcut="a"
+        android:icon="@drawable/ic_new"
+        android:menuCategory="secondary"
+        android:orderInCategory="8"
+        android:showAsAction="ifRoom"
+        android:title="New">
+    </item>
+    <item
+        android:id="@+id/share"
+        android:orderInCategory="9"
+        android:showAsAction="ifRoom"
+        android:title="Share..." android:menuCategory="secondary">
+    </item>
+
 </menu>
