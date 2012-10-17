@@ -178,11 +178,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
     }
 
-    private final class ProgressBar extends AsyncTask<File, Void, Void> {
+    private final class ProgressBar extends AsyncTask<InputStream, Void, Void> {
 
         private final CaliSmall parent;
         private ProgressDialog dialog;
-        private File toBeLoaded;
+        private InputStream toBeLoaded;
 
         private ProgressBar(CaliSmall parent) {
             this.parent = parent;
@@ -194,7 +194,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
          * @see android.os.AsyncTask#doInBackground(Params[])
          */
         @Override
-        protected Void doInBackground(File... params) {
+        protected Void doInBackground(InputStream... params) {
             toBeLoaded = params[0];
             load(toBeLoaded);
             restartAutoSaving();
@@ -226,12 +226,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         @Override
         protected void onPostExecute(Void result) {
             dialog.dismiss();
-            String fileName = toBeLoaded.getName();
-            if (fileName.endsWith(FILE_EXTENSION)) {
-                fileName = fileName.substring(0,
-                        fileName.lastIndexOf(FILE_EXTENSION));
-            }
-            parent.setTitle("CaliSmall - " + fileName);
+            // String fileName = toBeLoaded.getName();
+            // if (fileName.endsWith(FILE_EXTENSION)) {
+            // fileName = fileName.substring(0,
+            // fileName.lastIndexOf(FILE_EXTENSION));
+            // }
+            parent.setTitle("CaliSmall - " + parent.chosenFile);
         }
 
     }
@@ -1498,7 +1498,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                              * is not started until this method ends, causing a
                              * deadlock on the load function
                              */
-                            load(getContentResolver().openInputStream(data));
+                            loadAndMaybeShowProgressBar(getContentResolver()
+                                    .openInputStream(data));
                         } catch (FileNotFoundException e) {
                             e.printStackTrace();
                         }
@@ -1846,7 +1847,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         final File toBeLoaded = new File(getApplicationContext()
                 .getExternalFilesDir(null), file + FILE_EXTENSION);
         if (toBeLoaded.length() > MIN_FILE_SIZE_FOR_PROGRESSBAR) {
-            new ProgressBar(this).execute(toBeLoaded);
+            try {
+                new ProgressBar(this).execute(new FileInputStream(toBeLoaded));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
         } else {
             load(toBeLoaded);
             String fileName = toBeLoaded.getName();
@@ -1857,6 +1862,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             setTitle("CaliSmall - " + fileName);
             restartAutoSaving();
         }
+    }
+
+    private void loadAndMaybeShowProgressBar(InputStream input) {
+        view.didSomething = false;
+        new ProgressBar(this).execute(input);
     }
 
     private void loadNext() {
