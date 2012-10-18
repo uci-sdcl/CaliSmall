@@ -1889,7 +1889,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     protected void
             onActivityResult(int requestCode, int resultCode, Intent data) {
         File path = getApplicationContext().getExternalFilesDir(null);
-        Log.d(TAG, "snapshot at " + path + "/" + tmpSnapshotName);
         File tmpImage = new File(path, tmpSnapshotName);
         if (tmpImage.exists())
             tmpImage.delete();
