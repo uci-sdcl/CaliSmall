@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
@@ -39,6 +40,8 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -100,7 +103,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 try {
                     canvas = holder.lockCanvas();
                     if (canvas != null)
-                        view.drawView(canvas);
+                        view.drawView(canvas, false);
                 } catch (IllegalArgumentException e) {
                     // activity sent to bg, don't care
                 } finally {
@@ -278,11 +281,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * The {@link SurfaceView} on which the canvas is drawn.
      * 
      * <p>
-     * Drawing takes place within the {@link CaliView#drawView(Canvas)} method,
-     * which is called roughly every {@link CaliSmall#SCREEN_REFRESH_TIME}
-     * milliseconds by the <tt>Worker</tt> thread that is spawn by
-     * {@link CaliView#surfaceCreated(SurfaceHolder)} (which in turn is called
-     * by the Android Runtime when the app is moved to the foreground).
+     * Drawing takes place within the {@link CaliView#drawView(Canvas, boolean)}
+     * method, which is called roughly every
+     * {@link CaliSmall#SCREEN_REFRESH_TIME} milliseconds by the <tt>Worker</tt>
+     * thread that is spawn by {@link CaliView#surfaceCreated(SurfaceHolder)}
+     * (which in turn is called by the Android Runtime when the app is moved to
+     * the foreground).
      * 
      * <p>
      * All data structures accessed by the drawing thread are only edited by the
@@ -371,13 +375,18 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
          * 
          * @param canvas
          *            the canvas onto which this view is to be drawn
+         * @param dontWait
+         *            must be <code>true</code> if the thread that calls this
+         *            method shouldn't wait for files to be opened (i.e. only
+         *            when it is called by a method that is saving the canvas
+         *            content)
          */
-        public void drawView(Canvas canvas) {
+        public void drawView(Canvas canvas, boolean dontWait) {
             if (canvas != null) {
-                canvas.drawColor(Color.WHITE);
-                while (wantToOpenFile) {
+                while (wantToOpenFile && !dontWait) {
                     waitForFileOpen();
                 }
+                canvas.drawColor(Color.WHITE);
                 canvas.concat(matrix);
                 if (mustShowLongPressCircle) {
                     drawLongPressAnimation(canvas);
@@ -1086,8 +1095,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     /**
      * Time in milliseconds between two consecutive screen refreshes (i.e. two
-     * consecutive calls to {@link CaliView#drawView(Canvas)}). To get the FPS
-     * that this value sets, just divide 1000 by the value (so a
+     * consecutive calls to {@link CaliView#drawView(Canvas, boolean)}). To get
+     * the FPS that this value sets, just divide 1000 by the value (so a
      * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
      */
     public static final long SCREEN_REFRESH_TIME = 20;
@@ -1412,7 +1421,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             AUTO_BACKUP_TIME = 3 * 60 * 1000;
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 50 * 1024;
     private String[] fileList;
-    private String chosenFile, autoSaveName;
+    private String chosenFile, autoSaveName, tmpSnapshotName;
     private EditText input;
     private FilenameFilter fileNameFilter;
     private AlertDialog saveDialog, loadDialog;
@@ -1781,6 +1790,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         case R.id.share:
             share();
             return true;
+        case R.id.share_snapshot:
+            shareSnapshot();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -1821,6 +1833,66 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 getResources().getString(R.string.share_message_text));
         startActivity(Intent.createChooser(intent,
                 getResources().getString(R.string.share_message)));
+    }
+
+    private void shareSnapshot() {
+        File path = getApplicationContext().getExternalFilesDir(null);
+        File tmpImage = new File(path, chosenFile + ".png");
+        tmpSnapshotName = chosenFile + ".png";
+        FileOutputStream tmp;
+        try {
+            tmp = new FileOutputStream(tmpImage);
+            lock.lock();
+            wantToOpenFile = true;
+            while (!drawingThreadSleeping)
+                drawingThreadWaiting.await(SCREEN_REFRESH_TIME,
+                        TimeUnit.MILLISECONDS);
+            Bitmap bitmap = Bitmap.createBitmap(view.screenWidth,
+                    view.screenHeight, Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+            wantToOpenFile = false;
+            view.drawView(canvas, true);
+            fileOpened.signalAll();
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, tmp);
+            tmp.flush();
+            tmp.close();
+            Intent intent = new Intent(android.content.Intent.ACTION_SEND);
+            intent.setType("image/png");
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+            intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(tmpImage));
+            intent.putExtra(Intent.EXTRA_SUBJECT,
+                    R.string.share_message_subject);
+            intent.putExtra(Intent.EXTRA_TEXT,
+                    getResources().getString(R.string.share_message_text));
+            startActivityForResult(
+                    Intent.createChooser(intent,
+                            getResources().getString(R.string.share_message)),
+                    1);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see android.app.Activity#onActivityResult(int, int,
+     * android.content.Intent)
+     */
+    @Override
+    protected void
+            onActivityResult(int requestCode, int resultCode, Intent data) {
+        File path = getApplicationContext().getExternalFilesDir(null);
+        Log.d(TAG, "snapshot at " + path + "/" + tmpSnapshotName);
+        File tmpImage = new File(path, tmpSnapshotName);
+        if (tmpImage.exists())
+            tmpImage.delete();
     }
 
     private String generateAutoSaveName() {

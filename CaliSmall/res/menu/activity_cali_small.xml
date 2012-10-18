@@ -82,5 +82,6 @@
         android:showAsAction="ifRoom"
         android:title="Share..." android:menuCategory="secondary">
     </item>
+    <item android:id="@+id/share_snapshot" android:menuCategory="secondary" android:title="Share snapshot..." android:orderInCategory="10" android:showAsAction="ifRoom"></item>
 
 </menu>
