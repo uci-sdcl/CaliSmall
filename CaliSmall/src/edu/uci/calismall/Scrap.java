@@ -242,7 +242,8 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            the stroke to be added to this scrap
      */
     public void add(Stroke stroke) {
-        strokes.add(stroke);
+        if (stroke != null && !strokes.contains(stroke))
+            strokes.add(stroke);
         stroke.parent = this;
         stroke.previousParent = null;
         // refresh the snapshot the next time!
@@ -277,7 +278,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         if (scrapIDs != null) {
             for (String id : scrapIDs) {
                 Scrap scrap = (Scrap) Scrap.SPACE_OCCUPATION_LIST.getById(id);
-                scraps.add(scrap);
+                add(scrap);
             }
             scrapIDs = null;
         }
@@ -1154,8 +1155,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             for (int i = 0; i < array.length(); i++) {
                 Stroke stroke = (Stroke) Stroke.SPACE_OCCUPATION_LIST
                         .getById(array.getString(i));
-                if (stroke != null)
-                    strokes.add(stroke);
+                add(stroke);
             }
         } catch (JSONException e) { /* it's ok, no strokes */}
         try {
