@@ -13,6 +13,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.content.res.Resources;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -21,7 +23,12 @@ import android.graphics.Paint.Style;
 import android.graphics.Path;
 import android.graphics.Path.Direction;
 import android.graphics.PointF;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
+import android.util.FloatMath;
 import android.view.View;
+import edu.uci.calismall.Scrap.Temp;
 
 /**
  * Contains a {@link Path} and all of the style attributes to be set to the
@@ -44,6 +51,27 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     private static final int DEFAULT_COLOR = Color.BLACK;
     private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
     /**
+     * The paint object that is used to draw ghost strokes.
+     * 
+     * <p>
+     * Whenever a new {@link Temp} is created, its outer border is drawn to the
+     * canvas as a "ghost" stroke, whose aim is to let users get their stroke
+     * back if they hit the landing zone accidentally.
+     */
+    private static final Paint GHOST_PAINT = new Paint();
+    private static final int GHOST_PAINT_OPACITY_PERCENTAGE = 25;
+    private static final int GHOST_PAINT_START_OPACITY = GHOST_PAINT_OPACITY_PERCENTAGE * 255 / 100;
+    /**
+     * The amount of time that every ghost stroke is displayed before
+     * disappearing.
+     */
+    private static final long GHOST_TIME = 2 * 100;
+    /**
+     * The amount of time it takes for the fadeout animation to complete.
+     */
+    private static final long GHOST_FADEOUT_TIME = 3000;
+
+    /**
      * The list of points that this stroke contains.
      */
     protected final List<PointF> points;
@@ -63,8 +91,19 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * The color of this stroke.
      */
     protected int color = DEFAULT_COLOR;
+    private int ghostOpacity = GHOST_PAINT_START_OPACITY;
     private final float[] matrixValues;
     private boolean isDot;
+    private long ghostUntil;
+    private BubbleMenu.Button ghostRevive;
+
+    static {
+        GHOST_PAINT.setAntiAlias(true);
+        GHOST_PAINT.setDither(true);
+        GHOST_PAINT.setStrokeJoin(Paint.Join.ROUND);
+        GHOST_PAINT.setStrokeCap(Paint.Cap.ROUND);
+        GHOST_PAINT.setStyle(Style.STROKE);
+    }
 
     /**
      * Creates an empty stroke.
@@ -299,6 +338,114 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     /**
+     * Marks this stroke as a <i>ghost</i> stroke or revives a stroke that was
+     * previously marked as ghost.
+     * 
+     * <p>
+     * Ghost strokes are strokes that were the outer border of a temporary scrap
+     * that was deselected without the user having done anything with the temp
+     * scrap. They are displayed with a low opacity and can be restored to
+     * regular strokes by pressing a button that pops up as soon as the temp
+     * scrap is deselected.
+     * 
+     * <p>
+     * If users interact with the originary temp scrap, ghost strokes are
+     * immediately deleted to avoid polluting the screen for no reason: the
+     * purpose of ghost strokes is to let users recover from accidentally
+     * hitting the landing zone and creating a selection, whereas a regular
+     * stroke was meant to be drawn.
+     * 
+     * <p>
+     * After some time, ghost strokes disappear and cannot be recovered anymore.
+     * 
+     * @param isGhost
+     *            whether this stroke is to be set as a ghost
+     * @param resources
+     *            the resources to load the ghost revive bitmap from
+     * @param buttonSize
+     *            the size for the ghost revive button
+     * 
+     * @return this stroke
+     */
+    public Stroke setGhost(boolean isGhost, Resources resources,
+            float buttonSize) {
+        if (isGhost) {
+            ghostUntil = System.currentTimeMillis() + GHOST_TIME
+                    + GHOST_FADEOUT_TIME;
+            ghostRevive = new BubbleMenu.Button(new BitmapDrawable(resources,
+                    BitmapFactory.decodeResource(resources,
+                            R.drawable.ghost_revive)));
+            PointF topLeft = getMostTopLeftPoint();
+            Rect position = new Rect((int) FloatMath.ceil(topLeft.x
+                    - buttonSize),
+                    (int) FloatMath.ceil(topLeft.y - buttonSize),
+                    (int) FloatMath.floor(topLeft.x),
+                    (int) FloatMath.floor(topLeft.y));
+            RectF hitArea = new RectF(position);
+            hitArea.inset(-buttonSize * 0.5f, -buttonSize * 0.5f);
+            ghostRevive.setPosition(position, hitArea);
+        } else {
+            ghostUntil = -1;
+        }
+        return this;
+    }
+
+    /**
+     * Returns whether this stroke is currently marked as a ghost stroke.
+     * 
+     * <p>
+     * Ghost strokes are strokes that were the outer border of a temporary scrap
+     * that was deselected without the user having done anything with the temp
+     * scrap. They are displayed with a low opacity and can be restored to
+     * regular strokes by pressing a button that pops up as soon as the temp
+     * scrap is deselected.
+     * 
+     * <p>
+     * If users interact with the originary temp scrap, ghost strokes are
+     * immediately deleted to avoid polluting the screen for no reason: the
+     * purpose of ghost strokes is to let users recover from accidentally
+     * hitting the landing zone and creating a selection, whereas a regular
+     * stroke was meant to be drawn.
+     * 
+     * <p>
+     * After some time, ghost strokes disappear and cannot be recovered anymore.
+     * At that time, this method starts returning <code>false</code>.
+     * 
+     * @return <code>true</code> if this stroke is currently marked as a ghost
+     */
+    public boolean isGhost() {
+        return ghostUntil > -1;
+    }
+
+    /**
+     * If the ghost button associated with this stroke must be triggered when
+     * the argument point is touched it returns a reference to this stroke,
+     * otherwise the method returns <code>null</code>.
+     * 
+     * @param touchPoint
+     *            the touched point
+     * @return this stroke if its ghost revive button should be triggered,
+     *         <code>null</code> otherwise
+     */
+    Stroke ghostButtonTouched(PointF touchPoint) {
+        return ghostRevive != null && ghostRevive.contains(touchPoint) ? this
+                : null;
+    }
+
+    private PointF getMostTopLeftPoint() {
+        float min = Float.MAX_VALUE;
+        PointF topLeft = null;
+        for (PointF point : points) {
+            float value = 1.7f * point.x + point.y;
+            if (value < min) {
+                min = value;
+                topLeft = point;
+            }
+        }
+        return topLeft;
+    }
+
+    /**
      * Applies the argument transformation matrix to this stroke.
      * 
      * @param matrix
@@ -399,10 +546,32 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      *            the paint with which this stroke must be drawn
      */
     public void draw(Canvas canvas, Paint paint) {
-        paint.setColor(color);
-        paint.setStrokeWidth(strokeWidth);
-        paint.setStyle(style);
-        canvas.drawPath(path, paint);
+        if (ghostUntil > 0) {
+            drawGhost(canvas);
+        } else {
+            paint.setColor(color);
+            paint.setStrokeWidth(strokeWidth);
+            paint.setStyle(style);
+            canvas.drawPath(path, paint);
+        }
+    }
+
+    private void drawGhost(Canvas canvas) {
+        GHOST_PAINT.setColor(color);
+        GHOST_PAINT.setAlpha(ghostOpacity);
+        GHOST_PAINT.setStrokeWidth(strokeWidth);
+        GHOST_PAINT.setStyle(style);
+        canvas.drawPath(path, GHOST_PAINT);
+        long now = System.currentTimeMillis();
+        ghostRevive.draw(canvas, ghostOpacity);
+        if (now > ghostUntil) {
+            toBeDeleted = true;
+            ghostRevive = null;
+        } else if (now > ghostUntil - GHOST_FADEOUT_TIME) {
+            // update alpha to show fadeout
+            ghostOpacity = (int) Math
+                    .floor((((double) GHOST_PAINT_START_OPACITY / GHOST_FADEOUT_TIME) * (ghostUntil - now)));
+        }
     }
 
     /*

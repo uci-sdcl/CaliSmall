@@ -6,7 +6,7 @@
     <string name="cancel">Cancel</string>
     <string name="save_dialog_title">Save</string>
     <string name="save_dialog_message">Choose a file name for your project</string>
-    <string name="file_saved">Sketch %1$s was saved</string>
+    <string name="file_saved">Sketch \"%1$s\" was saved</string>
     <string name="ok">Ok</string>
     <string name="unnamed_files">Unnamed Sketch</string>
     <string name="save_dialog_fail_title">Error</string>

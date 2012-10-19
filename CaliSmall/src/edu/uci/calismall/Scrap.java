@@ -28,6 +28,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.shapes.RoundRectShape;
 import android.view.View;
+import edu.uci.calismall.CaliSmall.CaliView;
 
 /**
  * A Calico scrap.
@@ -636,11 +637,15 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * anymore. The bitmap snapshot created to be shown while editing this scrap
      * is dropped and will only be recreated if the scrap is selected and edited
      * once again.
+     * 
+     * @return a stroke that must be added to the list of strokes kept by
+     *         {@link CaliView}, is not <code>null</code> only for temp scraps
      */
-    public void deselect() {
+    public Stroke deselect() {
         this.selected = false;
         // free up some space
         snapshot = null;
+        return null;
     }
 
     /**
@@ -908,6 +913,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
 
         private static final Paint HIGHLIGHT_PAINT = new Paint();
         private float dashInterval, pathPhase;
+        private boolean dontTurnIntoGhost;
 
         static {
             HIGHLIGHT_PAINT.setAntiAlias(true);
@@ -1049,13 +1055,21 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             canvas.drawPath(outerBorder.getPath(), TEMP_BORDER_PAINT);
         }
 
+        /**
+         * Prevents this temp scrap's outer border from becoming a ghost upon
+         * deselection.
+         */
+        public void dontTurnIntoGhost() {
+            dontTurnIntoGhost = true;
+        }
+
         /*
          * (non-Javadoc)
          * 
          * @see edu.uci.calismall.Scrap#deselect()
          */
         @Override
-        public void deselect() {
+        public Stroke deselect() {
             super.deselect();
             // remove link to child scraps, rollback
             for (Scrap scrap : scraps) {
@@ -1066,6 +1080,9 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                 if (stroke.previousParent != null)
                     ((Scrap) stroke.previousParent).add(stroke);
             }
+            if (dontTurnIntoGhost)
+                return null;
+            return outerBorder;
         }
 
     }

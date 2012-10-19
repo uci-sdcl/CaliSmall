@@ -340,7 +340,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
         List<T> elementsToRemove = new ArrayList<T>();
         for (Iterator<T> iterator = deleteList.iterator(); iterator.hasNext();) {
             T next = iterator.next();
-            if (next.hasToBeDeleted()) {
+            if (next.toBeDeleted) {
                 iterator.remove();
                 elementsToRemove.add(next);
             }

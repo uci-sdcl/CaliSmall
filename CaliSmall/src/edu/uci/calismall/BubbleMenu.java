@@ -115,20 +115,68 @@ public class BubbleMenu {
 
         private final BitmapDrawable scaledButton;
         private final Rect position;
+        private final RectF hitArea;
         private ButtonListener listener;
 
-        private Button(BitmapDrawable bitmap) {
+        /**
+         * Creates a new button.
+         * 
+         * @param bitmap
+         *            the bitmap that will be drawn
+         */
+        Button(BitmapDrawable bitmap) {
             scaledButton = bitmap;
             position = new Rect();
+            hitArea = new RectF();
         }
 
-        private void draw(Canvas canvas) {
+        /**
+         * Draws this button on the argument <tt>canvas</tt>.
+         * 
+         * @param canvas
+         *            the canvas onto which this button will be drawn
+         * @param alpha
+         *            the alpha to set to the button
+         */
+        void draw(Canvas canvas, int alpha) {
             scaledButton.setBounds(position);
+            if (alpha > -1) {
+                scaledButton.setAlpha(alpha);
+            }
             scaledButton.draw(canvas);
+        }
+
+        /**
+         * Returns whether this button contains the argument point.
+         * 
+         * @param point
+         *            the point to be tested
+         * @return <code>true</code> if the <tt>(x, y)</tt> point is within this
+         *         button's coordinates
+         */
+        boolean contains(PointF point) {
+            return hitArea.contains(Math.round(point.x), Math.round(point.y));
         }
 
         private boolean contains(int x, int y) {
             return position.contains(x, y);
+        }
+
+        /**
+         * Sets this button's position.
+         * 
+         * <p>
+         * Not to be used from within <tt>BubbleMenu</tt> class.
+         * 
+         * @param position
+         *            this button's position
+         * @param hitArea
+         *            the area that triggers this button
+         */
+        void setPosition(Rect position, RectF hitArea) {
+            this.position.set(position);
+            if (hitArea != null)
+                this.hitArea.set(hitArea);
         }
     }
 
@@ -251,6 +299,7 @@ public class BubbleMenu {
             // FIXME control should be moved outside
             Scrap newScrap = new Scrap(selected, false);
             view.addScrap(newScrap, false);
+            ((Scrap.Temp) selected).dontTurnIntoGhost();
             touched = null;
         }
         return true;
@@ -502,7 +551,7 @@ public class BubbleMenu {
      */
     public void draw(Canvas canvas) {
         for (Button button : buttons) {
-            button.draw(canvas);
+            button.draw(canvas, -1);
         }
     }
 
@@ -595,6 +644,15 @@ public class BubbleMenu {
         erase.position.bottom = bottomRight.position.bottom;
         // TODO add scrap_list here
         // TODO add scrap_drop here
+    }
+
+    /**
+     * Returns the current size for buttons.
+     * 
+     * @return the current button size
+     */
+    float getButtonSize() {
+        return bSize;
     }
 
     private void applySizeConstraints() {

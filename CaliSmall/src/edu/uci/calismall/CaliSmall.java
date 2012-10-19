@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -312,7 +313,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public class CaliView extends SurfaceView implements SurfaceHolder.Callback {
 
         private static final int INVALID_POINTER_ID = -1;
-        private final PathMeasure pathMeasure;
         // a list of strokes kept in chronological order (oldest first)
         private final List<Stroke> strokes;
         // a list of scraps kept in chronological order (oldest first)
@@ -322,34 +322,40 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private Thread worker;
         private Scrap selected, previousSelection, newSelection, toBeRemoved,
                 tempScrap;
-        private List<Stroke> newStrokes;
-        private List<Scrap> newScraps;
+        private final List<Stroke> newStrokes;
+        private final List<Stroke> ghosts;
+        private final List<Scrap> newScraps;
+        private final ScaleListener scaleListener;
+        private PathMeasure pathMeasure;
         private boolean zoomingOrPanning, running, mustShowLandingZone,
                 strokeAdded, mustClearCanvas, bubbleMenuShown,
                 mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu,
                 longPressed, mustShowLongPressCircle, skipEvents, didSomething;
         private PointF landingZoneCenter;
+        private Stroke redirectedGhost;
         private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
                 screenHeight;
 
         private CaliView(CaliSmall c) {
             super(c);
             longPressAction = new LongPressAction(c);
-            getHolder().addCallback(this);
             strokes = new ArrayList<Stroke>();
             scraps = new ArrayList<Scrap>();
             newStrokes = new ArrayList<Stroke>();
+            ghosts = new ArrayList<Stroke>();
             newScraps = new ArrayList<Scrap>();
-            scaleDetector = new ScaleGestureDetector(c, new ScaleListener());
-            pathMeasure = new PathMeasure();
-            landingZoneCenter = new PointF();
+            scaleListener = new ScaleListener();
+            scaleDetector = new ScaleGestureDetector(c, scaleListener);
+            reset(c);
+            getHolder().addCallback(this);
         }
 
         private void reset(CaliSmall c) {
             longPressAction = new LongPressAction(c);
-            newStrokes = new ArrayList<Stroke>();
-            newScraps = new ArrayList<Scrap>();
-            scaleDetector = new ScaleGestureDetector(c, new ScaleListener());
+            newStrokes.clear();
+            newScraps.clear();
+            ghosts.clear();
+            pathMeasure = new PathMeasure();
             landingZoneCenter = new PointF();
             strokes.clear();
             scraps.clear();
@@ -396,7 +402,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 } else {
                     // canvas.drawPath(canvasBounds, borderPaint);
                     maybeDrawLandingZone(canvas);
-                    deleteSelected();
+                    deleteElements();
                     maybeCreateBubbleMenu();
                     drawTempScrap(canvas);
                     addNewStrokesAndScraps();
@@ -426,7 +432,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private void drawLongPressAnimation(Canvas canvas) {
             landingZoneCircleSweepAngle += ABS_CIRCLE_SWEEP_INCREMENT;
             canvas.drawArc(longPressCircleBounds, CIRCLE_SWEEP_START,
-                    landingZoneCircleSweepAngle, false, longPressCirclePaint);
+                    landingZoneCircleSweepAngle, false, LONG_PRESS_CIRCLE_PAINT);
             if (landingZoneCircleSweepAngle >= 360) {
                 longPressAction.reset(true);
             }
@@ -452,7 +458,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private void drawStrokes(Canvas canvas) {
             for (Stroke stroke : strokes) {
                 if (stroke.hasToBeDrawnVectorially())
-                    stroke.draw(canvas, paint);
+                    stroke.draw(canvas, PAINT);
             }
         }
 
@@ -464,7 +470,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
         private void drawNewStroke(Canvas canvas) {
             if (!strokeAdded) {
-                stroke.draw(canvas, paint);
+                stroke.draw(canvas, PAINT);
                 strokes.add(stroke);
                 Stroke.SPACE_OCCUPATION_LIST.add(stroke);
                 strokeAdded = true;
@@ -474,7 +480,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private void maybeDrawLandingZone(Canvas canvas) {
             if (mustShowLandingZone) {
                 canvas.drawCircle(landingZoneCenter.x, landingZoneCenter.y,
-                        landingZoneRadius, landingZonePaint);
+                        landingZoneRadius, LANDING_ZONE_PAINT);
             }
         }
 
@@ -505,7 +511,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             return null;
         }
 
-        private void deleteSelected() {
+        private void deleteElements() {
             if (toBeRemoved != null) {
                 toBeRemoved.erase();
                 mustShowBubbleMenu = false;
@@ -515,6 +521,13 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     Stroke.SPACE_OCCUPATION_LIST);
             CaliSmallElement.deleteMarkedFromList(scraps,
                     Scrap.SPACE_OCCUPATION_LIST);
+            for (Iterator<Stroke> iterator = ghosts.iterator(); iterator
+                    .hasNext();) {
+                Stroke next = iterator.next();
+                if (next.hasToBeDeleted() || !next.isGhost()) {
+                    iterator.remove();
+                }
+            }
         }
 
         private void longPress(Stroke selected) {
@@ -557,8 +570,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
          *            if there shouldn't be any scrap selected
          */
         public void setSelected(Scrap selected) {
-            if (this.selected != null && selected != this.selected)
-                this.selected.deselect();
+            if (this.selected != null && selected != this.selected) {
+                Stroke outerBorder = this.selected.deselect();
+                if (outerBorder != null) {
+                    outerBorder.setGhost(true, getResources(),
+                            bubbleMenu.getButtonSize());
+                    newStrokes.add(outerBorder);
+                    ghosts.add(outerBorder);
+                }
+            }
             if (selected != null) {
                 bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
                         screenBounds);
@@ -622,7 +642,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             if (zoomingOrPanning) {
                 handleZoomingPanningEvent(event, action);
             } else {
-                if (redirectingToBubbleMenu) {
+                if (redirectedGhost != null) {
+                    skipEvents = true;
+                } else if (redirectingToBubbleMenu) {
                     if (onTouchBubbleMenuShown(action,
                             adjustForZoom(event.getX(), event.getY()))) {
                         // action has been handled by the bubble menu
@@ -713,6 +735,13 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             mustShowLandingZone = false;
             mActivePointerId = event.findPointerIndex(0);
             longPressed = false;
+            for (Stroke ghost : ghosts) {
+                Stroke touched = ghost.ghostButtonTouched(adjusted);
+                if (touched != null) {
+                    redirectedGhost = ghost;
+                    return;
+                }
+            }
             if (bubbleMenuShown) {
                 if (onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
                     // a button was touched, redirect actions to bubble menu
@@ -753,6 +782,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 final int pointerIndex = event
                         .findPointerIndex(mActivePointerId);
                 mActivePointerId = INVALID_POINTER_ID;
+                if (redirectedGhost != null) {
+                    redirectedGhost.setGhost(false, getResources(), 0f);
+                    redirectedGhost = null;
+                    return;
+                }
                 if (longPressAction.completed) {
                     stroke.reset();
                     createNewStroke();
@@ -887,10 +921,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
         private void onPointerDown(MotionEvent event) {
             longPressListener.removeCallbacks(longPressAction);
+            if (!ghosts.isEmpty()) {
+                Stroke ghost = ghosts.remove(ghosts.size() - 1);
+                ghost.setGhost(false, null, 0f);
+                ghost.toBeDeleted = true;
+            }
             bubbleMenuShown = false;
             mustShowLandingZone = false;
             stroke.reset();
-            setSelected(null);
+            redirectingToBubbleMenu = false;
             scaleDetector.onTouchEvent(event);
             zoomingOrPanning = true;
         }
@@ -921,6 +960,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         @Override
         public void surfaceChanged(SurfaceHolder holder, int format, int width,
                 int height) {
+            setBounds(width, height);
+        }
+
+        private void setBounds(int width, int height) {
             screenWidth = width;
             screenHeight = height;
             updateBounds();
@@ -1054,7 +1097,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         public void onScaleEnd(ScaleGestureDetector detector) {
             // rescale paint brush and connect circle
             stroke.setStrokeWidth(ABS_STROKE_WIDTH / scaleFactor);
-            longPressCirclePaint.setStrokeWidth(stroke.getStrokeWidth() * 2);
+            LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(stroke.getStrokeWidth() * 2);
             landingZoneRadius = ABS_LANDING_ZONE_RADIUS / scaleFactor;
             minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
                     / scaleFactor;
@@ -1066,7 +1109,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             maxStrokeDistanceForLongPress = ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS
                     / scaleFactor;
             final float newInterval = ABS_LANDING_ZONE_INTERVAL / scaleFactor;
-            landingZonePaint.setPathEffect(new DashPathEffect(new float[] {
+            LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
                     newInterval, newInterval }, (float) 1.0));
             updateBounds();
         }
@@ -1076,23 +1119,19 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * Tag used for the whole application in LogCat files.
      */
     public static final String TAG = "CaliSmall";
-
     /**
      * Absolute {@link Stroke} width (to be rescaled by {@link #scaleFactor}).
      */
     public static final int ABS_STROKE_WIDTH = 3;
-
     /**
      * The amount of time (in milliseconds) before the long pressure animation
      * is shown.
      */
     public static final long LONG_PRESS_DURATION = 300;
-
     /**
      * Time in milliseconds after which the landing zone can be shown.
      */
     public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
-
     /**
      * Time in milliseconds between two consecutive screen refreshes (i.e. two
      * consecutive calls to {@link CaliView#drawView(Canvas, boolean)}). To get
@@ -1100,7 +1139,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
      */
     public static final long SCREEN_REFRESH_TIME = 20;
-
     /**
      * Absolute radius for landing zones (to be rescaled by {@link #scaleFactor}
      * ).
@@ -1166,6 +1204,36 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * The maximum zoom level that users can reach
      */
     static final float MAX_ZOOM = 4f;
+    /**
+     * The paint object that is used to draw all strokes with.
+     * 
+     * <p>
+     * Every {@link Stroke} stores values for how this <tt>Paint</tt> object
+     * should be modified before actually drawing it, including the stroke
+     * width, color and fill type. These are set in the
+     * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
+     */
+    static final Paint PAINT = new Paint();
+    /**
+     * The paint object that is used to draw landing zones with.
+     * 
+     * <p>
+     * The dotted effect is obtained by constantly updating the length of the
+     * segments according to the zoom level.
+     */
+    static final Paint LANDING_ZONE_PAINT = new Paint();
+    /**
+     * The paint object that is used to draw the circle animation whenever users
+     * press-and-hold in the proximity of a stroke.
+     */
+    static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
+
+    private static final String FILE_EXTENSION = ".csf";
+    private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
+            "yyyy-MM-dd HH:mm:ss");
+    private static final long AUTO_SAVE_TIME = 20 * 1000,
+            AUTO_BACKUP_TIME = 3 * 60 * 1000;
+    private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 50 * 1024;
 
     /*************************************************************************
      * DISCLAIMER FOR THE READER
@@ -1256,29 +1324,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     Matrix matrix;
     /**
-     * The paint object that is used to draw all strokes with.
-     * 
-     * <p>
-     * Every {@link Stroke} stores values for how this <tt>Paint</tt> object
-     * should be modified before actually drawing it, including the stroke
-     * width, color and fill type. These are set in the
-     * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
-     */
-    Paint paint;
-    /**
-     * The paint object that is used to draw landing zones with.
-     * 
-     * <p>
-     * The dotted effect is obtained by constantly updating the length of the
-     * segments according to the zoom level.
-     */
-    Paint landingZonePaint;
-    /**
-     * The paint object that is used to draw the circle animation whenever users
-     * press-and-hold in the proximity of a stroke.
-     */
-    Paint longPressCirclePaint;
-    /**
      * The detector that handles all multi-touch events.
      */
     ScaleGestureDetector scaleDetector;
@@ -1294,7 +1339,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * All quantities must be divided by this scale factor in order to be scaled
      * accordingly to the current zoom level.
      */
-    float scaleFactor = 1.f;
+    float scaleFactor;
     /**
      * The current scale factor, in display coordinates.
      * 
@@ -1304,7 +1349,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * stores the current zoom level, which is the combination of all
      * <tt>dScaleFactor</tt> applied thus far.
      */
-    float dScaleFactor = 1.f;
+    float dScaleFactor;
     /**
      * The X-center of a 2-fingers gesture, in display coordinates.
      * 
@@ -1362,19 +1407,19 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     /**
      * The radius of the circle that represents the landing zone.
      */
-    float landingZoneRadius = ABS_LANDING_ZONE_RADIUS;
+    float landingZoneRadius;
     /**
      * The minimum length that a {@link Stroke} must reach before the landing
      * zone is displayed over it (letting that <tt>Stroke</tt> be used to create
      * a {@link Temp}). The value is squared to speed up comparison with
      * Euclidean distances.
      */
-    float minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE;
+    float minPathLengthForLandingZone;
     /**
      * The offset at which the landing zone is shown, starting from the first
      * point of the {@link Stroke}.
      */
-    float landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET;
+    float landingZonePathOffset;
     /**
      * The maximum size that the area enclosed within a {@link Stroke} can reach
      * while still being considered a tap.
@@ -1387,17 +1432,17 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * {@link MotionEvent#ACTION_UP} with no {@link MotionEvent#ACTION_MOVE} in
      * between, it's simply a stroke whose size falls within this threshold.
      */
-    float touchThreshold = ABS_TOUCH_THRESHOLD;
+    float touchThreshold;
     /**
      * The minimum amount of pixels between two touch events (when events are
      * closer to each other than this value only the first is considered).
      */
-    float touchTolerance = ABS_TOUCH_TOLERANCE;
+    float touchTolerance;
     /**
      * The width/height of the rectangle enclosing the landing zone circle that
      * is shown on long presses.
      */
-    float landingZoneCircleBoundsSize = ABS_CIRCLE_BOUNDS_HALF_SIZE;
+    float landingZoneCircleBoundsSize;
     /**
      * The last angle that was used to draw the landing zone circle.
      * 
@@ -1413,13 +1458,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * recognition. The value is squared to speed up comparison with Euclidean
      * distances.
      */
-    float maxStrokeDistanceForLongPress = ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS;
-    private static final String FILE_EXTENSION = ".csf";
-    private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
-            "yyyy-MM-dd HH:mm:ss");
-    private static final long AUTO_SAVE_TIME = 20 * 1000,
-            AUTO_BACKUP_TIME = 3 * 60 * 1000;
-    private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 50 * 1024;
+    float maxStrokeDistanceForLongPress;
     private String[] fileList;
     private String chosenFile, autoSaveName, tmpSnapshotName;
     private EditText input;
@@ -1429,16 +1468,32 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private Timer autoSaverTimer;
     private boolean userPickedANewName;
 
+    static {
+        PAINT.setAntiAlias(true);
+        PAINT.setDither(true);
+        PAINT.setStrokeJoin(Paint.Join.ROUND);
+        PAINT.setStrokeCap(Paint.Cap.ROUND);
+        LONG_PRESS_CIRCLE_PAINT.setAntiAlias(true);
+        LONG_PRESS_CIRCLE_PAINT.setDither(true);
+        LONG_PRESS_CIRCLE_PAINT.setStrokeJoin(Paint.Join.ROUND);
+        LONG_PRESS_CIRCLE_PAINT.setStrokeCap(Paint.Cap.ROUND);
+        LONG_PRESS_CIRCLE_PAINT.setStyle(Style.STROKE);
+        LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_STROKE_WIDTH * 2);
+        LONG_PRESS_CIRCLE_PAINT.setColor(Color.RED);
+        LANDING_ZONE_PAINT.setColor(Color.BLACK);
+        LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
+                ABS_LANDING_ZONE_INTERVAL, ABS_LANDING_ZONE_INTERVAL },
+                (float) 1.0));
+        LANDING_ZONE_PAINT.setStyle(Style.STROKE);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         view = new CaliView(this);
-        matrix = new Matrix();
-        screenBounds = new RectF();
-        setContentView(view);
-        initPaintObjects();
-        view.createNewStroke();
         bubbleMenu = new BubbleMenu(this);
+        reset();
+        setContentView(view);
         autoSaveName = getResources().getString(R.string.unnamed_files);
         fileNameFilter = new FilenameFilter() {
 
@@ -1518,28 +1573,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             if (chosenFile == null)
                 newProject();
         }
-    }
-
-    private void initPaintObjects() {
-        paint = new Paint();
-        paint.setAntiAlias(true);
-        paint.setDither(true);
-        paint.setStrokeJoin(Paint.Join.ROUND);
-        paint.setStrokeCap(Paint.Cap.ROUND);
-        longPressCirclePaint = new Paint();
-        longPressCirclePaint.setAntiAlias(true);
-        longPressCirclePaint.setDither(true);
-        longPressCirclePaint.setStrokeJoin(Paint.Join.ROUND);
-        longPressCirclePaint.setStrokeCap(Paint.Cap.ROUND);
-        longPressCirclePaint.setStyle(Style.STROKE);
-        longPressCirclePaint.setStrokeWidth(ABS_STROKE_WIDTH * 2);
-        longPressCirclePaint.setColor(Color.RED);
-        landingZonePaint = new Paint();
-        landingZonePaint.setColor(Color.BLACK);
-        landingZonePaint.setPathEffect(new DashPathEffect(new float[] {
-                ABS_LANDING_ZONE_INTERVAL, ABS_LANDING_ZONE_INTERVAL },
-                (float) 1.0));
-        landingZonePaint.setStyle(Style.STROKE);
     }
 
     private void restartAutoSaving() {
@@ -2025,6 +2058,34 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return json;
     }
 
+    private void reset() {
+        matrix = new Matrix();
+        Stroke.SPACE_OCCUPATION_LIST.clear();
+        Scrap.SPACE_OCCUPATION_LIST.clear();
+        screenBounds = new RectF();
+        longPressCircleBounds = new RectF();
+        activeStroke = null;
+        actionStart = 0;
+        scaleFactor = 1.f;
+        dScaleFactor = 1.f;
+        dCenterX = 0;
+        dCenterY = 0;
+        previousScaledCenterX = 0;
+        previousScaledCenterY = 0;
+        translateX = 0;
+        translateY = 0;
+        canvasOffsetX = 0;
+        canvasOffsetY = 0;
+        landingZoneCircleSweepAngle = 0;
+        int height = view.screenHeight;
+        int width = view.screenWidth;
+        view.reset(this);
+        view.setBounds(width, height);
+        stroke = null;
+        view.createNewStroke();
+        view.scaleListener.onScaleEnd(scaleDetector);
+    }
+
     /*
      * (non-Javadoc)
      * 
@@ -2032,11 +2093,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     @Override
     public CaliSmall fromJSON(JSONObject jsonData) throws JSONException {
-        matrix = new Matrix();
-        initPaintObjects();
-        view.reset(this);
-        Stroke.SPACE_OCCUPATION_LIST.clear();
-        Scrap.SPACE_OCCUPATION_LIST.clear();
+        reset();
         JSONArray array = jsonData.getJSONArray("strokes");
         for (int i = 0; i < array.length(); i++) {
             Stroke stroke = new Stroke();
