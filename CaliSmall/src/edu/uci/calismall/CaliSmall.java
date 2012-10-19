@@ -230,11 +230,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         @Override
         protected void onPostExecute(Void result) {
             dialog.dismiss();
-            // String fileName = toBeLoaded.getName();
-            // if (fileName.endsWith(FILE_EXTENSION)) {
-            // fileName = fileName.substring(0,
-            // fileName.lastIndexOf(FILE_EXTENSION));
-            // }
             parent.setTitle("CaliSmall - " + parent.chosenFile);
         }
 
@@ -326,6 +321,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private final List<Stroke> ghosts;
         private final List<Scrap> newScraps;
         private final ScaleListener scaleListener;
+        private Stroke latestGhost;
         private PathMeasure pathMeasure;
         private boolean zoomingOrPanning, running, mustShowLandingZone,
                 strokeAdded, mustClearCanvas, bubbleMenuShown,
@@ -573,7 +569,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             if (this.selected != null && selected != this.selected) {
                 Stroke outerBorder = this.selected.deselect();
                 if (outerBorder != null) {
-                    outerBorder.setGhost(true, getResources(),
+                    outerBorder.setGhost(true, screenBounds, getResources(),
                             bubbleMenu.getButtonSize());
                     newStrokes.add(outerBorder);
                     ghosts.add(outerBorder);
@@ -776,14 +772,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             mustShowLandingZone = false;
             longPressListener.removeCallbacks(longPressAction);
             skipEvents = false;
-            if (zoomingOrPanning) {
-                setSelected(previousSelection);
-            } else {
+            if (!zoomingOrPanning) {
                 final int pointerIndex = event
                         .findPointerIndex(mActivePointerId);
                 mActivePointerId = INVALID_POINTER_ID;
                 if (redirectedGhost != null) {
-                    redirectedGhost.setGhost(false, getResources(), 0f);
+                    redirectedGhost.setGhost(false, null, null, 0f);
                     redirectedGhost = null;
                     return;
                 }
@@ -922,9 +916,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private void onPointerDown(MotionEvent event) {
             longPressListener.removeCallbacks(longPressAction);
             if (!ghosts.isEmpty()) {
-                Stroke ghost = ghosts.remove(ghosts.size() - 1);
-                ghost.setGhost(false, null, 0f);
-                ghost.toBeDeleted = true;
+                latestGhost = ghosts.remove(ghosts.size() - 1);
+                latestGhost.setGhost(false, null, null, 0f);
+                latestGhost.toBeDeleted = true;
             }
             bubbleMenuShown = false;
             mustShowLandingZone = false;
@@ -1112,6 +1106,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
                     newInterval, newInterval }, (float) 1.0));
             updateBounds();
+            if (view.latestGhost != null)
+                view.latestGhost.toBeDeleted = false;
+            view.setSelected(view.previousSelection);
         }
     }
 
@@ -1463,7 +1460,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private String chosenFile, autoSaveName, tmpSnapshotName;
     private EditText input;
     private FilenameFilter fileNameFilter;
-    private AlertDialog saveDialog, loadDialog;
+    private AlertDialog saveDialog, loadDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
     private Timer autoSaverTimer;
     private boolean userPickedANewName;
@@ -1528,7 +1525,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                            .setTitle(R.string.save_dialog_title)
 		                            .setMessage(R.string.save_dialog_message)
 		                            .setView(input)
-		                            .setPositiveButton(R.string.ok,
+		                            .setPositiveButton(android.R.string.ok,
 		                                    new DialogInterface.OnClickListener() {
 		                                        public void onClick(DialogInterface dialog, int whichButton) {
 		                                            String name = input.getText().toString();
@@ -1538,12 +1535,26 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                                            setTitle(chosenFile);
 		                                        }
 		                            })
-		                            .setNegativeButton(R.string.cancel,
+		                            .setNegativeButton(android.R.string.cancel,
 		                                    new DialogInterface.OnClickListener() {
 		                                        public void onClick(DialogInterface dialog, int whichButton) {
 		                                            // Canceled.
 		                                        }
 		                            }).create();
+        deleteDialog = new AlertDialog.Builder(this)
+        .setTitle(R.string.delete_dialog_title)
+        .setPositiveButton(android.R.string.yes,
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        delete();
+                    }
+        })
+        .setNegativeButton(android.R.string.no,
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        // Canceled.
+                    }
+        }).create();
 		// @formatter:on
         final Intent intent = getIntent();
         if (intent != null) {
@@ -1717,14 +1728,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             new AlertDialog.Builder(this)
                     .setTitle(R.string.save_dialog_fail_title)
                     .setMessage(R.string.save_dialog_fail_message)
-                    .setPositiveButton(R.string.ok,
+                    .setPositiveButton(android.R.string.ok,
                             new DialogInterface.OnClickListener() {
                                 public void onClick(DialogInterface dialog,
                                         int whichButton) {
                                     saveInternal(input);
                                 }
                             })
-                    .setNegativeButton(R.string.cancel,
+                    .setNegativeButton(android.R.string.cancel,
                             new DialogInterface.OnClickListener() {
                                 public void onClick(DialogInterface dialog,
                                         int whichButton) {
@@ -1826,6 +1837,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         case R.id.share_snapshot:
             shareSnapshot();
             return true;
+        case R.id.delete:
+            deleteDialog.setMessage(String.format(
+                    getResources().getString(R.string.delete_dialog_message),
+                    chosenFile));
+            deleteDialog.show();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -1837,6 +1854,25 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         input.setText("");
         setTitle("CaliSmall - "
                 + getResources().getString(R.string.unnamed_files));
+    }
+
+    private void delete() {
+        fileList = null;
+        String fileName = chosenFile;
+        File path = getApplicationContext().getExternalFilesDir(null);
+        File newFile = new File(path, fileName + FILE_EXTENSION);
+        if (newFile.exists()) {
+            newFile.delete();
+            newFile = new File(path, "~" + fileName + FILE_EXTENSION);
+            if (newFile.exists())
+                newFile.delete();
+        }
+        fileList = initFileList();
+        loadNext();
+        Toast.makeText(
+                getApplicationContext(),
+                String.format(getResources().getString(R.string.delete_done),
+                        fileName), Toast.LENGTH_SHORT).show();
     }
 
     private void saveButtonClicked() {

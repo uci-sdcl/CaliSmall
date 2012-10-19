@@ -53,18 +53,19 @@
         android:showAsAction="ifRoom"
         android:title="Clear">
     </item>
-    <item
+    <item android:id="@+id/share" android:orderInCategory="6" android:showAsAction="ifRoom" android:title="Share..." android:menuCategory="secondary">
+    </item><item android:id="@+id/share_snapshot" android:menuCategory="secondary" android:title="Share snapshot..." android:orderInCategory="7" android:showAsAction="ifRoom"></item><item
         android:id="@+id/log"
         android:alphabeticShortcut="l"
         android:menuCategory="secondary"
-        android:orderInCategory="6"
+        android:orderInCategory="8"
         android:title="Print Log">
     </item>
     <item
         android:id="@+id/save"
         android:alphabeticShortcut="s"
         android:menuCategory="secondary"
-        android:orderInCategory="7"
+        android:orderInCategory="9"
         android:title="Save…">
     </item>
     <item
@@ -72,16 +73,12 @@
         android:alphabeticShortcut="a"
         android:icon="@drawable/ic_new"
         android:menuCategory="secondary"
-        android:orderInCategory="8"
+        android:orderInCategory="10"
         android:showAsAction="ifRoom"
         android:title="New">
     </item>
-    <item
-        android:id="@+id/share"
-        android:orderInCategory="9"
-        android:showAsAction="ifRoom"
-        android:title="Share..." android:menuCategory="secondary">
-    </item>
-    <item android:id="@+id/share_snapshot" android:menuCategory="secondary" android:title="Share snapshot..." android:orderInCategory="10" android:showAsAction="ifRoom"></item>
+    
+    
+    <item android:id="@+id/delete" android:orderInCategory="11" android:menuCategory="secondary" android:showAsAction="ifRoom" android:title="Delete"></item>
 
 </menu>

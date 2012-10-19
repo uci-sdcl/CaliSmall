@@ -26,7 +26,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
-import android.util.FloatMath;
 import android.view.View;
 import edu.uci.calismall.Scrap.Temp;
 
@@ -360,6 +359,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * 
      * @param isGhost
      *            whether this stroke is to be set as a ghost
+     * @param screenBounds
+     *            the current screen bounds
      * @param resources
      *            the resources to load the ghost revive bitmap from
      * @param buttonSize
@@ -367,8 +368,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * 
      * @return this stroke
      */
-    public Stroke setGhost(boolean isGhost, Resources resources,
-            float buttonSize) {
+    public Stroke setGhost(boolean isGhost, RectF screenBounds,
+            Resources resources, float buttonSize) {
         if (isGhost) {
             ghostUntil = System.currentTimeMillis() + GHOST_TIME
                     + GHOST_FADEOUT_TIME;
@@ -376,11 +377,10 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
                     BitmapFactory.decodeResource(resources,
                             R.drawable.ghost_revive)));
             PointF topLeft = getMostTopLeftPoint();
-            Rect position = new Rect((int) FloatMath.ceil(topLeft.x
-                    - buttonSize),
-                    (int) FloatMath.ceil(topLeft.y - buttonSize),
-                    (int) FloatMath.floor(topLeft.x),
-                    (int) FloatMath.floor(topLeft.y));
+            float left = Math.max(screenBounds.left, topLeft.x - buttonSize);
+            float top = Math.max(screenBounds.top, topLeft.y - buttonSize);
+            Rect position = new Rect((int) left, (int) top,
+                    (int) (left + buttonSize), (int) (top + buttonSize));
             RectF hitArea = new RectF(position);
             hitArea.inset(-buttonSize * 0.5f, -buttonSize * 0.5f);
             ghostRevive.setPosition(position, hitArea);
@@ -557,20 +557,22 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     private void drawGhost(Canvas canvas) {
-        GHOST_PAINT.setColor(color);
-        GHOST_PAINT.setAlpha(ghostOpacity);
-        GHOST_PAINT.setStrokeWidth(strokeWidth);
-        GHOST_PAINT.setStyle(style);
-        canvas.drawPath(path, GHOST_PAINT);
-        long now = System.currentTimeMillis();
-        ghostRevive.draw(canvas, ghostOpacity);
-        if (now > ghostUntil) {
-            toBeDeleted = true;
-            ghostRevive = null;
-        } else if (now > ghostUntil - GHOST_FADEOUT_TIME) {
-            // update alpha to show fadeout
-            ghostOpacity = (int) Math
-                    .floor((((double) GHOST_PAINT_START_OPACITY / GHOST_FADEOUT_TIME) * (ghostUntil - now)));
+        if (ghostRevive != null) {
+            GHOST_PAINT.setColor(color);
+            GHOST_PAINT.setAlpha(ghostOpacity);
+            GHOST_PAINT.setStrokeWidth(strokeWidth);
+            GHOST_PAINT.setStyle(style);
+            canvas.drawPath(path, GHOST_PAINT);
+            long now = System.currentTimeMillis();
+            ghostRevive.draw(canvas, ghostOpacity);
+            if (now > ghostUntil) {
+                toBeDeleted = true;
+                ghostRevive = null;
+            } else if (now > ghostUntil - GHOST_FADEOUT_TIME) {
+                // update alpha to show fadeout
+                ghostOpacity = (int) Math
+                        .floor((((double) GHOST_PAINT_START_OPACITY / GHOST_FADEOUT_TIME) * (ghostUntil - now)));
+            }
         }
     }
 

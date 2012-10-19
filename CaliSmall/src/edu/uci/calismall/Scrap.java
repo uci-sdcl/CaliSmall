@@ -276,7 +276,8 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     public void addChildrenFromJSON() {
         if (scrapIDs != null) {
             for (String id : scrapIDs) {
-                scraps.add((Scrap) Scrap.SPACE_OCCUPATION_LIST.getById(id));
+                Scrap scrap = (Scrap) Scrap.SPACE_OCCUPATION_LIST.getById(id);
+                scraps.add(scrap);
             }
             scrapIDs = null;
         }
@@ -289,7 +290,8 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            the child scrap to be added to this scrap
      */
     public void add(Scrap scrap) {
-        scraps.add(scrap);
+        if (scrap != null && !scraps.contains(scrap))
+            scraps.add(scrap);
         scrap.parent = this;
         scrap.previousParent = null;
         // refresh the snapshot the next time!
@@ -1126,6 +1128,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             }
             json.put("strokes", array);
         }
+        array = new JSONArray();
         if (!scraps.isEmpty()) {
             for (int i = 0; i < scraps.size(); i++) {
                 array.put(scraps.get(i).id.toString());
