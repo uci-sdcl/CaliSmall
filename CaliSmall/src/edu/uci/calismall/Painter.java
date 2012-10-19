@@ -100,6 +100,7 @@ public class Painter implements Runnable {
         this.lock = lock;
         fileOpened = waitingCondition;
         drawingThreadWaiting = signalCondition;
+        waitForFileOpen = true;
     }
 
     /**

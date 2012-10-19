@@ -727,9 +727,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             lock.lock();
             Painter painter = view.getPainter();
             painter.stopForFileOpen(lock, fileOpened, drawingThreadWaiting);
-            while (!painter.isWaiting())
+            while (!painter.isWaiting()) {
                 drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
                         TimeUnit.MILLISECONDS);
+            }
             fromJSON(jsonData);
             fileOpened.signalAll();
         } catch (InterruptedException e) {
