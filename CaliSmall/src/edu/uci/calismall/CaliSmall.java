@@ -935,7 +935,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
 
         private boolean hasMovedEnough() {
-            return stroke.getWidth() + stroke.getHeight() > touchThreshold;
+            return stroke.getRectSize() > touchThreshold;
         }
 
         private boolean mustShowLandingZone() {

@@ -389,46 +389,6 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     }
 
     /**
-     * Returns the X-coordinate of the top left point of the rectangle enclosing
-     * this element.
-     * 
-     * @return the X position of the top left point
-     */
-    public float getXPos() {
-        return topLeftPoint.x;
-    }
-
-    /**
-     * Returns the Y-coordinate of the top left point of the rectangle enclosing
-     * this element.
-     * 
-     * @return the Y position of the top left point
-     */
-    public float getYPos() {
-        return topLeftPoint.y;
-    }
-
-    /**
-     * Returns the X-coordinate of the top left point of the rectangle that was
-     * enclosing this element before the last call to {@link #setArea(RectF)}.
-     * 
-     * @return the X position of the top left point
-     */
-    public float getPrevXPos() {
-        return previousTopLeftPoint.x;
-    }
-
-    /**
-     * Returns the Y-coordinate of the top left point of the rectangle that was
-     * enclosing this element before the last call to {@link #setArea(RectF)}.
-     * 
-     * @return the Y position of the top left point
-     */
-    public float getPrevYPos() {
-        return previousTopLeftPoint.y;
-    }
-
-    /**
      * Returns the parent element for this element
      * 
      * @return the parent, may be <code>null</code>
@@ -493,24 +453,6 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     public float getRectSize() {
         return width + height;
-    }
-
-    /**
-     * Returns the width of the rectangle enclosing this element.
-     * 
-     * @return the enclosing rectangle's width
-     */
-    public float getWidth() {
-        return width;
-    }
-
-    /**
-     * Returns the height of the rectangle enclosing this element.
-     * 
-     * @return the enclosing rectangle's height
-     */
-    public float getHeight() {
-        return height;
     }
 
     public String toString() {
