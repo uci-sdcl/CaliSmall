@@ -8,20 +8,15 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
@@ -29,51 +24,32 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
-import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.graphics.Bitmap;
-import android.graphics.Bitmap.Config;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.DashPathEffect;
-import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.Paint.Style;
-import android.graphics.Path;
-import android.graphics.PathMeasure;
 import android.graphics.Point;
 import android.graphics.PointF;
-import android.graphics.RectF;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.MotionEvent;
-import android.view.ScaleGestureDetector;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
-import edu.uci.calismall.Scrap.Temp;
 
 /**
  * A small version of Calico for Android devices.
@@ -85,102 +61,6 @@ import edu.uci.calismall.Scrap.Temp;
  * @author Michele Bonazza
  */
 public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
-
-    private class Worker implements Runnable {
-
-        private final SurfaceHolder holder;
-        private final CaliView view;
-
-        private Worker(SurfaceHolder holder, CaliView view) {
-            this.holder = holder;
-            this.view = view;
-        }
-
-        public void run() {
-            Canvas canvas = null;
-            long timer;
-            while (view.running) {
-                timer = -System.currentTimeMillis();
-                try {
-                    canvas = holder.lockCanvas();
-                    if (canvas != null)
-                        view.drawView(canvas, false);
-                } catch (IllegalArgumentException e) {
-                    // activity sent to bg, don't care
-                } finally {
-                    try {
-                        holder.unlockCanvasAndPost(canvas);
-                    } catch (IllegalArgumentException e) {
-                        // app has been minimized, don't care
-                    }
-                }
-                timer += System.currentTimeMillis();
-                if (timer < SCREEN_REFRESH_TIME) {
-                    try {
-                        Thread.sleep(SCREEN_REFRESH_TIME - timer);
-                    } catch (InterruptedException e) {
-                        // don't care, it'll be less fluid, big deal
-                        Log.d(TAG, "interrupted!");
-                    }
-                }
-            }
-        }
-    }
-
-    private static class LongPressAction implements Runnable {
-
-        private final CaliSmall parent;
-        private boolean completed;
-        private Stroke selected;
-
-        private LongPressAction(CaliSmall parent) {
-            this.parent = parent;
-        }
-
-        @Override
-        public void run() {
-            if (completed) {
-                if (!parent.view.hasMovedEnough()) {
-                    parent.view.longPress(selected);
-                    selected = null;
-                }
-            } else {
-                if (!parent.view.hasMovedEnough()) {
-                    PointF center = parent.stroke.getStartPoint();
-                    if (center != null) {
-                        parent.longPressCircleBounds = new RectF(center.x
-                                - parent.landingZoneCircleBoundsSize, center.y
-                                - parent.landingZoneCircleBoundsSize, center.x
-                                + parent.landingZoneCircleBoundsSize, center.y
-                                + parent.landingZoneCircleBoundsSize);
-                        parent.stroke.setBoundaries();
-                        selected = parent.view.getClosestStroke();
-                        if (selected != null) {
-                            parent.view.longPressed = true;
-                            parent.view.mustShowLongPressCircle = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
-         * Resets the status for the long press action.
-         * 
-         * @param completed
-         *            whether the user kept the finger/stylus down for the
-         *            circle to be completely drawn on canvas, and therefore the
-         *            action should be performed.
-         */
-        public void reset(boolean completed) {
-            parent.view.longPressed = false;
-            parent.view.mustShowLongPressCircle = false;
-            parent.landingZoneCircleSweepAngle = 0;
-            this.completed = completed;
-            if (completed)
-                parent.view.longPressListener.post(this);
-        }
-    }
 
     private final class ProgressBar extends AsyncTask<InputStream, Void, Void> {
 
@@ -263,852 +143,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 }
                 lastRun = System.currentTimeMillis();
             } else {
-                if (parent.view.didSomething) {
+                if (view.hasChanged()) {
                     save(chosenFile);
-                    // FIXME this is a very lame replacement for a proper
-                    // history
-                    parent.view.didSomething = false;
                 }
             }
-        }
-    }
-
-    /**
-     * The {@link SurfaceView} on which the canvas is drawn.
-     * 
-     * <p>
-     * Drawing takes place within the {@link CaliView#drawView(Canvas, boolean)}
-     * method, which is called roughly every
-     * {@link CaliSmall#SCREEN_REFRESH_TIME} milliseconds by the <tt>Worker</tt>
-     * thread that is spawn by {@link CaliView#surfaceCreated(SurfaceHolder)}
-     * (which in turn is called by the Android Runtime when the app is moved to
-     * the foreground).
-     * 
-     * <p>
-     * All data structures accessed by the drawing thread are only edited by the
-     * drawing thread itself to prevent conflicts (and therefore locking). When
-     * objects must be added to/removed from the view, they must be put to other
-     * data structures whose only purpose is to communicate with the drawing
-     * thread.
-     * 
-     * <p>
-     * Input (touch) events are handles by the
-     * {@link CaliView#onTouchEvent(MotionEvent)} method, which is called by the
-     * Android Event Dispatcher Thread (or whatever they call it for Android,
-     * it's the equivalente of Java's good ol' EDT).
-     * 
-     * <p>
-     * To simplify the code, and to avoid conflicts, all drawing operations are
-     * performed by the drawing thread (no <tt>postXYZ()</tt> calls), and all
-     * object creation/editing and border inclusion/intersection computation is
-     * done by the EDT.
-     * 
-     * @author Michele Bonazza
-     */
-    public class CaliView extends SurfaceView implements SurfaceHolder.Callback {
-
-        private static final int INVALID_POINTER_ID = -1;
-        // a list of strokes kept in chronological order (oldest first)
-        private final List<Stroke> strokes;
-        // a list of scraps kept in chronological order (oldest first)
-        private final List<Scrap> scraps;
-        private final Handler longPressListener = new Handler();
-        private LongPressAction longPressAction;
-        private Thread worker;
-        private Scrap selected, previousSelection, newSelection, toBeRemoved,
-                tempScrap;
-        private final List<Stroke> newStrokes;
-        private final List<Stroke> ghosts;
-        private final List<Scrap> newScraps;
-        private final ScaleListener scaleListener;
-        private Stroke latestGhost;
-        private PathMeasure pathMeasure;
-        private boolean zoomingOrPanning, running, mustShowLandingZone,
-                strokeAdded, mustClearCanvas, bubbleMenuShown,
-                mustShowBubbleMenu, tempScrapCreated, redirectingToBubbleMenu,
-                longPressed, mustShowLongPressCircle, skipEvents, didSomething;
-        private PointF landingZoneCenter;
-        private Stroke redirectedGhost;
-        private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
-                screenHeight;
-
-        private CaliView(CaliSmall c) {
-            super(c);
-            longPressAction = new LongPressAction(c);
-            strokes = new ArrayList<Stroke>();
-            scraps = new ArrayList<Scrap>();
-            newStrokes = new ArrayList<Stroke>();
-            ghosts = new ArrayList<Stroke>();
-            newScraps = new ArrayList<Scrap>();
-            scaleListener = new ScaleListener();
-            scaleDetector = new ScaleGestureDetector(c, scaleListener);
-            reset(c);
-            getHolder().addCallback(this);
-        }
-
-        private void reset(CaliSmall c) {
-            longPressAction = new LongPressAction(c);
-            newStrokes.clear();
-            newScraps.clear();
-            ghosts.clear();
-            pathMeasure = new PathMeasure();
-            landingZoneCenter = new PointF();
-            strokes.clear();
-            scraps.clear();
-            selected = null;
-            previousSelection = null;
-            newSelection = null;
-            toBeRemoved = null;
-            tempScrap = null;
-            zoomingOrPanning = false;
-            mustShowLandingZone = false;
-            strokeAdded = false;
-            mustClearCanvas = false;
-            bubbleMenuShown = false;
-            tempScrapCreated = false;
-            redirectingToBubbleMenu = false;
-            longPressed = false;
-            mustShowLongPressCircle = false;
-            skipEvents = false;
-        }
-
-        /**
-         * Draws this view to the argument {@link Canvas}.
-         * 
-         * @param canvas
-         *            the canvas onto which this view is to be drawn
-         * @param dontWait
-         *            must be <code>true</code> if the thread that calls this
-         *            method shouldn't wait for files to be opened (i.e. only
-         *            when it is called by a method that is saving the canvas
-         *            content)
-         */
-        public void drawView(Canvas canvas, boolean dontWait) {
-            if (canvas != null) {
-                while (wantToOpenFile && !dontWait) {
-                    waitForFileOpen();
-                }
-                canvas.drawColor(Color.WHITE);
-                canvas.concat(matrix);
-                if (mustShowLongPressCircle) {
-                    drawLongPressAnimation(canvas);
-                }
-                if (mustClearCanvas) {
-                    clearCanvas();
-                } else {
-                    // canvas.drawPath(canvasBounds, borderPaint);
-                    maybeDrawLandingZone(canvas);
-                    deleteElements();
-                    maybeCreateBubbleMenu();
-                    drawTempScrap(canvas);
-                    addNewStrokesAndScraps();
-                    drawScraps(canvas);
-                    drawStrokes(canvas);
-                    if (bubbleMenuShown)
-                        bubbleMenu.draw(canvas);
-                    drawNewStroke(canvas);
-                }
-            }
-        }
-
-        private void waitForFileOpen() {
-            try {
-                lock.lock();
-                drawingThreadSleeping = true;
-                drawingThreadWaiting.signalAll();
-                fileOpened.await();
-                drawingThreadSleeping = false;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } finally {
-                lock.unlock();
-            }
-        }
-
-        private void drawLongPressAnimation(Canvas canvas) {
-            landingZoneCircleSweepAngle += ABS_CIRCLE_SWEEP_INCREMENT;
-            canvas.drawArc(longPressCircleBounds, CIRCLE_SWEEP_START,
-                    landingZoneCircleSweepAngle, false, LONG_PRESS_CIRCLE_PAINT);
-            if (landingZoneCircleSweepAngle >= 360) {
-                longPressAction.reset(true);
-            }
-        }
-
-        private void clearCanvas() {
-            strokes.clear();
-            scraps.clear();
-            Stroke.SPACE_OCCUPATION_LIST.clear();
-            Scrap.SPACE_OCCUPATION_LIST.clear();
-            setSelected(null);
-            stroke = null;
-            createNewStroke();
-            mustClearCanvas = false;
-        }
-
-        private void drawScraps(Canvas canvas) {
-            for (Scrap scrap : scraps) {
-                scrap.draw(this, canvas, scaleFactor);
-            }
-        }
-
-        private void drawStrokes(Canvas canvas) {
-            for (Stroke stroke : strokes) {
-                if (stroke.hasToBeDrawnVectorially())
-                    stroke.draw(canvas, PAINT);
-            }
-        }
-
-        private void drawTempScrap(Canvas canvas) {
-            if (tempScrap != null) {
-                tempScrap.draw(this, canvas, scaleFactor);
-            }
-        }
-
-        private void drawNewStroke(Canvas canvas) {
-            if (!strokeAdded) {
-                stroke.draw(canvas, PAINT);
-                strokes.add(stroke);
-                Stroke.SPACE_OCCUPATION_LIST.add(stroke);
-                strokeAdded = true;
-            }
-        }
-
-        private void maybeDrawLandingZone(Canvas canvas) {
-            if (mustShowLandingZone) {
-                canvas.drawCircle(landingZoneCenter.x, landingZoneCenter.y,
-                        landingZoneRadius, LANDING_ZONE_PAINT);
-            }
-        }
-
-        private void maybeCreateBubbleMenu() {
-            if (mustShowBubbleMenu) {
-                mustShowBubbleMenu = false;
-                if (tempScrapCreated) {
-                    Stroke border = getActiveStroke();
-                    Stroke.SPACE_OCCUPATION_LIST.remove(border);
-                    createNewStroke();
-                    changeTempScrap(new Scrap.Temp(border, scaleFactor));
-                    tempScrapCreated = false;
-                }
-                bubbleMenuShown = true;
-            }
-        }
-
-        private Stroke getActiveStroke() {
-            int index = -1;
-            for (index = strokes.size() - 1; index > -1; index--) {
-                if (strokes.get(index).equals(activeStroke)) {
-                    break;
-                }
-            }
-            if (index > -1) {
-                return strokes.remove(index);
-            }
-            return null;
-        }
-
-        private void deleteElements() {
-            if (toBeRemoved != null) {
-                toBeRemoved.erase();
-                mustShowBubbleMenu = false;
-                toBeRemoved = null;
-            }
-            CaliSmallElement.deleteMarkedFromList(strokes,
-                    Stroke.SPACE_OCCUPATION_LIST);
-            CaliSmallElement.deleteMarkedFromList(scraps,
-                    Scrap.SPACE_OCCUPATION_LIST);
-            for (Iterator<Stroke> iterator = ghosts.iterator(); iterator
-                    .hasNext();) {
-                Stroke next = iterator.next();
-                if (next.hasToBeDeleted() || !next.isGhost()) {
-                    iterator.remove();
-                }
-            }
-        }
-
-        private void longPress(Stroke selected) {
-            skipEvents = true;
-            if (selected != null) {
-                if (selected.parent != null) {
-                    ((Scrap) selected.parent).remove(selected);
-                }
-                stroke.toBeDeleted = true;
-                activeStroke = selected;
-                tempScrapCreated = true;
-                mustShowBubbleMenu = true;
-            }
-        }
-
-        private void addNewStrokesAndScraps() {
-            if (!newStrokes.isEmpty()) {
-                strokes.addAll(newStrokes);
-                Stroke.SPACE_OCCUPATION_LIST.addAll(newStrokes);
-                newStrokes.clear();
-            }
-            if (!newScraps.isEmpty()) {
-                scraps.addAll(newScraps);
-                Scrap.SPACE_OCCUPATION_LIST.addAll(newScraps);
-                newScraps.clear();
-            }
-            if (newSelection != null) {
-                setSelected(newSelection);
-                previousSelection = newSelection;
-                newSelection = null;
-            }
-        }
-
-        /**
-         * Sets the argument scrap as the selected one, unselecting the scrap
-         * that was previously selected (if any was).
-         * 
-         * @param selected
-         *            the scrap that should appear selected or <code>null</code>
-         *            if there shouldn't be any scrap selected
-         */
-        public void setSelected(Scrap selected) {
-            if (this.selected != null && selected != this.selected) {
-                Stroke outerBorder = this.selected.deselect();
-                if (outerBorder != null) {
-                    outerBorder.setGhost(true, screenBounds, getResources(),
-                            bubbleMenu.getButtonSize());
-                    newStrokes.add(outerBorder);
-                    ghosts.add(outerBorder);
-                }
-            }
-            if (selected != null) {
-                bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
-                        screenBounds);
-                mustShowBubbleMenu = true;
-                selected.select();
-            } else {
-                bubbleMenuShown = false;
-                redirectingToBubbleMenu = false;
-            }
-            this.selected = selected;
-        }
-
-        /**
-         * Changes the current selected scrap to the argument temp scrap.
-         * 
-         * @param newTempScrap
-         *            the new temporary scrap, cannot be <code>null</code>
-         */
-        public void changeTempScrap(Scrap newTempScrap) {
-            if (newTempScrap != null) {
-                tempScrap = newTempScrap;
-                setSelected(tempScrap);
-                previousSelection = tempScrap;
-            }
-        }
-
-        /**
-         * Adds the argument scrap to the canvas.
-         * 
-         * @param scrap
-         *            the scrap to be added
-         * @param addContent
-         *            whether all of the strokes inside of the argument scrap
-         *            should be added to the view as well, should be
-         *            <code>true</code> only for newly created scrap copies
-         */
-        public void addScrap(Scrap scrap, boolean addContent) {
-            newSelection = scrap;
-            if (!(scrap instanceof Scrap.Temp))
-                newScraps.add(scrap);
-            if (addContent) {
-                newStrokes.addAll(scrap.getAllStrokes());
-                newScraps.addAll(scrap.getAllScraps());
-            }
-        }
-
-        /**
-         * Removes (stops drawing) the argument scrap.
-         * 
-         * @param scrap
-         *            the scrap to be deleted
-         */
-        public void removeScrap(Scrap scrap) {
-            toBeRemoved = scrap;
-        }
-
-        @Override
-        public boolean onTouchEvent(MotionEvent event) {
-            final int action = event.getAction() & MotionEvent.ACTION_MASK;
-            // Log.d(TAG, actionToString(action));
-            if (zoomingOrPanning) {
-                handleZoomingPanningEvent(event, action);
-            } else {
-                if (redirectedGhost != null) {
-                    skipEvents = true;
-                } else if (redirectingToBubbleMenu) {
-                    if (onTouchBubbleMenuShown(action,
-                            adjustForZoom(event.getX(), event.getY()))) {
-                        // action has been handled by the bubble menu
-                        return true;
-                    } else {
-                        redirectingToBubbleMenu = false;
-                        mustShowBubbleMenu = false;
-                        bubbleMenuShown = false;
-                        createNewStroke();
-                    }
-                }
-                handleDrawingEvent(event, action);
-            }
-            return true;
-        }
-
-        private void handleDrawingEvent(final MotionEvent event,
-                final int action) {
-            if (skipEvents) {
-                if (action == MotionEvent.ACTION_UP) {
-                    onUp(event);
-                }
-            } else {
-                // events in the switch block are in chronological order
-                switch (action) {
-                case MotionEvent.ACTION_DOWN:
-                    // first touch with one finger
-                    onDown(event);
-                    scaleDetector.onTouchEvent(event);
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    onMove(event);
-                    break;
-                case MotionEvent.ACTION_POINTER_DOWN:
-                    // first touch with second finger
-                    onPointerDown(event);
-                    break;
-                case MotionEvent.ACTION_CANCEL:
-                    mustShowLandingZone = false;
-                    createNewStroke();
-                    break;
-                case MotionEvent.ACTION_UP:
-                    // last finger lifted
-                    onUp(event);
-                    break;
-                }
-            }
-        }
-
-        private void handleZoomingPanningEvent(final MotionEvent event,
-                final int action) {
-            scaleDetector.onTouchEvent(event);
-            // events in the switch block are in chronological order
-            switch (action) {
-            case MotionEvent.ACTION_POINTER_UP:
-                // first finger lifted (only when pinching)
-                onPointerUp(event);
-                break;
-            case MotionEvent.ACTION_UP:
-                // last finger lifted
-                onUp(event);
-                // delete stroke if one was accidentally created
-                stroke.getPath().reset();
-                zoomingOrPanning = false;
-                break;
-            // move actions are handled by scaleDetector
-            }
-        }
-
-        /**
-         * Checks whether the argument <tt>touchPoint</tt> is within any of the
-         * buttons in the bubble menu, and if so it forwards the action to the
-         * bubble menu. Returns whether the bubble menu should keep being
-         * displayed.
-         */
-        private boolean onTouchBubbleMenuShown(int action, PointF touchPoint) {
-            if (bubbleMenu.buttonTouched(touchPoint)) {
-                return bubbleMenu.onTouch(action, touchPoint, selected);
-            }
-            return false;
-        }
-
-        private void onDown(MotionEvent event) {
-            if (!didSomething)
-                didSomething = true;
-            actionStart = -System.currentTimeMillis();
-            PointF adjusted = adjustForZoom(event.getX(), event.getY());
-            mustShowLandingZone = false;
-            mActivePointerId = event.findPointerIndex(0);
-            longPressed = false;
-            for (Stroke ghost : ghosts) {
-                Stroke touched = ghost.ghostButtonTouched(adjusted);
-                if (touched != null) {
-                    redirectedGhost = ghost;
-                    return;
-                }
-            }
-            if (bubbleMenuShown) {
-                if (onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
-                    // a button was touched, redirect actions to bubble menu
-                    redirectingToBubbleMenu = true;
-                    return;
-                }
-            }
-            longPressListener.postDelayed(longPressAction, LONG_PRESS_DURATION);
-            stroke.setStart(adjusted);
-            setSelected(getSelectedScrap(adjusted));
-        }
-
-        private void onMove(MotionEvent event) {
-            final int pointerIndex = event.findPointerIndex(mActivePointerId);
-            final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
-                    event.getY(pointerIndex));
-            if (!mustShowLandingZone) {
-                mustShowLandingZone = mustShowLandingZone();
-                if (mustShowLandingZone) {
-                    final float[] position = new float[2];
-                    pathMeasure
-                            .getPosTan(landingZonePathOffset, position, null);
-                    landingZoneCenter = new PointF(position[0], position[1]);
-                }
-            }
-            if (stroke.addAndDrawPoint(adjusted, touchTolerance)) {
-                setSelected(getSelectedScrap(stroke));
-            }
-        }
-
-        private void onUp(MotionEvent event) {
-            mustShowLandingZone = false;
-            longPressListener.removeCallbacks(longPressAction);
-            skipEvents = false;
-            if (!zoomingOrPanning) {
-                final int pointerIndex = event
-                        .findPointerIndex(mActivePointerId);
-                mActivePointerId = INVALID_POINTER_ID;
-                if (redirectedGhost != null) {
-                    redirectedGhost.setGhost(false, null, null, 0f);
-                    redirectedGhost = null;
-                    return;
-                }
-                if (longPressAction.completed) {
-                    stroke.reset();
-                    createNewStroke();
-                    longPressAction.completed = false;
-                    landingZoneCenter.set(-1, -1);
-                    return;
-                } else if (longPressed) {
-                    // animation has been shown, but the user didn't mean to
-                    // long press, so she took her finger/stylus away
-                    longPressAction.reset(false);
-                }
-                final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
-                        event.getY(pointerIndex));
-                if (isInLandingZone(adjusted)) {
-                    bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
-                            screenBounds);
-                    mustShowBubbleMenu = true;
-                    tempScrapCreated = true;
-                } else {
-                    Scrap newSelection;
-                    if (!hasMovedEnough()) {
-                        PointF center = stroke.getStartPoint();
-                        newSelection = getSelectedScrap(center);
-                        if (newSelection == previousSelection) {
-                            // draw a point (a small circle)
-                            stroke.turnIntoDot();
-                        } else {
-                            // a single tap selects the scrap w/o being
-                            // drawn
-                            stroke.reset();
-                        }
-                    } else {
-                        newSelection = getSelectedScrap(stroke);
-                    }
-                    setSelected(newSelection);
-                    if (selected != null && !stroke.isEmpty()) {
-                        selected.add(stroke);
-                    }
-                    createNewStroke();
-                }
-            }
-            previousSelection = selected;
-            landingZoneCenter.set(-1, -1);
-        }
-
-        private void createNewStroke() {
-            if (stroke == null || !stroke.getPath().isEmpty()) {
-                // otherwise don't create useless strokes
-                stroke = new Stroke(new Path(), stroke);
-                activeStroke = stroke;
-                strokeAdded = false;
-            }
-        }
-
-        /**
-         * Returns the smallest scrap that contains the argument
-         * <tt>element</tt>, if any exists.
-         * 
-         * @param element
-         *            the element that must be completely contained within the
-         *            scrap that this method shall return
-         * @return the smallest scrap that completely contains the argument
-         *         element, if any exists, <code>null</code>
-         */
-        public Scrap getSelectedScrap(CaliSmallElement element) {
-            // TODO move it to the specific canvas object
-            List<CaliSmallElement> candidates = Scrap.SPACE_OCCUPATION_LIST
-                    .findIntersectionCandidates(element);
-            // sort elements by their size (smallest first)
-            Collections.sort(candidates);
-            for (CaliSmallElement candidate : candidates) {
-                if (candidate.contains(element)) {
-                    return ((Scrap) (candidate)).getSmallestTouched(element);
-                }
-            }
-            return null;
-        }
-
-        private Scrap getSelectedScrap(PointF adjusted) {
-            if (adjusted == null)
-                return null;
-            // TODO move it to the specific canvas object
-            List<CaliSmallElement> candidates = Scrap.SPACE_OCCUPATION_LIST
-                    .findContainerCandidates(adjusted);
-            Collections.sort(candidates);
-            for (CaliSmallElement candidate : candidates) {
-                if (candidate.contains(adjusted)) {
-                    return ((Scrap) (candidate)).getSmallestTouched(adjusted);
-                }
-            }
-            return null;
-        }
-
-        private Stroke getClosestStroke() {
-            List<CaliSmallElement> candidates = Stroke.SPACE_OCCUPATION_LIST
-                    .findIntersectionCandidates(stroke);
-            // sort elements by their size (smallest first)
-            Collections.sort(candidates);
-            for (CaliSmallElement candidate : candidates) {
-                if (candidate.contains(stroke.getStartPoint())
-                        && isCloseEnough(candidate)) {
-                    return (Stroke) candidate;
-                }
-            }
-            return null;
-        }
-
-        private boolean isCloseEnough(CaliSmallElement candidate) {
-            if (candidate == null || !(candidate instanceof Stroke))
-                return false;
-            Stroke test = (Stroke) candidate;
-            PointF first = test.getStartPoint();
-            PointF last = test.getEndPoint();
-            float dx = last.x - first.x;
-            float dy = last.y - first.y;
-            float largestSide = test.width >= test.height ? test.height
-                    : test.width;
-            // return (dx * dx + dy * dy) < maxStrokeDistanceForLongPress;
-            return (dx * dx + dy * dy) < largestSide * largestSide;
-        }
-
-        private void onPointerUp(MotionEvent event) {
-            final int pointerIndex = (event.getAction() & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-            final int pointerId = event.getPointerId(pointerIndex);
-            if (pointerId == mActivePointerId) {
-                // This was our active pointer going up. Choose a new
-                // active pointer and adjust accordingly.
-                final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
-                mActivePointerId = event.getPointerId(newPointerIndex);
-            }
-        }
-
-        private void onPointerDown(MotionEvent event) {
-            longPressListener.removeCallbacks(longPressAction);
-            if (!ghosts.isEmpty()) {
-                latestGhost = ghosts.remove(ghosts.size() - 1);
-                latestGhost.setGhost(false, null, null, 0f);
-                latestGhost.toBeDeleted = true;
-            }
-            bubbleMenuShown = false;
-            mustShowLandingZone = false;
-            stroke.reset();
-            redirectingToBubbleMenu = false;
-            scaleDetector.onTouchEvent(event);
-            zoomingOrPanning = true;
-        }
-
-        private boolean isInLandingZone(PointF lastPoint) {
-            return Math.pow(lastPoint.x - landingZoneCenter.x, 2)
-                    + Math.pow(lastPoint.y - landingZoneCenter.y, 2) <= Math
-                        .pow(landingZoneRadius, 2);
-        }
-
-        private boolean hasMovedEnough() {
-            return stroke.getRectSize() > touchThreshold;
-        }
-
-        private boolean mustShowLandingZone() {
-            if (actionStart + System.currentTimeMillis() < LANDING_ZONE_TIME_THRESHOLD)
-                return false;
-            pathMeasure.setPath(stroke.getPath(), false);
-            return pathMeasure.getLength() > minPathLengthForLandingZone;
-        }
-
-        /*
-         * (non-Javadoc)
-         * 
-         * @see android.view.SurfaceHolder.Callback#surfaceChanged(android.view.
-         * SurfaceHolder, int, int, int)
-         */
-        @Override
-        public void surfaceChanged(SurfaceHolder holder, int format, int width,
-                int height) {
-            setBounds(width, height);
-        }
-
-        private void setBounds(int width, int height) {
-            screenWidth = width;
-            screenHeight = height;
-            updateBounds();
-            if (selected != null) {
-                bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
-                        screenBounds);
-            } else {
-                bubbleMenu.setBounds(scaleFactor, screenBounds);
-            }
-        }
-
-        /*
-         * (non-Javadoc)
-         * 
-         * @see android.view.SurfaceHolder.Callback#surfaceCreated(android.view.
-         * SurfaceHolder)
-         */
-        @Override
-        public void surfaceCreated(SurfaceHolder holder) {
-            if (!running) {
-                worker = new Thread(new Worker(getHolder(), this));
-                running = true;
-                worker.start();
-            }
-        }
-
-        /*
-         * (non-Javadoc)
-         * 
-         * @see
-         * android.view.SurfaceHolder.Callback#surfaceDestroyed(android.view
-         * .SurfaceHolder)
-         */
-        @Override
-        public void surfaceDestroyed(SurfaceHolder holder) {
-            running = false;
-            boolean exited = false;
-            while (!exited) {
-                try {
-                    worker.join();
-                    exited = true;
-                } catch (InterruptedException e) {
-                    // retry
-                }
-            }
-        }
-    }
-
-    private class ScaleListener extends
-            ScaleGestureDetector.SimpleOnScaleGestureListener {
-
-        /*
-         * (non-Javadoc)
-         * 
-         * @see android.view.ScaleGestureDetector.SimpleOnScaleGestureListener#
-         * onScaleBegin(android.view.ScaleGestureDetector)
-         */
-        @Override
-        public boolean onScaleBegin(ScaleGestureDetector detector) {
-            previousScaledCenterX = detector.getFocusX() / scaleFactor;
-            previousScaledCenterY = detector.getFocusY() / scaleFactor;
-            return true;
-        }
-
-        @Override
-        public boolean onScale(ScaleGestureDetector detector) {
-            dCenterX = detector.getFocusX();
-            dCenterY = detector.getFocusY();
-            // don't let the canvas get too small or too large
-            final float newScale = scaleFactor * detector.getScaleFactor();
-            if (newScale > MAX_ZOOM || newScale < MIN_ZOOM) {
-                scaleFactor = Math.max(MIN_ZOOM,
-                        Math.min(scaleFactor, MAX_ZOOM));
-                dScaleFactor = 1.f;
-            } else {
-                scaleFactor *= detector.getScaleFactor();
-                dScaleFactor = detector.getScaleFactor();
-            }
-            final float scaledCenterX = dCenterX / scaleFactor;
-            final float scaledCenterY = dCenterY / scaleFactor;
-            translateX = scaledCenterX - previousScaledCenterX;
-            translateY = scaledCenterY - previousScaledCenterY;
-            canvasOffsetX += translateX;
-            canvasOffsetY += translateY;
-            enforceBoundConstraints();
-            // translate, move origin to (x,y) to center zooming
-            matrix.preTranslate(translateX + dCenterX, translateY + dCenterY);
-            // scale and move origin back to (0,0)
-            matrix.postScale(dScaleFactor, dScaleFactor);
-            matrix.preTranslate(-dCenterX, -dCenterY);
-            previousScaledCenterX = scaledCenterX;
-            previousScaledCenterY = scaledCenterY;
-            return true;
-        }
-
-        private void enforceBoundConstraints() {
-            if (canvasOffsetX > 0) {
-                translateX -= canvasOffsetX;
-                canvasOffsetX = 0;
-            } else {
-                final float minOffsetX = (1 - scaleFactor) * view.screenWidth;
-                if (canvasOffsetX * scaleFactor < minOffsetX) {
-                    float difference = canvasOffsetX * scaleFactor - minOffsetX;
-                    canvasOffsetX -= translateX;
-                    translateX -= difference;
-                    canvasOffsetX += translateX;
-                }
-            }
-            if (canvasOffsetY > 0) {
-                translateY -= canvasOffsetY;
-                canvasOffsetY = 0;
-            } else {
-                final float minOffsetY = (1 - scaleFactor) * view.screenHeight;
-                if (canvasOffsetY * scaleFactor < minOffsetY) {
-                    float difference = canvasOffsetY * scaleFactor - minOffsetY;
-                    canvasOffsetY -= translateY;
-                    translateY -= difference;
-                    canvasOffsetY += translateY;
-                }
-            }
-        }
-
-        /*
-         * (non-Javadoc)
-         * 
-         * @see
-         * android.view.ScaleGestureDetector.SimpleOnScaleGestureListener#onScaleEnd
-         * (android.view.ScaleGestureDetector)
-         */
-        @Override
-        public void onScaleEnd(ScaleGestureDetector detector) {
-            // rescale paint brush and connect circle
-            stroke.setStrokeWidth(ABS_STROKE_WIDTH / scaleFactor);
-            LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(stroke.getStrokeWidth() * 2);
-            landingZoneRadius = ABS_LANDING_ZONE_RADIUS / scaleFactor;
-            minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
-                    / scaleFactor;
-            landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET / scaleFactor;
-            touchThreshold = ABS_TOUCH_THRESHOLD / scaleFactor;
-            touchTolerance = ABS_TOUCH_TOLERANCE / scaleFactor;
-            landingZoneCircleBoundsSize = ABS_CIRCLE_BOUNDS_HALF_SIZE
-                    / scaleFactor;
-            maxStrokeDistanceForLongPress = ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS
-                    / scaleFactor;
-            final float newInterval = ABS_LANDING_ZONE_INTERVAL / scaleFactor;
-            LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
-                    newInterval, newInterval }, (float) 1.0));
-            updateBounds();
-            if (view.latestGhost != null)
-                view.latestGhost.toBeDeleted = false;
-            view.setSelected(view.previousSelection);
         }
     }
 
@@ -1116,114 +154,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * Tag used for the whole application in LogCat files.
      */
     public static final String TAG = "CaliSmall";
-    /**
-     * Absolute {@link Stroke} width (to be rescaled by {@link #scaleFactor}).
-     */
-    public static final int ABS_STROKE_WIDTH = 3;
-    /**
-     * The amount of time (in milliseconds) before the long pressure animation
-     * is shown.
-     */
-    public static final long LONG_PRESS_DURATION = 300;
-    /**
-     * Time in milliseconds after which the landing zone can be shown.
-     */
-    public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
-    /**
-     * Time in milliseconds between two consecutive screen refreshes (i.e. two
-     * consecutive calls to {@link CaliView#drawView(Canvas, boolean)}). To get
-     * the FPS that this value sets, just divide 1000 by the value (so a
-     * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
-     */
-    public static final long SCREEN_REFRESH_TIME = 20;
-    /**
-     * Absolute radius for landing zones (to be rescaled by {@link #scaleFactor}
-     * ).
-     */
-    static final float ABS_LANDING_ZONE_RADIUS = 25;
-    /**
-     * The interval between dashes in landing zones (to be rescaled by
-     * {@link #scaleFactor}).
-     */
-    static final float ABS_LANDING_ZONE_INTERVAL = 5;
-    /**
-     * The length that a {@link Stroke} must reach before a landing zone is
-     * shown (to be rescaled by {@link #scaleFactor}).
-     */
-    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 160;
-    /**
-     * Where to put the center of the landing zone on a path (to be rescaled by
-     * {@link #scaleFactor}).
-     */
-    static final float ABS_LANDING_ZONE_PATH_OFFSET = 70;
-    /**
-     * The length over which a Path is no longer considered as a potential tap,
-     * but is viewed as a stroke instead (to be rescaled by {@link #scaleFactor}
-     * ).
-     */
-    static final float ABS_TOUCH_THRESHOLD = 8;
-    /**
-     * The amount of pixels that a touch needs to cover before it is considered
-     * a move action (to be rescaled by {@link #scaleFactor}).
-     */
-    static final float ABS_TOUCH_TOLERANCE = 2;
-
-    /**
-     * Absolute half the size of the rectangle enclosing the circle displayed on
-     * long presses (to be rescaled by {@link #scaleFactor}).
-     */
-    static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
-
-    /**
-     * Absolute length of the increment when drawing the long press circle
-     * between {@link CaliView#draw(Canvas)} calls. This determines the speed at
-     * which the circle is animated.
-     */
-    static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
-    /**
-     * The starting point for the sweep animation for long presses. 0 is the
-     * rightmost point, -90 is the topmost point.
-     */
-    static final float CIRCLE_SWEEP_START = -90;
-
-    /**
-     * Absolute distance that the first and last point in a {@link Stroke} may
-     * have to be considered a valid target for long-presses scrap recognition
-     * (to be rescaled by {@link #scaleFactor}). The value is squared to speed
-     * up comparison with Euclidean distances.
-     */
-    static final float ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS = 200 * 200;
-    /**
-     * The minimum zoom level that users can reach.
-     */
-    static final float MIN_ZOOM = 1f;
-    /**
-     * The maximum zoom level that users can reach
-     */
-    static final float MAX_ZOOM = 4f;
-    /**
-     * The paint object that is used to draw all strokes with.
-     * 
-     * <p>
-     * Every {@link Stroke} stores values for how this <tt>Paint</tt> object
-     * should be modified before actually drawing it, including the stroke
-     * width, color and fill type. These are set in the
-     * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
-     */
-    static final Paint PAINT = new Paint();
-    /**
-     * The paint object that is used to draw landing zones with.
-     * 
-     * <p>
-     * The dotted effect is obtained by constantly updating the length of the
-     * segments according to the zoom level.
-     */
-    static final Paint LANDING_ZONE_PAINT = new Paint();
-    /**
-     * The paint object that is used to draw the circle animation whenever users
-     * press-and-hold in the proximity of a stroke.
-     */
-    static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
 
     private static final String FILE_EXTENSION = ".csf";
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
@@ -1252,16 +182,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     Lock lock = new ReentrantLock();
     /**
-     * Whether a file dialog should be displayed after the user has clicked on
-     * the menu.
-     */
-    boolean wantToOpenFile = false;
-    /**
-     * Whether the drawing thread has received the request for a file to be
-     * opened and it set itselft to sleep.
-     */
-    boolean drawingThreadSleeping = false;
-    /**
      * Condition that is signalled by the drawing thread just before setting
      * itself to sleep.
      */
@@ -1277,185 +197,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     Object loadingLock = new Object();
     /**
-     * The bubble menu that is drawn whenever users select scraps.
-     */
-    BubbleMenu bubbleMenu;
-    /**
      * The current view.
      */
     CaliView view;
-    /**
-     * A rectangle representing the screen boundaries translated to the current
-     * metrics (i.e. accounting for the current zoom level).
-     */
-    RectF screenBounds;
-    /**
-     * The boundaries of the rectangle enclosing the circle that is shown on
-     * press-and-hold actions.
-     */
-    RectF longPressCircleBounds;
-    /**
-     * The current stroke.
-     * 
-     * <p>
-     * A stroke object is always available to be updated with the points that
-     * the user is touching. Every time a stroke ends (i.e. a
-     * {@link MotionEvent#ACTION_UP} is detected) a new empty one is created,
-     * ready to be filled with new points coming from the user drawing on the
-     * screen.
-     */
-    Stroke stroke;
-    /**
-     * A reference to the current stroke.
-     * 
-     * <p>
-     * Usually the current stroke is the last in the list of strokes generated
-     * thus far. Whenever new temporary scraps are created things get more
-     * complicated, so a reference to the last drawing stroke (as opposed to
-     * scrap border) in use is kept to simplify the code.
-     */
-    Stroke activeStroke;
-    /**
-     * The transformation matrix that is applied to the canvas, which stores all
-     * zooming and panning actions.
-     */
-    Matrix matrix;
-    /**
-     * The detector that handles all multi-touch events.
-     */
-    ScaleGestureDetector scaleDetector;
-    /**
-     * The instant at which the drawing of the current stroke started (in
-     * milliseconds after the Epoch).
-     */
-    long actionStart;
-    /**
-     * The current scale factor.
-     * 
-     * <p>
-     * All quantities must be divided by this scale factor in order to be scaled
-     * accordingly to the current zoom level.
-     */
-    float scaleFactor;
-    /**
-     * The current scale factor, in display coordinates.
-     * 
-     * <p>
-     * This is the instantaneous version of {@link #scaleFactor}, in that this
-     * value is updated for every scale event, whereas {@link #scaleFactor}
-     * stores the current zoom level, which is the combination of all
-     * <tt>dScaleFactor</tt> applied thus far.
-     */
-    float dScaleFactor;
-    /**
-     * The X-center of a 2-fingers gesture, in display coordinates.
-     * 
-     * <p>
-     * Display coordinates don't take into account the current offset and zoom
-     * applied to the canvas.
-     */
-    float dCenterX;
-    /**
-     * The Y-center of a 2-fingers gesture, in display coordinates.
-     * 
-     * <p>
-     * Display coordinates don't take into account the current offset and zoom
-     * applied to the canvas.
-     */
-    float dCenterY;
-    /**
-     * The X-center of the last 2-fingers gesture.
-     */
-    float previousScaledCenterX;
-    /**
-     * The Y-center of the last 2-fingers gesture.
-     */
-    float previousScaledCenterY;
-    /**
-     * The delta X between the last center of the 2-fingers gesture and the
-     * current one.
-     * 
-     * <p>
-     * This is the instantaneous version of {@link #canvasOffsetX}, in that this
-     * value is updated for every panning event, whereas {@link #canvasOffsetX}
-     * is the sum of all <tt>translateX</tt> applied thus far.
-     */
-    float translateX;
-    /**
-     * The delta Y between the last center of the 2-fingers gesture and the
-     * current one.
-     * 
-     * <p>
-     * This is the instantaneous version of {@link #canvasOffsetY}, in that this
-     * value is updated for every panning event, whereas {@link #canvasOffsetY}
-     * is the sum of all <tt>translateY</tt> applied thus far.
-     */
-    float translateY;
-    /**
-     * The X-offset currently applied to the canvas, which is a result of all
-     * the panning actions executed by the user so far.
-     */
-    float canvasOffsetX;
-    /**
-     * The Y-offset currently applied to the canvas, which is a result of all
-     * the panning actions executed by the user so far.
-     */
-    float canvasOffsetY;
-    /**
-     * The radius of the circle that represents the landing zone.
-     */
-    float landingZoneRadius;
-    /**
-     * The minimum length that a {@link Stroke} must reach before the landing
-     * zone is displayed over it (letting that <tt>Stroke</tt> be used to create
-     * a {@link Temp}). The value is squared to speed up comparison with
-     * Euclidean distances.
-     */
-    float minPathLengthForLandingZone;
-    /**
-     * The offset at which the landing zone is shown, starting from the first
-     * point of the {@link Stroke}.
-     */
-    float landingZonePathOffset;
-    /**
-     * The maximum size that the area enclosed within a {@link Stroke} can reach
-     * while still being considered a tap.
-     * 
-     * <p>
-     * Devices with high pixel density have a tendency to raise a lot of
-     * {@link MotionEvent}'s, therefore no assumption can be made over when
-     * {@link MotionEvent#ACTION_MOVE} are generated: in other words, a tap is
-     * not only a sequence of {@link MotionEvent#ACTION_DOWN} followed by a
-     * {@link MotionEvent#ACTION_UP} with no {@link MotionEvent#ACTION_MOVE} in
-     * between, it's simply a stroke whose size falls within this threshold.
-     */
-    float touchThreshold;
-    /**
-     * The minimum amount of pixels between two touch events (when events are
-     * closer to each other than this value only the first is considered).
-     */
-    float touchTolerance;
-    /**
-     * The width/height of the rectangle enclosing the landing zone circle that
-     * is shown on long presses.
-     */
-    float landingZoneCircleBoundsSize;
-    /**
-     * The last angle that was used to draw the landing zone circle.
-     * 
-     * <p>
-     * This value is incremented for every draw event to draw the landing zone
-     * animation.
-     */
-    float landingZoneCircleSweepAngle;
-
-    /**
-     * The maximum distance that the first and last point in a {@link Stroke}
-     * may have to be considered a valid target for long-presses scrap
-     * recognition. The value is squared to speed up comparison with Euclidean
-     * distances.
-     */
-    float maxStrokeDistanceForLongPress;
     private String[] fileList;
     private String chosenFile, autoSaveName, tmpSnapshotName;
     private EditText input;
@@ -1465,31 +209,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private Timer autoSaverTimer;
     private boolean userPickedANewName;
 
-    static {
-        PAINT.setAntiAlias(true);
-        PAINT.setDither(true);
-        PAINT.setStrokeJoin(Paint.Join.ROUND);
-        PAINT.setStrokeCap(Paint.Cap.ROUND);
-        LONG_PRESS_CIRCLE_PAINT.setAntiAlias(true);
-        LONG_PRESS_CIRCLE_PAINT.setDither(true);
-        LONG_PRESS_CIRCLE_PAINT.setStrokeJoin(Paint.Join.ROUND);
-        LONG_PRESS_CIRCLE_PAINT.setStrokeCap(Paint.Cap.ROUND);
-        LONG_PRESS_CIRCLE_PAINT.setStyle(Style.STROKE);
-        LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_STROKE_WIDTH * 2);
-        LONG_PRESS_CIRCLE_PAINT.setColor(Color.RED);
-        LANDING_ZONE_PAINT.setColor(Color.BLACK);
-        LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
-                ABS_LANDING_ZONE_INTERVAL, ABS_LANDING_ZONE_INTERVAL },
-                (float) 1.0));
-        LANDING_ZONE_PAINT.setStyle(Style.STROKE);
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         view = new CaliView(this);
-        bubbleMenu = new BubbleMenu(this);
-        reset();
         setContentView(view);
         autoSaveName = getResources().getString(R.string.unnamed_files);
         fileNameFilter = new FilenameFilter() {
@@ -1579,7 +302,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                             e.printStackTrace();
                         }
                     }
-                }, SCREEN_REFRESH_TIME * 2);
+                }, Painter.SCREEN_REFRESH_TIME * 2);
             }
             if (chosenFile == null)
                 newProject();
@@ -1622,73 +345,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     public CaliView getView() {
         return view;
-    }
-
-    /**
-     * Returns a point with (x, y) coordinates set to be displayed on the
-     * current canvas.
-     * 
-     * @param x
-     *            the X-axis value
-     * @param y
-     *            the Y-axis value
-     * @return a new point to which the current scale factor and offset have
-     *         been applied
-     */
-    public PointF adjustForZoom(float x, float y) {
-        return new PointF(x / scaleFactor - canvasOffsetX, y / scaleFactor
-                - canvasOffsetY);
-    }
-
-    private void updateBounds() {
-        final PointF max = adjustForZoom(view.screenWidth, view.screenHeight);
-        final PointF min = adjustForZoom(0, 0);
-        screenBounds.set(min.x, min.y, max.x, max.y);
-    }
-
-    private void printLog() {
-        Log.d(TAG, "{{{SCRAPS}}}\n" + Scrap.SPACE_OCCUPATION_LIST);
-        Log.d(TAG, "{{{STROKES}}}\n" + Stroke.SPACE_OCCUPATION_LIST);
-        StringBuilder builder = new StringBuilder("{{{PARENTING}}}\n");
-        String newLine = "";
-        for (Scrap scrap : view.scraps) {
-            builder.append(newLine);
-            builder.append(scrap.getID());
-            builder.append(" ");
-            builder.append("parent: ");
-            builder.append(scrap.getParent() == null ? "null" : scrap
-                    .getParent().getID());
-            builder.append(" previous: ");
-            builder.append(scrap.previousParent == null ? "null"
-                    : scrap.previousParent.getID());
-            newLine = "\n";
-        }
-        Log.d(TAG, builder.toString());
-        builder = new StringBuilder("{{{POINTS}}}\n");
-        newLine = "";
-        for (Stroke stroke : view.strokes) {
-            builder.append(newLine);
-            builder.append(stroke.getID());
-            builder.append(" ");
-            builder.append(stroke.listPoints());
-            builder.append(" ");
-            builder.append("parent: ");
-            builder.append(stroke.getParent() == null ? "null" : stroke
-                    .getParent().getID());
-            builder.append(" previous: ");
-            builder.append(stroke.previousParent == null ? "null"
-                    : stroke.previousParent.getID());
-            newLine = "\n";
-        }
-        builder.append(newLine);
-        builder.append("{{{SCRAPS CONTENT}}}\n");
-        for (Scrap scrap : view.scraps) {
-            builder.append("============================\n");
-            builder.append(scrap.getID());
-            builder.append(Scrap.getContentToLog(scrap));
-            builder.append("\n============================");
-        }
-        Log.d(TAG, builder.toString());
     }
 
     private void save(final String input) {
@@ -1792,26 +448,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
         case R.id.color:
-            AmbilWarnaDialog dialog = new AmbilWarnaDialog(this,
-                    stroke.getColor(), new OnAmbilWarnaListener() {
-                        @Override
-                        public void onOk(AmbilWarnaDialog dialog, int color) {
-                            view.createNewStroke();
-                            stroke.setColor(color);
-                        }
-
-                        @Override
-                        public void onCancel(AmbilWarnaDialog dialog) {
-                        }
-                    });
-
+            AmbilWarnaDialog dialog = view.getColorPicker();
             dialog.show();
             return true;
         case R.id.clear:
-            view.mustClearCanvas = true;
+            view.clear();
             return true;
         case R.id.log:
-            printLog();
+            view.printLog();
             return true;
         case R.id.menu_save:
             saveButtonClicked();
@@ -1850,7 +494,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void newProject() {
         userPickedANewName = false;
         chosenFile = generateAutoSaveName();
-        view.mustClearCanvas = true;
+        view.clear();
         input.setText("");
         setTitle("CaliSmall - "
                 + getResources().getString(R.string.unnamed_files));
@@ -1908,44 +552,31 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         File path = getApplicationContext().getExternalFilesDir(null);
         File tmpImage = new File(path, chosenFile + ".png");
         tmpSnapshotName = chosenFile + ".png";
-        FileOutputStream tmp;
         try {
-            tmp = new FileOutputStream(tmpImage);
             lock.lock();
-            wantToOpenFile = true;
-            while (!drawingThreadSleeping)
-                drawingThreadWaiting.await(SCREEN_REFRESH_TIME,
-                        TimeUnit.MILLISECONDS);
-            Bitmap bitmap = Bitmap.createBitmap(view.screenWidth,
-                    view.screenHeight, Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            wantToOpenFile = false;
-            view.drawView(canvas, true);
-            fileOpened.signalAll();
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, tmp);
-            tmp.flush();
-            tmp.close();
-            Intent intent = new Intent(android.content.Intent.ACTION_SEND);
-            intent.setType("image/png");
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
-            intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(tmpImage));
-            intent.putExtra(Intent.EXTRA_SUBJECT,
-                    R.string.share_message_subject);
-            intent.putExtra(Intent.EXTRA_TEXT,
-                    getResources().getString(R.string.share_message_text));
-            startActivityForResult(
-                    Intent.createChooser(intent,
-                            getResources().getString(R.string.share_message)),
-                    1);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            Painter painter = view.getPainter();
+            painter.stopForFileOpen(lock, fileOpened, drawingThreadWaiting);
+            while (!painter.isWaiting())
+                try {
+                    drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
+                            TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            view.createSnapshot(tmpImage, fileOpened);
         } finally {
             lock.unlock();
         }
+        Intent intent = new Intent(android.content.Intent.ACTION_SEND);
+        intent.setType("image/png");
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(tmpImage));
+        intent.putExtra(Intent.EXTRA_SUBJECT, R.string.share_message_subject);
+        intent.putExtra(Intent.EXTRA_TEXT,
+                getResources().getString(R.string.share_message_text));
+        startActivityForResult(
+                Intent.createChooser(intent,
+                        getResources().getString(R.string.share_message)), 1);
     }
 
     /*
@@ -1983,7 +614,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void loadAndMaybeShowProgressBar(String file) {
         chosenFile = file;
         input.setText(chosenFile);
-        view.didSomething = false;
+        view.resetChangeCounter();
         final File toBeLoaded = new File(getApplicationContext()
                 .getExternalFilesDir(null), file + FILE_EXTENSION);
         if (toBeLoaded.length() > MIN_FILE_SIZE_FOR_PROGRESSBAR) {
@@ -2005,7 +636,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void loadAndMaybeShowProgressBar(InputStream input) {
-        view.didSomething = false;
+        view.resetChangeCounter();
         new ProgressBar(this).execute(input);
     }
 
@@ -2077,49 +708,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     @Override
     public JSONObject toJSON() throws JSONException {
-        JSONObject json = new JSONObject();
-        List<JSONObject> strokes = new ArrayList<JSONObject>(
-                view.strokes.size());
-        for (int i = 0; i < view.strokes.size(); i++) {
-            Stroke stroke = view.strokes.get(i);
-            if (!stroke.isEmpty())
-                strokes.add(stroke.toJSON());
-        }
-        List<JSONObject> scraps = new ArrayList<JSONObject>(view.scraps.size());
-        for (int i = 0; i < view.scraps.size(); i++) {
-            scraps.add(view.scraps.get(i).toJSON());
-        }
-        json.put("strokes", new JSONArray(strokes));
-        json.put("scraps", new JSONArray(scraps));
-        return json;
-    }
-
-    private void reset() {
-        matrix = new Matrix();
-        Stroke.SPACE_OCCUPATION_LIST.clear();
-        Scrap.SPACE_OCCUPATION_LIST.clear();
-        screenBounds = new RectF();
-        longPressCircleBounds = new RectF();
-        activeStroke = null;
-        actionStart = 0;
-        scaleFactor = 1.f;
-        dScaleFactor = 1.f;
-        dCenterX = 0;
-        dCenterY = 0;
-        previousScaledCenterX = 0;
-        previousScaledCenterY = 0;
-        translateX = 0;
-        translateY = 0;
-        canvasOffsetX = 0;
-        canvasOffsetY = 0;
-        landingZoneCircleSweepAngle = 0;
-        int height = view.screenHeight;
-        int width = view.screenWidth;
-        view.reset(this);
-        view.setBounds(width, height);
-        stroke = null;
-        view.createNewStroke();
-        view.scaleListener.onScaleEnd(scaleDetector);
+        return view.toJSON();
     }
 
     /*
@@ -2129,37 +718,19 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     @Override
     public CaliSmall fromJSON(JSONObject jsonData) throws JSONException {
-        reset();
-        JSONArray array = jsonData.getJSONArray("strokes");
-        for (int i = 0; i < array.length(); i++) {
-            Stroke stroke = new Stroke();
-            stroke.fromJSON(array.getJSONObject(i));
-            view.strokes.add(stroke);
-        }
-        Stroke.SPACE_OCCUPATION_LIST.addAll(view.strokes);
-        array = jsonData.getJSONArray("scraps");
-        for (int i = 0; i < array.length(); i++) {
-            Scrap scrap = new Scrap();
-            scrap.fromJSON(array.getJSONObject(i));
-            view.scraps.add(scrap);
-        }
-        Scrap.SPACE_OCCUPATION_LIST.addAll(view.scraps);
-        for (Scrap scrap : view.scraps) {
-            scrap.addChildrenFromJSON();
-        }
-        view.createNewStroke();
+        view.fromJSON(jsonData);
         return this;
     }
 
     private void syncAndLoad(JSONObject jsonData) throws JSONException {
         try {
             lock.lock();
-            wantToOpenFile = true;
-            while (!drawingThreadSleeping)
-                drawingThreadWaiting.await(SCREEN_REFRESH_TIME,
+            Painter painter = view.getPainter();
+            painter.stopForFileOpen(lock, fileOpened, drawingThreadWaiting);
+            while (!painter.isWaiting())
+                drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
                         TimeUnit.MILLISECONDS);
             fromJSON(jsonData);
-            wantToOpenFile = false;
             fileOpened.signalAll();
         } catch (InterruptedException e) {
             e.printStackTrace();

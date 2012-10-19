@@ -42,11 +42,6 @@ import edu.uci.calismall.Scrap.Temp;
  */
 class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
 
-    /**
-     * A list containing all created strokes sorted by their position in the
-     * canvas.
-     */
-    static final SpaceOccupationList SPACE_OCCUPATION_LIST = new SpaceOccupationList();
     private static final int DEFAULT_COLOR = Color.BLACK;
     private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
     /**
@@ -85,7 +80,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     /**
      * The stroke width used to draw this stroke.
      */
-    protected float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
+    protected float strokeWidth = CaliView.ABS_STROKE_WIDTH;
     /**
      * The color of this stroke.
      */
@@ -109,8 +104,12 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * 
      * <p>
      * Used when deserializing data from JSON.
+     * 
+     * @param parentView
+     *            the view within which this stroke lies
      */
-    Stroke() {
+    Stroke(CaliView parentView) {
+        super(parentView);
         path = new Path();
         points = new ArrayList<PointF>();
         matrixValues = new float[9];
@@ -120,13 +119,16 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * Creates a new stroke, called when the user lifts her finger after drawing
      * a line or when the style for the current Path changes.
      * 
+     * @param parentView
+     *            the view in which this stroke resided *
      * @param path
      *            the path currently being drawn
      * @param copyStyleFrom
      *            the stroke in use from which style is to be copied, if
      *            <code>null</code> all default values are used
      */
-    Stroke(Path path, Stroke copyStyleFrom) {
+    Stroke(CaliView parentView, Path path, Stroke copyStyleFrom) {
+        super(parentView);
         this.path = path;
         points = new ArrayList<PointF>();
         matrixValues = new float[9];
@@ -147,7 +149,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      *            the stroke to be copied
      */
     Stroke(Stroke copy) {
-        this(new Path(copy.path), copy);
+        this(copy.parentView, new Path(copy.path), copy);
         for (PointF point : copy.points) {
             points.add(new PointF(point.x, point.y));
         }
@@ -522,7 +524,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      */
     @Override
     protected void updateSpaceOccupation() {
-        SPACE_OCCUPATION_LIST.update(this);
+        parentView.getStrokeList().update(this);
     }
 
     /*
@@ -613,7 +615,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         try {
             jsonData.getBoolean("rect");
             // a RectStroke
-            return new RectStroke().fromJSON(jsonData);
+            return new RectStroke(parentView).fromJSON(jsonData);
         } catch (JSONException e) {
             // not a RectStroke
             id = UUID.fromString(jsonData.getString("id"));

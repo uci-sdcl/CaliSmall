@@ -14,7 +14,6 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.FloatMath;
 import android.view.MotionEvent;
-import edu.uci.calismall.CaliSmall.CaliView;
 import edu.uci.calismall.Scrap.Transformation;
 
 /**
@@ -207,8 +206,8 @@ public class BubbleMenu {
      * @param parent
      *            the running instance of CaliSmall
      */
-    public BubbleMenu(CaliSmall parent) {
-        view = parent.getView();
+    public BubbleMenu(CaliView parent) {
+        view = parent;
         sel = new RectF();
         bounds = new RectF();
         Resources resources = parent.getResources();

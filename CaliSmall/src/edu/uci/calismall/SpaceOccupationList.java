@@ -16,8 +16,10 @@ import android.graphics.PointF;
  * (X, Y) axes.
  * 
  * @author Michele Bonazza
+ * @param <T>
+ *            the type of elements in this list
  */
-public class SpaceOccupationList {
+public class SpaceOccupationList<T extends CaliSmallElement> {
     /**
      * Tag used for messages about intersection tests in LogCat files.
      */
@@ -29,16 +31,16 @@ public class SpaceOccupationList {
     /**
      * The list of elements kept by this <tt>SpaceOccupationList</tt>.
      */
-    protected List<CaliSmallElement> list;
+    protected List<T> list;
 
-    private final Map<String, CaliSmallElement> idMap;
+    private final Map<String, T> idMap;
 
     /**
      * Creates a new list.
      */
     public SpaceOccupationList() {
-        list = new ArrayList<CaliSmallElement>();
-        idMap = new HashMap<String, CaliSmallElement>();
+        list = new ArrayList<T>();
+        idMap = new HashMap<String, T>();
     }
 
     /**
@@ -47,7 +49,7 @@ public class SpaceOccupationList {
      * @param element
      *            the element to be added to the list
      */
-    public void add(CaliSmallElement element) {
+    public void add(T element) {
         list.add(element);
         idMap.put(element.id.toString(), element);
     }
@@ -58,11 +60,11 @@ public class SpaceOccupationList {
      * @param elements
      *            the list of elements that must be added to this list
      */
-    public void addAll(List<? extends CaliSmallElement> elements) {
+    public void addAll(List<T> elements) {
         if (elements == null || elements.isEmpty())
             return;
         list.addAll(elements);
-        for (CaliSmallElement element : elements) {
+        for (T element : elements) {
             idMap.put(element.id.toString(), element);
         }
     }
@@ -110,7 +112,7 @@ public class SpaceOccupationList {
      * @return the element or <code>null</code> if no element has the specified
      *         id, or <code>null</code> was provided as argument
      */
-    public CaliSmallElement getById(String id) {
+    public T getById(String id) {
         if (id == null)
             return null;
         return idMap.get(id);

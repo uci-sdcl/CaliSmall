@@ -28,9 +28,12 @@ public class RectStroke extends Stroke {
 
     /**
      * Empty constructor used when creating objects from deserialization.
+     * 
+     * @param parentView
+     *            the view that will store this stroke
      */
-    public RectStroke() {
-        super();
+    public RectStroke(CaliView parentView) {
+        super(parentView);
     }
 
     /**
@@ -49,7 +52,7 @@ public class RectStroke extends Stroke {
      *            ) for the corners
      */
     public RectStroke(Stroke copyStyleFrom, RectF borders, float radius) {
-        super(new Path(), copyStyleFrom);
+        super(copyStyleFrom.parentView, new Path(), copyStyleFrom);
         // points are arranged starting from top-left corner clockwise
         setStart(new PointF(borders.left, borders.top + radius));
         points.add(new PointF(borders.left, borders.top));

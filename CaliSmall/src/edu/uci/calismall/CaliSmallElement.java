@@ -118,6 +118,10 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     protected boolean addedToSelection;
     /**
+     * The view within which this element was created.
+     */
+    protected final CaliView parentView;
+    /**
      * The width of the {@link RectF} enclosing this element.
      */
     protected float width;
@@ -127,6 +131,16 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     protected float height;
 
     private boolean mustBeDrawn = true;
+
+    /**
+     * Creates a new element.
+     * 
+     * @param parentView
+     *            the view within which this element lies.
+     */
+    protected CaliSmallElement(CaliView parentView) {
+        this.parentView = parentView;
+    }
 
     /**
      * Updates the information about the area occupied by this element
@@ -336,7 +350,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      *            deleted
      */
     public static <T extends CaliSmallElement> void deleteMarkedFromList(
-            List<T> deleteList, SpaceOccupationList spaceOccupationList) {
+            List<T> deleteList, SpaceOccupationList<T> spaceOccupationList) {
         List<T> elementsToRemove = new ArrayList<T>();
         for (Iterator<T> iterator = deleteList.iterator(); iterator.hasNext();) {
             T next = iterator.next();

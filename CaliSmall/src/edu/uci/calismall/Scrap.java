@@ -28,7 +28,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.shapes.RoundRectShape;
 import android.view.View;
-import edu.uci.calismall.CaliSmall.CaliView;
 
 /**
  * A Calico scrap.
@@ -64,11 +63,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         RESIZE
     }
 
-    /**
-     * A list containing all created scraps sorted by their position in the
-     * canvas.
-     */
-    static final SpaceOccupationList SPACE_OCCUPATION_LIST = new SpaceOccupationList();
     private static final int SCRAP_REGION_COLOR = 0x44d0e4f0;
     private static final int TEMP_SCRAP_REGION_COLOR = 0x55bcdbbc;
     private static final int HIGHLIGHTED_STROKE_COLOR = 0xffb2b2ff;
@@ -164,8 +158,12 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * 
      * <p>
      * Used when deserializing data from JSON.
+     * 
+     * @param parentView
+     *            the view within which this stroke lies
      */
-    public Scrap() {
+    public Scrap(CaliView parentView) {
+        super(parentView);
         snapshotMatrix = new Matrix();
         matrix = new Matrix();
         contentMatrix = new Matrix();
@@ -185,6 +183,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            all strokes belonging to this scrap
      */
     public Scrap(Stroke outerBorder, List<Scrap> scraps, List<Stroke> strokes) {
+        super(outerBorder.parentView);
         snapshotMatrix = new Matrix();
         matrix = new Matrix();
         contentMatrix = new Matrix();
@@ -208,6 +207,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            by this scrap
      */
     public Scrap(Scrap copy, boolean deepCopy) {
+        super(copy.parentView);
         snapshotMatrix = new Matrix();
         matrix = new Matrix();
         contentMatrix = new Matrix();
@@ -277,7 +277,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     public void addChildrenFromJSON() {
         if (scrapIDs != null) {
             for (String id : scrapIDs) {
-                Scrap scrap = (Scrap) Scrap.SPACE_OCCUPATION_LIST.getById(id);
+                Scrap scrap = parentView.getScrapList().getById(id);
                 add(scrap);
             }
             scrapIDs = null;
@@ -517,7 +517,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         }
         BORDER_PAINT.setColor(DESELECTED_BORDER_COLOR);
         BORDER_PAINT
-                .setStrokeWidth((CaliSmall.ABS_STROKE_WIDTH / scaleFactor) / 2);
+                .setStrokeWidth((CaliView.ABS_STROKE_WIDTH / scaleFactor) / 2);
         canvas.drawPath(outerBorder.getPath(), BORDER_PAINT);
     }
 
@@ -532,7 +532,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     protected void highlightBorder(Canvas canvas, float scaleFactor) {
         BORDER_PAINT.setColor(SELECTED_BORDER_COLOR);
         BORDER_PAINT
-                .setStrokeWidth(2 * (CaliSmall.ABS_STROKE_WIDTH / scaleFactor));
+                .setStrokeWidth(2 * (CaliView.ABS_STROKE_WIDTH / scaleFactor));
         canvas.drawPath(outerBorder.getPath(), BORDER_PAINT);
     }
 
@@ -734,8 +734,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * @param scaleFactor
      *            the current scale factor applied to the canvas
      */
-    public void
-            draw(CaliSmall.CaliView parent, Canvas canvas, float scaleFactor) {
+    public void draw(CaliView parent, Canvas canvas, float scaleFactor) {
         if (hasToBeDrawnVectorially() || (topLevelForEdit && snapshot == null)) {
             drawShadedRegion(canvas);
             drawBorder(canvas, scaleFactor);
@@ -939,7 +938,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             super(selectionBorder, new ArrayList<Scrap>(),
                     new ArrayList<Stroke>());
             regionColor = TEMP_SCRAP_REGION_COLOR;
-            dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
+            dashInterval = CaliView.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
             findSelected();
         }
 
@@ -958,11 +957,11 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                 stroke.previousParent = null;
             }
             regionColor = TEMP_SCRAP_REGION_COLOR;
-            dashInterval = CaliSmall.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
+            dashInterval = CaliView.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
         }
 
         private void findSelected() {
-            List<CaliSmallElement> candidates = SPACE_OCCUPATION_LIST
+            List<CaliSmallElement> candidates = parentView.getScrapList()
                     .findIntersectionCandidates(this);
             Collections.sort(candidates);
             List<Scrap> allScrapsInSelection = new ArrayList<Scrap>();
@@ -990,8 +989,8 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                 }
             }
             CaliSmallElement.resetSelectionStatus(allScrapsInSelection);
-            candidates = Stroke.SPACE_OCCUPATION_LIST
-                    .findIntersectionCandidates(this);
+            candidates = parentView.getStrokeList().findIntersectionCandidates(
+                    this);
             for (CaliSmallElement element : candidates) {
                 Stroke stroke = (Stroke) element;
                 if (!stroke.addedToSelection) {
@@ -1038,8 +1037,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             }
         }
 
-        public void draw(CaliSmall.CaliView parent, Canvas canvas,
-                float scaleFactor) {
+        public void draw(CaliView parent, Canvas canvas, float scaleFactor) {
             if (selected) {
                 if (hasToBeDrawnVectorially() || snapshot == null) {
                     highlight(canvas, scaleFactor);
@@ -1097,7 +1095,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      */
     @Override
     public void updateSpaceOccupation() {
-        SPACE_OCCUPATION_LIST.update(this);
+        parentView.getScrapList().update(this);
         previousTopLeftPoint.x = topLeftPoint.x;
         previousTopLeftPoint.y = topLeftPoint.y;
     }
@@ -1147,14 +1145,14 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     @Override
     public Scrap fromJSON(JSONObject jsonData) throws JSONException {
         id = UUID.fromString(jsonData.getString("id"));
-        outerBorder = new Stroke();
+        outerBorder = new Stroke(parentView);
         outerBorder.fromJSON(jsonData.getJSONObject("border"));
         outerBorder.getPath().close();
         try {
             JSONArray array = jsonData.getJSONArray("strokes");
             for (int i = 0; i < array.length(); i++) {
-                Stroke stroke = (Stroke) Stroke.SPACE_OCCUPATION_LIST
-                        .getById(array.getString(i));
+                Stroke stroke = parentView.getStrokeList().getById(
+                        array.getString(i));
                 add(stroke);
             }
         } catch (JSONException e) { /* it's ok, no strokes */}
