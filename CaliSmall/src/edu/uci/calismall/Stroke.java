@@ -498,7 +498,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         String comma = "";
         for (PointF point : points) {
             builder.append(comma);
-            builder.append(CaliSmall.pointToString(point));
+            builder.append(Utils.pointToString(point));
             comma = ", ";
         }
         return builder.toString();

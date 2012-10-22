@@ -6,6 +6,8 @@ package edu.uci.calismall;
 
 import java.util.List;
 
+import android.graphics.Point;
+import android.graphics.PointF;
 import android.util.Log;
 
 /**
@@ -80,5 +82,34 @@ public final class Utils {
             return null;
         }
         return list.get(list.size() - 1);
+    }
+
+    /**
+     * Returns what <tt>PointF.toString()</tt> should have returned, but Android
+     * developers were too lazy to implement.
+     * 
+     * @param point
+     *            the point of which a String representation must be returned
+     * @return a String containing the point's coordinates enclosed within
+     *         parentheses
+     */
+    public static String pointToString(PointF point) {
+        return new StringBuilder("(").append(point.x).append(",")
+                .append(point.y).append(")").toString();
+    }
+
+    /**
+     * Returns what <tt>Point.toString()</tt> should have returned (without the
+     * initial <tt>"Point"</tt> that the <tt>toString()</tt> default
+     * implementation returns).
+     * 
+     * @param point
+     *            the point of which a String representation must be returned
+     * @return a String containing the point's coordinates enclosed within
+     *         parentheses
+     */
+    public static String pointToString(Point point) {
+        return new StringBuilder("(").append(point.x).append(",")
+                .append(point.y).append(")").toString();
     }
 }

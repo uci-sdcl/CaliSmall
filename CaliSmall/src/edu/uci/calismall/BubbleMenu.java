@@ -21,7 +21,7 @@ import edu.uci.calismall.Scrap.Transformation;
  * 
  * @author Michele Bonazza
  */
-public class BubbleMenu {
+public class BubbleMenu extends GenericTouchHandler {
 
     // TODO decouple this class from the CaliSmall object
 
@@ -206,7 +206,7 @@ public class BubbleMenu {
      * @param parent
      *            the running instance of CaliSmall
      */
-    public BubbleMenu(CaliView parent) {
+    BubbleMenu(CaliView parent) {
         view = parent;
         sel = new RectF();
         bounds = new RectF();
@@ -505,7 +505,7 @@ public class BubbleMenu {
      * @return whether the bubble menu should still be displayed on the argument
      *         <tt>selection</tt> after this method returns
      */
-    public boolean onTouch(int action, PointF touchPoint, Scrap selection) {
+    boolean onTouch(int action, PointF touchPoint, Scrap selection) {
         if (selection == null)
             return false;
         // if not clicking on buttons hide menu when the touch action is over
@@ -528,7 +528,7 @@ public class BubbleMenu {
      * @return <code>true</code> if <tt>touchPoint</tt> is within any of the
      *         buttons
      */
-    public boolean buttonTouched(PointF touchPoint) {
+    boolean buttonTouched(PointF touchPoint) {
         if (touched != null)
             return true;
         int x = Math.round(touchPoint.x);
@@ -548,7 +548,7 @@ public class BubbleMenu {
      * @param canvas
      *            the canvas to which the menu must be drawn.
      */
-    public void draw(Canvas canvas) {
+    void draw(Canvas canvas) {
         for (Button button : buttons) {
             button.draw(canvas, -1);
         }
@@ -566,7 +566,7 @@ public class BubbleMenu {
      * @param bounds
      *            the portion of the canvas currently displayed
      */
-    public void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
+    void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
         this.scaleFactor = scaleFactor;
         this.bounds.set(bounds);
         bSize = buttonDisplaySize / scaleFactor;
@@ -585,7 +585,7 @@ public class BubbleMenu {
      * @param bounds
      *            the portion of the canvas currently displayed
      */
-    public void setBounds(float scaleFactor, RectF bounds) {
+    void setBounds(float scaleFactor, RectF bounds) {
         setBounds(null, scaleFactor, bounds);
     }
 

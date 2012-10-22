@@ -73,6 +73,7 @@ public class RectStroke extends Stroke {
     }
 
     private void createPath() {
+        // 4 as in, the sides of a rectangle...
         for (int i = 0; i < 4; i++) {
             PointF firstAnchor = points.get(i * 3);
             PointF corner = points.get(i * 3 + 1);

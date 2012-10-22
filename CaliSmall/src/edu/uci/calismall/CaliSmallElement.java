@@ -172,7 +172,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @return <code>true</code> if the topmost side of the two rectangles
      *         enclosing the two elements overlap
      */
-    public boolean intersectsX(CaliSmallElement other) {
+    boolean intersectsX(CaliSmallElement other) {
         return (topLeftPoint.x <= other.topLeftPoint.x && topLeftPoint.x
                 + width >= other.topLeftPoint.x)
                 || (topLeftPoint.x >= other.topLeftPoint.x && other.topLeftPoint.x
@@ -189,7 +189,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @return <code>true</code> if the left side of the two rectangles
      *         enclosing the two elements overlap
      */
-    public boolean intersectsY(CaliSmallElement other) {
+    boolean intersectsY(CaliSmallElement other) {
         return (topLeftPoint.y <= other.topLeftPoint.y && topLeftPoint.y
                 + height >= other.topLeftPoint.y)
                 || (topLeftPoint.y >= other.topLeftPoint.y && other.topLeftPoint.y
@@ -267,7 +267,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      *         <code>false</code> if <tt>point</tt> is <code>null</code> or
      *         outside of this element's area
      */
-    public abstract boolean contains(PointF point);
+    abstract boolean contains(PointF point);
 
     /**
      * Tests whether the argument element is completely contained in this
@@ -278,7 +278,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @return <code>true</code> if the argument element is completely within
      *         this element's area
      */
-    public boolean contains(CaliSmallElement element) {
+    boolean contains(CaliSmallElement element) {
         boolean outliers = false;
         for (PointF point : element.getPointsForInclusionTests()) {
             if (!boundaries.contains(Math.round(point.x), Math.round(point.y))) {
@@ -298,7 +298,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * 
      * @return <code>true</code> if this element must be deleted
      */
-    public boolean hasToBeDeleted() {
+    boolean hasToBeDeleted() {
         return toBeDeleted;
     }
 
@@ -313,7 +313,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @return <code>true</code> if this element shall be drawn using its vector
      *         data format
      */
-    public boolean hasToBeDrawnVectorially() {
+    boolean hasToBeDrawnVectorially() {
         return mustBeDrawn;
     }
 
@@ -329,7 +329,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      *            <code>true</code> if this element shall be drawn using its
      *            vector data format
      */
-    public void mustBeDrawnVectorially(boolean mustBeDrawn) {
+    void mustBeDrawnVectorially(boolean mustBeDrawn) {
         this.mustBeDrawn = mustBeDrawn;
     }
 
@@ -367,7 +367,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * 
      * @return a new copy of the region enclosing this element
      */
-    public Region getBoundaries() {
+    Region getBoundaries() {
         return new Region(boundaries);
     }
 
@@ -398,7 +398,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * 
      * @return the id for this element
      */
-    public UUID getID() {
+    UUID getID() {
         return id;
     }
 
@@ -407,7 +407,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * 
      * @return the parent, may be <code>null</code>
      */
-    public CaliSmallElement getParent() {
+    CaliSmallElement getParent() {
         return parent;
     }
 
@@ -416,7 +416,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * 
      * @return the previous parent of this element
      */
-    public CaliSmallElement getPreviousParent() {
+    CaliSmallElement getPreviousParent() {
         return previousParent;
     }
 
@@ -427,7 +427,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @param parent
      *            the parent to set, may be <code>null</code>
      */
-    public void setParent(CaliSmallElement parent) {
+    void setParent(CaliSmallElement parent) {
         previousParent = this.parent;
         this.parent = parent;
     }
@@ -441,7 +441,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @param previousParent
      *            the previous parent to set
      */
-    public void setPreviousParent(CaliSmallElement previousParent) {
+    void setPreviousParent(CaliSmallElement previousParent) {
         this.previousParent = previousParent;
     }
 
@@ -465,14 +465,14 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * @return the sum of width and height of the rectangle enclosing this
      *         element
      */
-    public float getRectSize() {
+    float getRectSize() {
         return width + height;
     }
 
     public String toString() {
         StringBuilder builder = new StringBuilder(getClass().getSimpleName());
         builder.append(" ").append(id.toString()).append(" ")
-                .append(CaliSmall.pointToString(topLeftPoint)).append(" [")
+                .append(Utils.pointToString(topLeftPoint)).append(" [")
                 .append(Math.round(width)).append("x")
                 .append(Math.round(height)).append("] ");
         if (boundaries.isEmpty())

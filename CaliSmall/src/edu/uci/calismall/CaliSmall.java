@@ -34,8 +34,6 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.graphics.Point;
-import android.graphics.PointF;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -343,7 +341,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * 
      * @return the view
      */
-    public CaliView getView() {
+    CaliView getView() {
         return view;
     }
 
@@ -446,49 +444,52 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        boolean knownOption = true;
         switch (item.getItemId()) {
         case R.id.color:
             AmbilWarnaDialog dialog = view.getColorPicker();
             dialog.show();
-            return true;
+            break;
         case R.id.clear:
             view.clear();
-            return true;
+            break;
         case R.id.log:
             view.printLog();
-            return true;
+            break;
         case R.id.menu_save:
             saveButtonClicked();
-            return true;
+            break;
         case R.id.save:
             saveDialog.show();
-            return true;
+            break;
         case R.id.open:
             showLoadDialog();
-            return true;
+            break;
         case R.id.open_next:
             loadNext();
-            return true;
+            break;
         case R.id.open_previous:
             loadPrevious();
-            return true;
+            break;
         case R.id.create_new:
             newProject();
-            return true;
+            break;
         case R.id.share:
             share();
-            return true;
+            break;
         case R.id.share_snapshot:
             shareSnapshot();
-            return true;
+            break;
         case R.id.delete:
             deleteDialog.setMessage(String.format(
                     getResources().getString(R.string.delete_dialog_message),
                     chosenFile));
             deleteDialog.show();
-            return true;
+            break;
+        default:
+            knownOption = false;
         }
-        return super.onOptionsItemSelected(item);
+        return knownOption || super.onOptionsItemSelected(item);
     }
 
     private void newProject() {
@@ -670,35 +671,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 fileIndex += fileList.length;
             loadAndMaybeShowProgressBar(fileList[fileIndex]);
         }
-    }
-
-    /**
-     * Returns what <tt>PointF.toString()</tt> should have returned, but Android
-     * developers were too lazy to implement.
-     * 
-     * @param point
-     *            the point of which a String representation must be returned
-     * @return a String containing the point's coordinates enclosed within
-     *         parentheses
-     */
-    public static String pointToString(PointF point) {
-        return new StringBuilder("(").append(point.x).append(",")
-                .append(point.y).append(")").toString();
-    }
-
-    /**
-     * Returns what <tt>Point.toString()</tt> should have returned (without the
-     * initial <tt>"Point"</tt> that the <tt>toString()</tt> default
-     * implementation returns).
-     * 
-     * @param point
-     *            the point of which a String representation must be returned
-     * @return a String containing the point's coordinates enclosed within
-     *         parentheses
-     */
-    public static String pointToString(Point point) {
-        return new StringBuilder("(").append(point.x).append(",")
-                .append(point.y).append(")").toString();
     }
 
     /*
