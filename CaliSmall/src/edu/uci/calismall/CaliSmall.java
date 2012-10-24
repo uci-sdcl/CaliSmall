@@ -1543,8 +1543,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                                    new DialogInterface.OnClickListener() {
 		                                        public void onClick(DialogInterface dialog, int whichButton) {
 		                                            String name = input.getText().toString();
-		                                            userPickedANewName = !name.startsWith(autoSaveName)
-		                                                    && !name.startsWith("~" + autoSaveName);
+//		                                            userPickedANewName = !name.startsWith(autoSaveName)
+//		                                                    && !name.startsWith("~" + autoSaveName);
+		                                            userPickedANewName = !name.equals(chosenFile);
 		                                            save(name);
 		                                            setTitle(String.format("CaliSmall - (%d/%d) %s",
 		                                                    currentFileListIndex + 1, fileList.size(), chosenFile));
@@ -1737,12 +1738,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 File newFile = new File(path, input + FILE_EXTENSION);
                 if (userPickedANewName) {
                     // delete the "Unnamed Sketch" file
-                    if (chosenFile.startsWith(autoSaveName)) {
-                        new File(path, chosenFile + FILE_EXTENSION).delete();
-                        new File(path, "~" + chosenFile + FILE_EXTENSION)
-                                .delete();
-                        fileList.remove(currentFileListIndex);
-                    }
+                    // if (chosenFile.startsWith(autoSaveName)) {
+                    new File(path, chosenFile + FILE_EXTENSION).delete();
+                    new File(path, "~" + chosenFile + FILE_EXTENSION).delete();
+                    fileList.remove(currentFileListIndex);
+                    // }
                     chosenFile = input;
                     fileList.add(currentFileListIndex, input);
                     userPickedANewName = false;
@@ -1874,6 +1874,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             saveButtonClicked();
             return true;
         case R.id.save_as:
+            if (chosenFile.startsWith(autoSaveName)) {
+                input.setText("");
+            }
             saveDialog.show();
             return true;
         case R.id.open:
@@ -1930,7 +1933,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         chosenFile = generateAutoSaveName();
         save(chosenFile);
         fileList.add(++currentFileListIndex, chosenFile);
-        updateFileList();
         invalidateOptionsMenu();
         view.mustClearCanvas = true;
         input.setText("");
@@ -1966,9 +1968,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void saveButtonClicked() {
-        if (chosenFile.startsWith(autoSaveName))
+        if (chosenFile.startsWith(autoSaveName)) {
+            input.setText("");
             saveDialog.show();
-        else {
+        } else {
             restartAutoSaving();
             save(chosenFile);
             Toast.makeText(
@@ -2073,12 +2076,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void loadAndMaybeShowProgressBar(String file) {
-        if (view.didSomething) {
-            save(chosenFile);
-        }
+        save(chosenFile);
         chosenFile = file;
         input.setText(chosenFile);
-        view.didSomething = false;
+        input.setSelection(chosenFile.length());
         final File toBeLoaded = new File(getApplicationContext()
                 .getExternalFilesDir(null), file + FILE_EXTENSION);
         if (toBeLoaded.length() > MIN_FILE_SIZE_FOR_PROGRESSBAR) {
