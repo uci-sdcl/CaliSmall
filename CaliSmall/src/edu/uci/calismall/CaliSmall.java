@@ -69,6 +69,7 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -634,6 +635,48 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             toBeRemoved = scrap;
         }
 
+        /**
+         * Returns a string that represents the symbolic name of the specified
+         * action such as "ACTION_DOWN", "ACTION_POINTER_DOWN(3)" or an
+         * equivalent numeric constant such as "35" if unknown.
+         * 
+         * @param action
+         *            The action.
+         * @return The symbolic name of the specified action.
+         * @hide
+         */
+        public String actionToString(int action) {
+            switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                return "ACTION_DOWN";
+            case MotionEvent.ACTION_UP:
+                return "ACTION_UP";
+            case MotionEvent.ACTION_CANCEL:
+                return "ACTION_CANCEL";
+            case MotionEvent.ACTION_OUTSIDE:
+                return "ACTION_OUTSIDE";
+            case MotionEvent.ACTION_MOVE:
+                return "ACTION_MOVE";
+            case MotionEvent.ACTION_HOVER_MOVE:
+                return "ACTION_HOVER_MOVE";
+            case MotionEvent.ACTION_SCROLL:
+                return "ACTION_SCROLL";
+            case MotionEvent.ACTION_HOVER_ENTER:
+                return "ACTION_HOVER_ENTER";
+            case MotionEvent.ACTION_HOVER_EXIT:
+                return "ACTION_HOVER_EXIT";
+            }
+            int index = (action & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+            switch (action & MotionEvent.ACTION_MASK) {
+            case MotionEvent.ACTION_POINTER_DOWN:
+                return "ACTION_POINTER_DOWN(" + index + ")";
+            case MotionEvent.ACTION_POINTER_UP:
+                return "ACTION_POINTER_UP(" + index + ")";
+            default:
+                return Integer.toString(action);
+            }
+        }
+
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             final int action = event.getAction() & MotionEvent.ACTION_MASK;
@@ -754,7 +797,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
 
         private void onMove(MotionEvent event) {
-            final int pointerIndex = event.findPointerIndex(mActivePointerId);
+            int pointerIndex = event.findPointerIndex(mActivePointerId);
+            if (pointerIndex == -1)
+                pointerIndex = 0;
             final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
                     event.getY(pointerIndex));
             if (!mustShowLandingZone) {
@@ -776,8 +821,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             longPressListener.removeCallbacks(longPressAction);
             skipEvents = false;
             if (!zoomingOrPanning) {
-                final int pointerIndex = event
-                        .findPointerIndex(mActivePointerId);
+                int pointerIndex = event.findPointerIndex(mActivePointerId);
+                if (pointerIndex < 0)
+                    pointerIndex = 0;
                 mActivePointerId = INVALID_POINTER_ID;
                 if (redirectedGhost != null) {
                     redirectedGhost.setGhost(false, null, null, 0f);
@@ -1244,7 +1290,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             "yyyy-MM-dd HH:mm:ss");
     private static final long AUTO_SAVE_TIME = 20 * 1000,
             AUTO_BACKUP_TIME = 3 * 60 * 1000;
-    private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 50 * 1024;
+    private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
 
     /*************************************************************************
      * DISCLAIMER FOR THE READER
@@ -1509,6 +1555,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         view = new CaliView(this);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
         bubbleMenu = new BubbleMenu(this);
         reset();
         setContentView(view);
