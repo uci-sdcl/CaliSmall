@@ -181,10 +181,10 @@ public class BubbleMenu {
     }
 
     /**
-     * Absolute size of buttons in bubble menus. This value assumes that all
-     * buttons have this height AND width (i.e. they're contained in a square).
+     * The ratio used to make buttons have the same physical size regardless of
+     * the actual pixel density of the device.
      */
-    public static final int ABS_B_SIZE = 48;
+    public static final float BUTTON_SIZE_TO_SCREEN_WIDTH_RATIO = 48f / 1280;
     private static final int BUTTONS_PER_SIDE = 4;
     private static final float PADDING_TO_BUTTON_SIZE_RATIO = 0.5f;
     private static final int MINIMUM_SIDE_LENGTH_FOR_SCALE = 4;
@@ -195,8 +195,8 @@ public class BubbleMenu {
     private final CaliView view;
     private PointF initialDistanceToPivot, pivot, referencePoint;
     private Button touched;
-    private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
-            scaleFactor, maxXScale, maxYScale, compensationForRotateButtonPos;
+    private float buttonDisplaySize, bSize, padding, minSize, scaleFactor,
+            maxXScale, maxYScale, compensationForRotateButtonPos;
     private Scrap highlighted;
     private boolean topLeftPinned;
 
@@ -587,6 +587,8 @@ public class BubbleMenu {
      *            the portion of the canvas currently displayed
      */
     public void setBounds(float scaleFactor, RectF bounds) {
+        buttonDisplaySize = Math.max(bounds.width(), bounds.height())
+                * BUTTON_SIZE_TO_SCREEN_WIDTH_RATIO;
         setBounds(null, scaleFactor, bounds);
     }
 
