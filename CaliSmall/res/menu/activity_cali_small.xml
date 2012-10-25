@@ -16,9 +16,13 @@
         android:showAsAction="always"
         android:title="Line Style">
         <menu>
+            <item android:id="@+id/line_thinnest"
+                android:icon="@drawable/line_thinnest"
+                android:title="@string/line_thinnest"
+                android:showAsAction="never" />
             <item android:id="@+id/line_thin"
                 android:icon="@drawable/line_thin"
-                android:title="@string/line_thin"
+                android:title="@string/line_thin" 
                 android:showAsAction="never" />
             <item android:id="@+id/line_medium"
                 android:icon="@drawable/line_medium"
@@ -27,6 +31,10 @@
             <item android:id="@+id/line_thick"
                 android:icon="@drawable/line_thick"
                 android:title="@string/line_thick" 
+                android:showAsAction="never" />
+            <item android:id="@+id/line_thickest"
+                android:icon="@drawable/line_thickest"
+                android:title="@string/line_thickest"
                 android:showAsAction="never" />
             <item android:id="@+id/line_zoom"
                 android:icon="@android:drawable/checkbox_on_background"

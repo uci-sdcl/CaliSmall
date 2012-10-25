@@ -1162,7 +1162,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 // rescale paint brush and connect circle
                 stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
             }
-            LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(stroke.getStrokeWidth() * 2);
+            LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_THIN_STROKE_WIDTH
+                    / scaleFactor * 2);
             landingZoneRadius = scaledLandingZoneAbsRadius / scaleFactor;
             minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
                     / scaleFactor;
@@ -1189,20 +1190,30 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public static final String TAG = "CaliSmall";
 
     /**
+     * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THINNEST_STROKE_WIDTH = 1;
+    /**
      * Absolute {@link Stroke} width of thin strokes (to be rescaled by
      * {@link #scaleFactor}).
      */
-    public static final int ABS_THIN_STROKE_WIDTH = 1;
+    public static final int ABS_THIN_STROKE_WIDTH = 3;
     /**
-     * Absolute {@link Stroke} width of regular strokes (to be rescaled by
+     * Absolute {@link Stroke} width of medium strokes (to be rescaled by
      * {@link #scaleFactor}).
      */
-    public static final int ABS_MEDIUM_STROKE_WIDTH = 3;
+    public static final int ABS_MEDIUM_STROKE_WIDTH = 5;
     /**
      * Absolute {@link Stroke} width of thick strokes (to be rescaled by
      * {@link #scaleFactor}).
      */
-    public static final int ABS_THICK_STROKE_WIDTH = 5;
+    public static final int ABS_THICK_STROKE_WIDTH = 7;
+    /**
+     * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THICKEST_STROKE_WIDTH = 9;
     /**
      * The amount of time (in milliseconds) before the long pressure animation
      * is shown.
@@ -1219,17 +1230,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
      */
     public static final long SCREEN_REFRESH_TIME = 20;
-    /**
-     * Absolute radius for landing zones (to be rescaled by {@link #scaleFactor}
-     * ).
-     */
-    static final float ABS_LANDING_ZONE_RADIUS = 25;
 
     /**
      * The ratio used to make the landing zone the same physical size regardless
      * of the device that is currently being used.
      */
-    static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 22f / 1280;
+    static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
     /**
      * The interval between dashes in landing zones (to be rescaled by
      * {@link #scaleFactor}).
@@ -1506,7 +1512,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * zones for this device, meaning that it's rescaled to look the same
      * physical size across devices.
      */
-    float scaledLandingZoneAbsRadius = ABS_LANDING_ZONE_RADIUS;
+    float scaledLandingZoneAbsRadius;
     /**
      * The minimum length that a {@link Stroke} must reach before the landing
      * zone is displayed over it (letting that <tt>Stroke</tt> be used to create
@@ -1561,7 +1567,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     /**
      * The stroke width chosen by the user.
      */
-    int currentAbsStrokeWidth = ABS_MEDIUM_STROKE_WIDTH;
+    int currentAbsStrokeWidth = ABS_THIN_STROKE_WIDTH;
     /**
      * Whether stroke size should be rescaled according to the zoom level.
      */
@@ -1573,6 +1579,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private AlertDialog saveDialog, loadDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
     private Timer autoSaverTimer;
+    private MenuItem chosenThickness;
+    private int chosenThicknessNonHighlightedIcon;
     private boolean userPickedANewName;
 
     static {
@@ -1585,7 +1593,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         LONG_PRESS_CIRCLE_PAINT.setStrokeJoin(Paint.Join.ROUND);
         LONG_PRESS_CIRCLE_PAINT.setStrokeCap(Paint.Cap.ROUND);
         LONG_PRESS_CIRCLE_PAINT.setStyle(Style.STROKE);
-        LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_MEDIUM_STROKE_WIDTH * 2);
+        LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_THIN_STROKE_WIDTH * 2);
         LONG_PRESS_CIRCLE_PAINT.setColor(Color.RED);
         LANDING_ZONE_PAINT.setColor(Color.BLACK);
         LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
@@ -1960,12 +1968,16 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
             dialog.show();
             return true;
+        case R.id.line_thinnest:
+            return onStrokeThicknessSelection(ABS_THINNEST_STROKE_WIDTH);
         case R.id.line_thin:
             return onStrokeThicknessSelection(ABS_THIN_STROKE_WIDTH);
         case R.id.line_medium:
             return onStrokeThicknessSelection(ABS_MEDIUM_STROKE_WIDTH);
         case R.id.line_thick:
             return onStrokeThicknessSelection(ABS_THICK_STROKE_WIDTH);
+        case R.id.line_thickest:
+            return onStrokeThicknessSelection(ABS_THICKEST_STROKE_WIDTH);
         case R.id.line_zoom:
             return toggleStrokeWidthScaling();
         case R.id.save:
@@ -2011,6 +2023,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
         else
             stroke.setStrokeWidth(currentAbsStrokeWidth);
+        invalidateOptionsMenu();
         return true;
     }
 
@@ -2038,6 +2051,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     : 85);
         SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
         MenuItem toggle = lineStyleMenu.findItem(R.id.line_zoom);
+        updateStrokeThicknessSelection(lineStyleMenu);
         if (!scaleStrokeWithZoom) {
             stroke.setStrokeWidth(currentAbsStrokeWidth);
             toggle.setIcon(android.R.drawable.checkbox_off_background);
@@ -2046,6 +2060,45 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             toggle.setIcon(android.R.drawable.checkbox_on_background);
         }
         return super.onPrepareOptionsMenu(menu);
+    }
+
+    private void updateStrokeThicknessSelection(SubMenu lineStyleMenu) {
+        if (chosenThickness == null) {
+            chosenThickness = lineStyleMenu.findItem(R.id.line_thin);
+            chosenThicknessNonHighlightedIcon = R.drawable.line_thin;
+            chosenThickness.setIcon(R.drawable.line_thin_highlighted);
+        } else {
+            chosenThickness.setIcon(chosenThicknessNonHighlightedIcon);
+            int nonHighlighted = 0;
+            switch (currentAbsStrokeWidth) {
+            case ABS_THINNEST_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thinnest);
+                nonHighlighted = R.drawable.line_thinnest;
+                chosenThickness.setIcon(R.drawable.line_thinnest_highlighted);
+                break;
+            case ABS_THIN_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thin);
+                nonHighlighted = R.drawable.line_thin;
+                chosenThickness.setIcon(R.drawable.line_thin_highlighted);
+                break;
+            case ABS_MEDIUM_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_medium);
+                nonHighlighted = R.drawable.line_medium;
+                chosenThickness.setIcon(R.drawable.line_medium_highlighted);
+                break;
+            case ABS_THICK_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thick);
+                nonHighlighted = R.drawable.line_thick;
+                chosenThickness.setIcon(R.drawable.line_thick_highlighted);
+                break;
+            case ABS_THICKEST_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thickest);
+                nonHighlighted = R.drawable.line_thickest;
+                chosenThickness.setIcon(R.drawable.line_thickest_highlighted);
+                break;
+            }
+            chosenThicknessNonHighlightedIcon = nonHighlighted;
+        }
     }
 
     private void newSketch() {
