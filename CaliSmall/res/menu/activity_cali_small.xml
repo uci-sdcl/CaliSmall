@@ -1,5 +1,4 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
-
     <item
         android:id="@+id/color"
         android:alphabeticShortcut="c"
@@ -16,6 +15,24 @@
         android:orderInCategory="1"
         android:showAsAction="always"
         android:title="Line Style">
+        <menu>
+            <item android:id="@+id/line_thin"
+                android:icon="@drawable/line_thin"
+                android:title="@string/line_thin"
+                android:showAsAction="never" />
+            <item android:id="@+id/line_medium"
+                android:icon="@drawable/line_medium"
+                android:title="@string/line_medium" 
+                android:showAsAction="never" />
+            <item android:id="@+id/line_thick"
+                android:icon="@drawable/line_thick"
+                android:title="@string/line_thick" 
+                android:showAsAction="never" />
+            <item android:id="@+id/line_zoom"
+                android:icon="@android:drawable/checkbox_on_background"
+                android:title="@string/line_resize"
+                android:showAsAction="never" />
+        </menu>
     </item>
     <item
         android:id="@+id/open_previous"
@@ -45,7 +62,15 @@
         android:showAsAction="always"
         android:title="Open Next"
         android:titleCondensed="Next">
-    </item><item android:id="@+id/save" android:title="Save" android:titleCondensed="Save" android:showAsAction="never" android:menuCategory="secondary" android:orderInCategory="0"></item>
+    </item>
+    <item
+        android:id="@+id/save"
+        android:menuCategory="secondary"
+        android:orderInCategory="0"
+        android:showAsAction="never"
+        android:title="Save"
+        android:titleCondensed="Save">
+    </item>
     <item
         android:id="@+id/save_as"
         android:alphabeticShortcut="s"
@@ -84,13 +109,5 @@
         android:showAsAction="never"
         android:title="Share snapshot...">
     </item>
-    <item
-        android:id="@+id/log"
-        android:alphabeticShortcut="l"
-        android:menuCategory="secondary"
-        android:orderInCategory="6"
-        android:title="Print Log">
-    </item>
-    
 
 </menu>

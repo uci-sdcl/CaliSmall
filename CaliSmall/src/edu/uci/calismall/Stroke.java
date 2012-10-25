@@ -85,7 +85,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     /**
      * The stroke width used to draw this stroke.
      */
-    protected float strokeWidth = CaliSmall.ABS_STROKE_WIDTH;
+    protected float strokeWidth = CaliSmall.ABS_MEDIUM_STROKE_WIDTH;
     /**
      * The color of this stroke.
      */

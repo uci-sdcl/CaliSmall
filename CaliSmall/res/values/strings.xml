@@ -21,4 +21,8 @@
     <string name="share_message_subject">My Calico sketch</string>
     <string name="share_message_text">Check out this new sketch I made with CaliSmall&#153;!</string>
     <string name="share_message">Share via</string>
+    <string name="line_thin">Thin</string>
+    <string name="line_medium">Regular</string>
+    <string name="line_thick">Thick</string>
+    <string name="line_resize">Resize with zoom</string>
 </resources>

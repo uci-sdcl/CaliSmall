@@ -67,6 +67,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
+import android.view.SubMenu;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -106,7 +107,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 try {
                     canvas = holder.lockCanvas();
                     if (canvas != null)
-                        view.drawView(canvas, false);
+                        view.drawView(canvas);
                 } catch (IllegalArgumentException e) {
                     // activity sent to bg, don't care
                 } finally {
@@ -159,6 +160,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                         selected = parent.view.getClosestStroke();
                         if (selected != null) {
                             parent.view.longPressed = true;
+                            parent.view.lastLongPressAnimationRefresh = System
+                                    .currentTimeMillis();
                             parent.view.mustShowLongPressCircle = true;
                         }
                     }
@@ -281,12 +284,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * The {@link SurfaceView} on which the canvas is drawn.
      * 
      * <p>
-     * Drawing takes place within the {@link CaliView#drawView(Canvas, boolean)}
-     * method, which is called roughly every
-     * {@link CaliSmall#SCREEN_REFRESH_TIME} milliseconds by the <tt>Worker</tt>
-     * thread that is spawn by {@link CaliView#surfaceCreated(SurfaceHolder)}
-     * (which in turn is called by the Android Runtime when the app is moved to
-     * the foreground).
+     * Drawing takes place within the {@link CaliView#drawView(Canvas)} method,
+     * which is called roughly every {@link CaliSmall#SCREEN_REFRESH_TIME}
+     * milliseconds by the <tt>Worker</tt> thread that is spawn by
+     * {@link CaliView#surfaceCreated(SurfaceHolder)} (which in turn is called
+     * by the Android Runtime when the app is moved to the foreground).
      * 
      * <p>
      * All data structures accessed by the drawing thread are only edited by the
@@ -335,6 +337,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         private Stroke redirectedGhost;
         private int mActivePointerId = INVALID_POINTER_ID, screenWidth,
                 screenHeight;
+        private long lastLongPressAnimationRefresh;;
 
         private CaliView(CaliSmall c) {
             super(c);
@@ -381,15 +384,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
          * 
          * @param canvas
          *            the canvas onto which this view is to be drawn
-         * @param dontWait
-         *            must be <code>true</code> if the thread that calls this
-         *            method shouldn't wait for files to be opened (i.e. only
-         *            when it is called by a method that is saving the canvas
-         *            content)
          */
-        public void drawView(Canvas canvas, boolean dontWait) {
+        public void drawView(Canvas canvas) {
             if (canvas != null) {
-                while (wantToOpenFile && !dontWait) {
+                while (wantToOpenFile) {
                     waitForFileOpen();
                 }
                 canvas.drawColor(Color.WHITE);
@@ -401,7 +399,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     clearCanvas();
                 } else {
                     // canvas.drawPath(canvasBounds, borderPaint);
-                    maybeDrawLandingZone(canvas);
                     deleteElements();
                     maybeCreateBubbleMenu();
                     drawTempScrap(canvas);
@@ -411,7 +408,24 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     if (bubbleMenuShown)
                         bubbleMenu.draw(canvas);
                     drawNewStroke(canvas);
+                    maybeDrawLandingZone(canvas);
                 }
+            }
+        }
+
+        /**
+         * Takes a snapshot of the current content of the sketch.
+         * 
+         * @param canvas
+         *            the canvas onto which the snapshot is going to be drawn
+         */
+        public void takeSnapshot(Canvas canvas) {
+            if (canvas != null) {
+                canvas.drawColor(Color.WHITE);
+                canvas.concat(matrix);
+                drawTempScrap(canvas);
+                drawScraps(canvas);
+                drawStrokes(canvas);
             }
         }
 
@@ -430,12 +444,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
 
         private void drawLongPressAnimation(Canvas canvas) {
-            landingZoneCircleSweepAngle += ABS_CIRCLE_SWEEP_INCREMENT;
+            final long deltaT = System.currentTimeMillis()
+                    - lastLongPressAnimationRefresh;
+            landingZoneCircleSweepAngle += (360 * deltaT / LONG_PRESS_ANIMATION_DURATION);
             canvas.drawArc(longPressCircleBounds, CIRCLE_SWEEP_START,
                     landingZoneCircleSweepAngle, false, LONG_PRESS_CIRCLE_PAINT);
             if (landingZoneCircleSweepAngle >= 360) {
                 longPressAction.reset(true);
             }
+            lastLongPressAnimationRefresh = System.currentTimeMillis();
         }
 
         private void clearCanvas() {
@@ -1141,10 +1158,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
          */
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
-            // rescale paint brush and connect circle
-            stroke.setStrokeWidth(ABS_STROKE_WIDTH / scaleFactor);
+            if (scaleStrokeWithZoom) {
+                // rescale paint brush and connect circle
+                stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
+            }
             LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(stroke.getStrokeWidth() * 2);
-            // landingZoneRadius = ABS_LANDING_ZONE_RADIUS / scaleFactor;
             landingZoneRadius = scaledLandingZoneAbsRadius / scaleFactor;
             minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
                     / scaleFactor;
@@ -1169,10 +1187,22 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * Tag used for the whole application in LogCat files.
      */
     public static final String TAG = "CaliSmall";
+
     /**
-     * Absolute {@link Stroke} width (to be rescaled by {@link #scaleFactor}).
+     * Absolute {@link Stroke} width of thin strokes (to be rescaled by
+     * {@link #scaleFactor}).
      */
-    public static final int ABS_STROKE_WIDTH = 3;
+    public static final int ABS_THIN_STROKE_WIDTH = 1;
+    /**
+     * Absolute {@link Stroke} width of regular strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_MEDIUM_STROKE_WIDTH = 3;
+    /**
+     * Absolute {@link Stroke} width of thick strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THICK_STROKE_WIDTH = 5;
     /**
      * The amount of time (in milliseconds) before the long pressure animation
      * is shown.
@@ -1184,8 +1214,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
     /**
      * Time in milliseconds between two consecutive screen refreshes (i.e. two
-     * consecutive calls to {@link CaliView#drawView(Canvas, boolean)}). To get
-     * the FPS that this value sets, just divide 1000 by the value (so a
+     * consecutive calls to {@link CaliView#drawView(Canvas)}). To get the FPS
+     * that this value sets, just divide 1000 by the value (so a
      * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
      */
     public static final long SCREEN_REFRESH_TIME = 20;
@@ -1239,6 +1269,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * which the circle is animated.
      */
     static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
+    /**
+     * How long should the long press animation last, that is how long it should
+     * take for the circle to be drawn completely in milliseconds.
+     */
+    static final long LONG_PRESS_ANIMATION_DURATION = 350;
     /**
      * The starting point for the sweep animation for long presses. 0 is the
      * rightmost point, -90 is the topmost point.
@@ -1523,6 +1558,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * distances.
      */
     float maxStrokeDistanceForLongPress;
+    /**
+     * The stroke width chosen by the user.
+     */
+    int currentAbsStrokeWidth = ABS_MEDIUM_STROKE_WIDTH;
+    /**
+     * Whether stroke size should be rescaled according to the zoom level.
+     */
+    boolean scaleStrokeWithZoom = true;
     private List<String> fileList = new ArrayList<String>();
     private String chosenFile, autoSaveName, tmpSnapshotName;
     private int currentFileListIndex = -1;
@@ -1542,7 +1585,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         LONG_PRESS_CIRCLE_PAINT.setStrokeJoin(Paint.Join.ROUND);
         LONG_PRESS_CIRCLE_PAINT.setStrokeCap(Paint.Cap.ROUND);
         LONG_PRESS_CIRCLE_PAINT.setStyle(Style.STROKE);
-        LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_STROKE_WIDTH * 2);
+        LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(ABS_MEDIUM_STROKE_WIDTH * 2);
         LONG_PRESS_CIRCLE_PAINT.setColor(Color.RED);
         LANDING_ZONE_PAINT.setColor(Color.BLACK);
         LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
@@ -1558,8 +1601,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
         bubbleMenu = new BubbleMenu(this);
-        reset();
         setContentView(view);
+        reset();
+        bubbleMenu.setBounds(scaleFactor, screenBounds);
         autoSaveName = getResources().getString(R.string.unnamed_files);
         final EditText input = new EditText(this);
         this.input = input;
@@ -1731,6 +1775,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         screenBounds.set(min.x, min.y, max.x, max.y);
     }
 
+    @SuppressWarnings("unused")
     private void printLog() {
         Log.d(TAG, "{{{SCRAPS}}}\n" + Scrap.SPACE_OCCUPATION_LIST);
         Log.d(TAG, "{{{STROKES}}}\n" + Stroke.SPACE_OCCUPATION_LIST);
@@ -1915,9 +1960,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
             dialog.show();
             return true;
-        case R.id.log:
-            printLog();
-            return true;
+        case R.id.line_thin:
+            return onStrokeThicknessSelection(ABS_THIN_STROKE_WIDTH);
+        case R.id.line_medium:
+            return onStrokeThicknessSelection(ABS_MEDIUM_STROKE_WIDTH);
+        case R.id.line_thick:
+            return onStrokeThicknessSelection(ABS_THICK_STROKE_WIDTH);
+        case R.id.line_zoom:
+            return toggleStrokeWidthScaling();
         case R.id.save:
             saveButtonClicked();
             return true;
@@ -1955,6 +2005,21 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return super.onOptionsItemSelected(item);
     }
 
+    private boolean onStrokeThicknessSelection(int selectedThickness) {
+        currentAbsStrokeWidth = selectedThickness;
+        if (scaleStrokeWithZoom)
+            stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
+        else
+            stroke.setStrokeWidth(currentAbsStrokeWidth);
+        return true;
+    }
+
+    private boolean toggleStrokeWidthScaling() {
+        scaleStrokeWithZoom = !scaleStrokeWithZoom;
+        invalidateOptionsMenu();
+        return true;
+    }
+
     /*
      * (non-Javadoc)
      * 
@@ -1971,6 +2036,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         if (nextIcon != null)
             nextIcon.setAlpha(currentFileListIndex < fileList.size() - 1 ? 255
                     : 85);
+        SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
+        MenuItem toggle = lineStyleMenu.findItem(R.id.line_zoom);
+        if (!scaleStrokeWithZoom) {
+            stroke.setStrokeWidth(currentAbsStrokeWidth);
+            toggle.setIcon(android.R.drawable.checkbox_off_background);
+        } else {
+            stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
+            toggle.setIcon(android.R.drawable.checkbox_on_background);
+        }
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -2061,7 +2135,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     view.screenHeight, Config.ARGB_8888);
             Canvas canvas = new Canvas(bitmap);
             wantToOpenFile = false;
-            view.drawView(canvas, true);
+            view.takeSnapshot(canvas);
             fileOpened.signalAll();
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, tmp);
             tmp.flush();
