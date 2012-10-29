@@ -18,7 +18,7 @@
         <activity
             android:name=".CaliSmall"
             android:label="@string/title_activity_cali_small"
-            android:screenOrientation="landscape" >
+            android:configChanges="keyboardHidden|orientation|screenSize" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -42,6 +42,7 @@
     <!--
            android:theme="@android:style/Theme.NoTitleBar"       
             android:configChanges="keyboardHidden|orientation|screenSize"
+            android:screenOrientation="landscape"
     -->
 
 </manifest>
