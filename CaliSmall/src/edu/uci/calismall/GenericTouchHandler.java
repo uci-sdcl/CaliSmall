@@ -48,7 +48,7 @@ public abstract class GenericTouchHandler extends
      * @see edu.uci.calismall.TouchHandler#onPointerDown()
      */
     @Override
-    public boolean onPointerDown(PointF touchPoint) {
+    public boolean onPointerDown(PointF touchPoint, MotionEvent event) {
         return false;
     }
 
@@ -68,7 +68,7 @@ public abstract class GenericTouchHandler extends
      * @see edu.uci.calismall.TouchHandler#onPointerUp()
      */
     @Override
-    public boolean onPointerUp(PointF touchPoint) {
+    public boolean onPointerUp(PointF touchPoint, MotionEvent event) {
         return false;
     }
 

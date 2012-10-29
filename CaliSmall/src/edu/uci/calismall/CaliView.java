@@ -62,7 +62,7 @@ import edu.uci.calismall.Scrap.Temp;
  * the equivalente of Java's good ol' EDT).
  * 
  * <p>
- * To simplify the code, and to avoid conflicts, all drawing operations are
+ * To simplify code, and to avoid conflicts, all drawing operations are
  * performed by the drawing thread (no <tt>postXYZ()</tt> calls), and all object
  * creation/editing and border inclusion/intersection computation is done by the
  * EDT.
@@ -376,10 +376,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private TouchHandler redirectTo;
     private Stroke latestGhost;
     private PathMeasure pathMeasure;
-    private boolean zoomingOrPanning, running, mustShowLandingZone,
-            strokeAdded, mustClearCanvas, bubbleMenuShown, mustShowBubbleMenu,
-            tempScrapCreated, redirectingToBubbleMenu, longPressed,
-            mustShowLongPressCircle, skipEvents, didSomething;
+    private boolean running, mustShowLandingZone, strokeAdded, mustClearCanvas,
+            bubbleMenuShown, mustShowBubbleMenu, tempScrapCreated, longPressed,
+            mustShowLongPressCircle, didSomething;
     private PointF landingZoneCenter;
     private Stroke redirectedGhost;
     private int mActivePointerId = INVALID_POINTER_ID,
@@ -456,16 +455,13 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         newSelection = null;
         toBeRemoved = null;
         tempScrap = null;
-        zoomingOrPanning = false;
         mustShowLandingZone = false;
         strokeAdded = false;
         mustClearCanvas = false;
         bubbleMenuShown = false;
         tempScrapCreated = false;
-        redirectingToBubbleMenu = false;
         longPressed = false;
         mustShowLongPressCircle = false;
-        skipEvents = false;
         matrix = new Matrix();
         screenBounds = new RectF();
         longPressCircleBounds = new RectF();
@@ -628,7 +624,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private void longPress(Stroke selected) {
-        skipEvents = true;
         if (selected != null) {
             if (selected.parent != null) {
                 ((Scrap) selected.parent).remove(selected);
@@ -683,7 +678,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             selected.select();
         } else {
             bubbleMenuShown = false;
-            redirectingToBubbleMenu = false;
         }
         this.selected = selected;
     }
@@ -762,64 +756,11 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             for (TouchHandler handler : handlers) {
                 if (handler.processTouchEvent(action, touchPoint, event)) {
                     redirectTo = handler;
-                    break;
-                }
-            }
-        }
-        // if we came this far, event has been processed or no handler could
-        // process it...
-        if (zoomingOrPanning) {
-            handleZoomingPanningEvent(event, action);
-        } else {
-            if (redirectedGhost != null) {
-                skipEvents = true;
-            } else if (redirectingToBubbleMenu) {
-                if (onTouchBubbleMenuShown(action,
-                        adjustForZoom(event.getX(), event.getY()))) {
-                    // action has been handled by the bubble menu
                     return true;
-                } else {
-                    redirectingToBubbleMenu = false;
-                    mustShowBubbleMenu = false;
-                    bubbleMenuShown = false;
-                    createNewStroke();
                 }
             }
-            handleDrawingEvent(event, action);
         }
-        return true;
-    }
-
-    private void handleDrawingEvent(final MotionEvent event, final int action) {
-        if (skipEvents) {
-            if (action == MotionEvent.ACTION_UP) {
-                onUp(event);
-            }
-        } else {
-            // events in the switch block are in chronological order
-            switch (action) {
-            case MotionEvent.ACTION_DOWN:
-                // first touch with one finger
-                onDown(event);
-                scaleDetector.onTouchEvent(event);
-                break;
-            case MotionEvent.ACTION_MOVE:
-                onMove(event);
-                break;
-            case MotionEvent.ACTION_POINTER_DOWN:
-                // first touch with second finger
-                onPointerDown(event);
-                break;
-            case MotionEvent.ACTION_CANCEL:
-                mustShowLandingZone = false;
-                createNewStroke();
-                break;
-            case MotionEvent.ACTION_UP:
-                // last finger lifted
-                onUp(event);
-                break;
-            }
-        }
+        return false;
     }
 
     private PointF getTouchPoint(int action, MotionEvent event) {
@@ -854,139 +795,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         return previousPointerID != INVALID_POINTER_ID ? adjustForZoom(
                 event.getX(previousPointerID), event.getY(previousPointerID))
                 : null;
-    }
-
-    private void handleZoomingPanningEvent(final MotionEvent event,
-            final int action) {
-        scaleDetector.onTouchEvent(event);
-        // events in the switch block are in chronological order
-        switch (action) {
-        case MotionEvent.ACTION_POINTER_UP:
-            // first finger lifted (only when pinching)
-            onPointerUp(event);
-            break;
-        case MotionEvent.ACTION_UP:
-            // last finger lifted
-            onUp(event);
-            // delete stroke if one was accidentally created
-            stroke.getPath().reset();
-            zoomingOrPanning = false;
-            break;
-        // move actions are handled by scaleDetector
-        }
-    }
-
-    /**
-     * Checks whether the argument <tt>touchPoint</tt> is within any of the
-     * buttons in the bubble menu, and if so it forwards the action to the
-     * bubble menu. Returns whether the bubble menu should keep being displayed.
-     */
-    private boolean onTouchBubbleMenuShown(int action, PointF touchPoint) {
-        if (bubbleMenu.buttonTouched(touchPoint)) {
-            return bubbleMenu.onTouch(action, touchPoint, selected);
-        }
-        return false;
-    }
-
-    private void onDown(MotionEvent event) {
-        if (!didSomething)
-            didSomething = true;
-        actionStart = -System.currentTimeMillis();
-        PointF adjusted = adjustForZoom(event.getX(), event.getY());
-        mustShowLandingZone = false;
-        mActivePointerId = event.findPointerIndex(0);
-        longPressed = false;
-        for (Stroke ghost : ghosts) {
-            Stroke touched = ghost.ghostButtonTouched(adjusted);
-            if (touched != null) {
-                redirectedGhost = ghost;
-                return;
-            }
-        }
-        if (bubbleMenuShown) {
-            if (onTouchBubbleMenuShown(MotionEvent.ACTION_DOWN, adjusted)) {
-                // a button was touched, redirect actions to bubble menu
-                redirectingToBubbleMenu = true;
-                return;
-            }
-        }
-        longPressListener.postDelayed(longPressAction, LONG_PRESS_DURATION);
-        stroke.setStart(adjusted);
-        setSelected(getSelectedScrap(adjusted));
-    }
-
-    private void onMove(MotionEvent event) {
-        final int pointerIndex = event.findPointerIndex(mActivePointerId);
-        final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
-                event.getY(pointerIndex));
-        if (!mustShowLandingZone) {
-            mustShowLandingZone = mustShowLandingZone();
-            if (mustShowLandingZone) {
-                final float[] position = new float[2];
-                pathMeasure.getPosTan(landingZonePathOffset, position, null);
-                landingZoneCenter = new PointF(position[0], position[1]);
-            }
-        }
-        if (stroke.addAndDrawPoint(adjusted, touchTolerance)) {
-            setSelected(getSelectedScrap(stroke));
-        }
-    }
-
-    private void onUp(MotionEvent event) {
-        mustShowLandingZone = false;
-        longPressListener.removeCallbacks(longPressAction);
-        skipEvents = false;
-        if (!zoomingOrPanning) {
-            final int pointerIndex = event.findPointerIndex(mActivePointerId);
-            mActivePointerId = INVALID_POINTER_ID;
-            if (redirectedGhost != null) {
-                redirectedGhost.setGhost(false, null, null, 0f);
-                redirectedGhost = null;
-                return;
-            }
-            if (longPressAction.completed) {
-                stroke.reset();
-                createNewStroke();
-                longPressAction.completed = false;
-                landingZoneCenter.set(-1, -1);
-                return;
-            } else if (longPressed) {
-                // animation has been shown, but the user didn't mean to
-                // long press, so she took her finger/stylus away
-                longPressAction.reset(false);
-            }
-            final PointF adjusted = adjustForZoom(event.getX(pointerIndex),
-                    event.getY(pointerIndex));
-            if (isInLandingZone(adjusted)) {
-                bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
-                        screenBounds);
-                mustShowBubbleMenu = true;
-                tempScrapCreated = true;
-            } else {
-                Scrap newSelection;
-                if (!hasMovedEnough()) {
-                    PointF center = stroke.getStartPoint();
-                    newSelection = getSelectedScrap(center);
-                    if (newSelection == previousSelection) {
-                        // draw a point (a small circle)
-                        stroke.turnIntoDot();
-                    } else {
-                        // a single tap selects the scrap w/o being
-                        // drawn
-                        stroke.reset();
-                    }
-                } else {
-                    newSelection = getSelectedScrap(stroke);
-                }
-                setSelected(newSelection);
-                if (selected != null && !stroke.isEmpty()) {
-                    selected.add(stroke);
-                }
-                createNewStroke();
-            }
-        }
-        previousSelection = selected;
-        landingZoneCenter.set(-1, -1);
     }
 
     private void createNewStroke() {
@@ -1098,32 +906,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         return running;
     }
 
-    private void onPointerUp(MotionEvent event) {
-        final int pointerIndex = (event.getAction() & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-        final int pointerId = event.getPointerId(pointerIndex);
-        if (pointerId == mActivePointerId) {
-            // This was our active pointer going up. Choose a new
-            // active pointer and adjust accordingly.
-            final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
-            mActivePointerId = event.getPointerId(newPointerIndex);
-        }
-    }
-
-    private void onPointerDown(MotionEvent event) {
-        longPressListener.removeCallbacks(longPressAction);
-        if (!ghosts.isEmpty()) {
-            latestGhost = ghosts.remove(ghosts.size() - 1);
-            latestGhost.setGhost(false, null, null, 0f);
-            latestGhost.toBeDeleted = true;
-        }
-        bubbleMenuShown = false;
-        mustShowLandingZone = false;
-        stroke.reset();
-        redirectingToBubbleMenu = false;
-        scaleDetector.onTouchEvent(event);
-        zoomingOrPanning = true;
-    }
-
     private boolean isInLandingZone(PointF lastPoint) {
         return Math.pow(lastPoint.x - landingZoneCenter.x, 2)
                 + Math.pow(lastPoint.y - landingZoneCenter.y, 2) <= Math.pow(
@@ -1194,7 +976,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @return a new point to which the current scale factor and offset have
      *         been applied
      */
-    PointF adjustForZoom(float x, float y) {
+    private PointF adjustForZoom(float x, float y) {
         return new PointF(x / scaleFactor - canvasOffsetX, y / scaleFactor
                 - canvasOffsetY);
     }
@@ -1337,6 +1119,33 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
         private boolean zoomingOrPanning;
 
+        public boolean onPointerDown(PointF adjusted, MotionEvent event) {
+            longPressListener.removeCallbacks(longPressAction);
+            if (!ghosts.isEmpty()) {
+                latestGhost = ghosts.remove(ghosts.size() - 1);
+                latestGhost.setGhost(false, null, null, 0f);
+                latestGhost.toBeDeleted = true;
+            }
+            bubbleMenuShown = false;
+            mustShowLandingZone = false;
+            stroke.reset();
+            scaleDetector.onTouchEvent(event);
+            zoomingOrPanning = true;
+            return true;
+        }
+
+        public boolean onPointerUp(PointF adjusted, MotionEvent event) {
+            final int pointerIndex = (event.getAction() & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
+            final int pointerId = event.getPointerId(pointerIndex);
+            if (pointerId == mActivePointerId) {
+                // This was our active pointer going up. Choose a new
+                // active pointer and adjust accordingly.
+                final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
+                mActivePointerId = event.getPointerId(newPointerIndex);
+            }
+            return true;
+        }
+
         /*
          * (non-Javadoc)
          * 
@@ -1470,6 +1279,91 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
     private class DrawingHandler extends GenericTouchHandler {
 
+        public boolean onDown(PointF adjusted) {
+            if (!didSomething)
+                didSomething = true;
+            actionStart = -System.currentTimeMillis();
+            mustShowLandingZone = false;
+            longPressed = false;
+            for (Stroke ghost : ghosts) {
+                Stroke touched = ghost.ghostButtonTouched(adjusted);
+                if (touched != null) {
+                    redirectedGhost = ghost;
+                    return true;
+                }
+            }
+            longPressListener.postDelayed(longPressAction, LONG_PRESS_DURATION);
+            stroke.setStart(adjusted);
+            setSelected(getSelectedScrap(adjusted));
+            return true;
+        }
+
+        public boolean onMove(PointF adjusted) {
+            if (!mustShowLandingZone) {
+                mustShowLandingZone = mustShowLandingZone();
+                if (mustShowLandingZone) {
+                    final float[] position = new float[2];
+                    pathMeasure
+                            .getPosTan(landingZonePathOffset, position, null);
+                    landingZoneCenter = new PointF(position[0], position[1]);
+                }
+            }
+            if (stroke.addAndDrawPoint(adjusted, touchTolerance)) {
+                setSelected(getSelectedScrap(stroke));
+            }
+            return true;
+        }
+
+        public boolean onUp(PointF adjusted) {
+            mustShowLandingZone = false;
+            longPressListener.removeCallbacks(longPressAction);
+            if (redirectedGhost != null) {
+                redirectedGhost.setGhost(false, null, null, 0f);
+                redirectedGhost = null;
+                return true;
+            }
+            if (longPressAction.completed) {
+                stroke.reset();
+                createNewStroke();
+                longPressAction.completed = false;
+                landingZoneCenter.set(-1, -1);
+                return true;
+            } else if (longPressed) {
+                // animation has been shown, but the user didn't mean to
+                // long press, so she took her finger/stylus away
+                longPressAction.reset(false);
+            }
+            if (isInLandingZone(adjusted)) {
+                bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
+                        screenBounds);
+                mustShowBubbleMenu = true;
+                tempScrapCreated = true;
+            } else {
+                Scrap newSelection;
+                if (!hasMovedEnough()) {
+                    PointF center = stroke.getStartPoint();
+                    newSelection = getSelectedScrap(center);
+                    if (newSelection == previousSelection) {
+                        // draw a point (a small circle)
+                        stroke.turnIntoDot();
+                    } else {
+                        // a single tap selects the scrap w/o being
+                        // drawn
+                        stroke.reset();
+                    }
+                } else {
+                    newSelection = getSelectedScrap(stroke);
+                }
+                setSelected(newSelection);
+                if (selected != null && !stroke.isEmpty()) {
+                    selected.add(stroke);
+                }
+                createNewStroke();
+            }
+            previousSelection = selected;
+            landingZoneCenter.set(-1, -1);
+            return true;
+        }
     }
 
     private static class LongPressAction implements Runnable {

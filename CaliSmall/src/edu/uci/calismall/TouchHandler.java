@@ -49,12 +49,14 @@ public interface TouchHandler {
      * 
      * @param touchPoint
      *            the point in canvas coordinates touched by the user
+     * @param event
+     *            the event that originated this call
      * 
      * @return <code>true</code> if the event should be "swallowed" by this
      *         method, <code>false</code> if it should be forwarded to other
      *         {@link TouchHandler}'
      */
-    boolean onPointerDown(PointF touchPoint);
+    boolean onPointerDown(PointF touchPoint, MotionEvent event);
 
     /**
      * Called when an {@link MotionEvent#ACTION_MOVE} is detected, that is
@@ -78,11 +80,14 @@ public interface TouchHandler {
      * @param touchPoint
      *            the point in canvas coordinates touched by the user
      * 
+     * @param event
+     *            the event that originated this call
+     * 
      * @return <code>true</code> if the event should be "swallowed" by this
      *         method, <code>false</code> if it should be forwarded to other
      *         {@link TouchHandler}'
      */
-    boolean onPointerUp(PointF touchPoint);
+    boolean onPointerUp(PointF touchPoint, MotionEvent event);
 
     /**
      * Called when an {@link MotionEvent#ACTION_DOWN} is detected, that is
