@@ -641,7 +641,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * is dropped and will only be recreated if the scrap is selected and edited
      * once again.
      * 
-     * @return a stroke that must be added to the list of strokes kept by
+     * @return a stroke that must be added to the lists of strokes kept by
      *         {@link CaliView}, is not <code>null</code> only for temp scraps
      */
     public Stroke deselect() {

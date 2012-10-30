@@ -158,7 +158,7 @@ public class BubbleMenu extends GenericTouchHandler {
         }
 
         private boolean contains(int x, int y) {
-            return position.contains(x, y);
+            return hitArea.contains(x, y);
         }
 
         /**
@@ -218,7 +218,7 @@ public class BubbleMenu extends GenericTouchHandler {
      *            the running instance of CaliSmall
      */
     BubbleMenu(CaliView parent) {
-        super("BubbleMenu");
+        super("BubbleMenu", parent);
         view = parent;
         sel = new RectF();
         bounds = new RectF();

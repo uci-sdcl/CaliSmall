@@ -19,6 +19,11 @@ public abstract class GenericTouchHandler extends
         TouchHandler {
 
     /**
+     * The view for which this handler was created.
+     */
+    protected final CaliView parentView;
+
+    /**
      * The value returned by {@link #done()}: subclasses should change the value
      * of this field to <code>true</code> whenever their management for a
      * sequence of touch events is completed.
@@ -36,9 +41,12 @@ public abstract class GenericTouchHandler extends
      * 
      * @param name
      *            the name that identifies this handler
+     * @param parent
+     *            the parent view
      */
-    public GenericTouchHandler(String name) {
+    public GenericTouchHandler(String name, CaliView parent) {
         this.name = name;
+        parentView = parent;
     }
 
     /*

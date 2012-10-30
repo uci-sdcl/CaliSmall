@@ -10,7 +10,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
 
@@ -346,8 +345,11 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * distances.
      */
     float maxStrokeDistanceForLongPress;
+    /**
+     * The current instance of the bubble menu.
+     */
+    BubbleMenu bubbleMenu;
 
-    private final List<TouchHandler> handlers;
     // a list of strokes kept in chronological order (oldest first)
     private final List<Stroke> strokes;
     // a list of scraps kept in chronological order (oldest first)
@@ -370,12 +372,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private Scrap selected, previousSelection, newSelection, toBeRemoved,
             tempScrap;
     private final List<Stroke> newStrokes;
-    private final List<Stroke> ghosts;
     private final List<Scrap> newScraps;
-    private final ScaleListener scaleListener;
-    private final BubbleMenu bubbleMenu;
+    private List<TouchHandler> handlers;
+    private ScaleListener scaleListener;
     private TouchHandler redirectTo;
-    private Stroke latestGhost;
+    private GhostStrokeHandler ghostHandler;
+    private DrawingHandler drawingHandler;
     private PathMeasure pathMeasure;
     private boolean running, mustShowLandingZone, strokeAdded, mustClearCanvas,
             bubbleMenuShown, mustShowBubbleMenu, tempScrapCreated, longPressed,
@@ -410,44 +412,43 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @param c
      *            the new CaliSmall instance
      */
-    @SuppressWarnings("serial")
     public CaliView(CaliSmall c) {
         super(c);
         parent = c;
-        bubbleMenu = new BubbleMenu(this);
-        longPressAction = new LongPressAction(this);
-        // stupid Arrays.asList signature...
-        handlers = new ArrayList<TouchHandler>() {
-            {
-                // order DOES matter! calls are chained
-                add(bubbleMenu);
-                add(new ScaleListener());
-                add(new GhostStrokeHandler());
-                add(new DrawingHandler());
-            }
-        };
         strokes = new ArrayList<Stroke>();
         scraps = new ArrayList<Scrap>();
         allStrokes = new SpaceOccupationList<Stroke>();
         allScraps = new SpaceOccupationList<Scrap>();
         newStrokes = new ArrayList<Stroke>();
-        ghosts = new ArrayList<Stroke>();
         newScraps = new ArrayList<Scrap>();
-        scaleListener = new ScaleListener();
-        scaleDetector = new ScaleGestureDetector(c, scaleListener);
         reset();
         getHolder().addCallback(this);
     }
 
+    @SuppressWarnings("serial")
     private void reset() {
         strokes.clear();
         scraps.clear();
         allStrokes.clear();
         allScraps.clear();
+        bubbleMenu = new BubbleMenu(this);
+        ghostHandler = new GhostStrokeHandler(this);
         longPressAction = new LongPressAction(this);
+        drawingHandler = new DrawingHandler(this);
+        scaleListener = new ScaleListener(this);
+        scaleDetector = new ScaleGestureDetector(parent, scaleListener);
+        // stupid Arrays.asList signature...
+        handlers = new ArrayList<TouchHandler>() {
+            {
+                // order DOES matter! calls are chained
+                add(bubbleMenu);
+                add(scaleListener);
+                add(ghostHandler);
+                add(drawingHandler);
+            }
+        };
         newStrokes.clear();
         newScraps.clear();
-        ghosts.clear();
         pathMeasure = new PathMeasure();
         landingZoneCenter = new PointF();
         selected = null;
@@ -606,12 +607,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
         CaliSmallElement.deleteMarkedFromList(strokes, allStrokes);
         CaliSmallElement.deleteMarkedFromList(scraps, allScraps);
-        for (Iterator<Stroke> iterator = ghosts.iterator(); iterator.hasNext();) {
-            Stroke next = iterator.next();
-            if (next.hasToBeDeleted() || !next.isGhost()) {
-                iterator.remove();
-            }
-        }
+        ghostHandler.deleteOldStrokes();
     }
 
     private void longPress(Stroke selected) {
@@ -656,10 +652,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         if (this.selected != null && selected != this.selected) {
             Stroke outerBorder = this.selected.deselect();
             if (outerBorder != null) {
-                outerBorder.setGhost(true, screenBounds, getResources(),
-                        bubbleMenu.getButtonSize());
                 newStrokes.add(outerBorder);
-                ghosts.add(outerBorder);
+                ghostHandler.addGhost(outerBorder);
             }
         }
         if (selected != null) {
@@ -1135,18 +1129,16 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
         /**
          * Creates a new listener for zooming and panning events.
+         * 
+         * @param parent
+         *            the parent view
          */
-        public ScaleListener() {
-            super("ScaleListener");
+        public ScaleListener(CaliView parent) {
+            super("ScaleListener", parent);
         }
 
         public boolean onPointerDown(PointF adjusted, MotionEvent event) {
             longPressListener.removeCallbacks(longPressAction);
-            if (!ghosts.isEmpty()) {
-                latestGhost = ghosts.remove(ghosts.size() - 1);
-                latestGhost.setGhost(false, null, null, 0f);
-                latestGhost.toBeDeleted = true;
-            }
             bubbleMenuShown = false;
             mustShowLandingZone = false;
             stroke.reset();
@@ -1277,16 +1269,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
                     newInterval, newInterval }, (float) 1.0));
             updateBounds();
-            if (latestGhost != null)
-                latestGhost.toBeDeleted = false;
             setSelected(previousSelection);
         }
     }
 
     private class DrawingHandler extends GenericTouchHandler {
 
-        private DrawingHandler() {
-            super("DrawingHandler");
+        private DrawingHandler(CaliView parent) {
+            super("DrawingHandler", parent);
         }
 
         public boolean onDown(PointF adjusted) {
@@ -1434,7 +1424,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         List<JSONObject> jsonStrokes = new ArrayList<JSONObject>(strokes.size());
         for (int i = 0; i < strokes.size(); i++) {
             Stroke stroke = strokes.get(i);
-            if (!stroke.isEmpty())
+            if (!stroke.isEmpty() && !stroke.isGhost())
                 jsonStrokes.add(stroke.toJSON());
         }
         List<JSONObject> jsonScraps = new ArrayList<JSONObject>(scraps.size());

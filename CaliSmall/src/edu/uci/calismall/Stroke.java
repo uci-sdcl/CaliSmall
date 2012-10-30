@@ -344,10 +344,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * 
      * <p>
      * Ghost strokes are strokes that were the outer border of a temporary scrap
-     * that was deselected without the user having done anything with the temp
-     * scrap. They are displayed with a low opacity and can be restored to
-     * regular strokes by pressing a button that pops up as soon as the temp
-     * scrap is deselected.
+     * that was deselected. They are displayed with a low opacity and can be
+     * restored to regular strokes by pressing a button that pops up as soon as
+     * the temp scrap is deselected.
      * 
      * <p>
      * If users interact with the originary temp scrap, ghost strokes are
