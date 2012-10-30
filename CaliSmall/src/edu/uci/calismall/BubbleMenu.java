@@ -169,13 +169,24 @@ public class BubbleMenu extends GenericTouchHandler {
          * 
          * @param position
          *            this button's position
-         * @param hitArea
-         *            the area that triggers this button
+         * @param hitAreaEnlargement
+         *            the amount of pixels that shall be added twice to each
+         *            dimension to increase the hit area: the new hit area will
+         *            be <tt>position.width() + 2 * hitAreaEnlargement</tt>
+         *            wide, and
+         *            <tt>position.height() + 2 * hitAreaEnlargement</tt> high.
          */
-        void setPosition(Rect position, RectF hitArea) {
-            this.position.set(position);
-            if (hitArea != null)
-                this.hitArea.set(hitArea);
+        void setPosition(Rect position, float hitAreaEnlargement) {
+            if (position != null)
+                this.position.set(position);
+            hitArea.set(this.position.left - hitAreaEnlargement,
+                    this.position.top - hitAreaEnlargement, this.position.right
+                            + hitAreaEnlargement, this.position.bottom
+                            + hitAreaEnlargement);
+        }
+
+        public String toString() {
+            return "button " + position + ", hit area: " + hitArea;
         }
     }
 
@@ -207,6 +218,7 @@ public class BubbleMenu extends GenericTouchHandler {
      *            the running instance of CaliSmall
      */
     BubbleMenu(CaliView parent) {
+        super("BubbleMenu");
         view = parent;
         sel = new RectF();
         bounds = new RectF();
@@ -506,8 +518,6 @@ public class BubbleMenu extends GenericTouchHandler {
      *         <tt>selection</tt> after this method returns
      */
     boolean onTouch(int action, PointF touchPoint, Scrap selection) {
-        if (selection == null)
-            return false;
         // if not clicking on buttons hide menu when the touch action is over
         boolean keepShowingMenu = action != MotionEvent.ACTION_UP;
         if (touched != null) {
@@ -525,10 +535,14 @@ public class BubbleMenu extends GenericTouchHandler {
      * 
      * @param touchPoint
      *            the point to be tested
+     * @param selection
+     *            the current selection
      * @return <code>true</code> if <tt>touchPoint</tt> is within any of the
      *         buttons
      */
-    boolean buttonTouched(PointF touchPoint) {
+    boolean buttonTouched(PointF touchPoint, Scrap selection) {
+        if (selection == null)
+            return false;
         if (touched != null)
             return true;
         int x = Math.round(touchPoint.x);
@@ -540,6 +554,47 @@ public class BubbleMenu extends GenericTouchHandler {
             }
         }
         return false;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see
+     * edu.uci.calismall.GenericTouchHandler#onDown(android.graphics.PointF)
+     */
+    @Override
+    public boolean onDown(PointF touchPoint) {
+        if (buttonTouched(touchPoint, view.getSelection()))
+            return onTouch(MotionEvent.ACTION_DOWN, touchPoint,
+                    view.getSelection());
+        else
+            actionCompleted = true;
+        return false;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see
+     * edu.uci.calismall.GenericTouchHandler#onMove(android.graphics.PointF)
+     */
+    @Override
+    public boolean onMove(PointF touchPoint) {
+        onTouch(MotionEvent.ACTION_MOVE, touchPoint, view.getSelection());
+        return true;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.GenericTouchHandler#onUp(android.graphics.PointF)
+     */
+    @Override
+    public boolean onUp(PointF touchPoint) {
+        if (!onTouch(MotionEvent.ACTION_UP, touchPoint, view.getSelection())) {
+            actionCompleted = true;
+        }
+        return true;
     }
 
     /**
@@ -596,6 +651,7 @@ public class BubbleMenu extends GenericTouchHandler {
         applySpaceContraints();
         applySizeConstraintsFixedPivots();
         updateNonPivotButtonsPosition();
+        setHitAreas();
     }
 
     private void updatePivotButtonsPosition() {
@@ -795,6 +851,12 @@ public class BubbleMenu extends GenericTouchHandler {
             }
             topRight.position.top = topLeft.position.top;
             topRight.position.bottom = topLeft.position.bottom;
+        }
+    }
+
+    private void setHitAreas() {
+        for (Button button : buttons) {
+            button.setPosition(null, buttonDisplaySize * 0.25f);
         }
     }
 

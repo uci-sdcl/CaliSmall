@@ -33,6 +33,7 @@ import android.graphics.PathMeasure;
 import android.graphics.PointF;
 import android.graphics.RectF;
 import android.os.Handler;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.SurfaceHolder;
@@ -381,8 +382,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             mustShowLongPressCircle, didSomething;
     private PointF landingZoneCenter;
     private Stroke redirectedGhost;
-    private int mActivePointerId = INVALID_POINTER_ID,
-            currentPointerID = INVALID_POINTER_ID, screenWidth, screenHeight;
+    private int currentPointerID = INVALID_POINTER_ID, screenWidth,
+            screenHeight;
 
     static {
         PAINT.setAntiAlias(true);
@@ -410,18 +411,17 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the new CaliSmall instance
      */
     @SuppressWarnings("serial")
-    CaliView(CaliSmall c) {
+    public CaliView(CaliSmall c) {
         super(c);
         parent = c;
         bubbleMenu = new BubbleMenu(this);
         longPressAction = new LongPressAction(this);
-        final CaliView view = this;
         // stupid Arrays.asList signature...
         handlers = new ArrayList<TouchHandler>() {
             {
                 // order DOES matter! calls are chained
+                add(bubbleMenu);
                 add(new ScaleListener());
-                add(new BubbleMenu(view));
                 add(new GhostStrokeHandler());
                 add(new DrawingHandler());
             }
@@ -492,7 +492,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @param canvas
      *            the canvas onto which this view is to be drawn
      */
-    void drawView(Canvas canvas) {
+    public void drawView(Canvas canvas) {
         if (canvas != null) {
             canvas.drawColor(Color.WHITE);
             canvas.concat(matrix);
@@ -502,17 +502,11 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (mustClearCanvas) {
                 clearCanvas();
             } else {
-                // canvas.drawPath(canvasBounds, borderPaint);
                 maybeDrawLandingZone(canvas);
                 deleteElements();
                 maybeCreateBubbleMenu();
-                drawTempScrap(canvas);
                 addNewStrokesAndScraps();
-                drawScraps(canvas);
-                drawStrokes(canvas);
-                if (bubbleMenuShown)
-                    bubbleMenu.draw(canvas);
-                drawNewStroke(canvas);
+                drawItems(canvas);
             }
         }
     }
@@ -530,7 +524,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * Requests to clear (delete all objects from) this view and to empty every
      * list.
      */
-    void clear() {
+    public void clear() {
         mustClearCanvas = true;
     }
 
@@ -545,32 +539,26 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         mustClearCanvas = false;
     }
 
-    private void drawScraps(Canvas canvas) {
+    private void drawItems(Canvas canvas) {
+        if (tempScrap != null) {
+            tempScrap.draw(this, canvas, scaleFactor);
+        }
         for (Scrap scrap : scraps) {
             scrap.draw(this, canvas, scaleFactor);
         }
-    }
-
-    private void drawStrokes(Canvas canvas) {
         for (Stroke stroke : strokes) {
             if (stroke.hasToBeDrawnVectorially())
                 stroke.draw(canvas, PAINT);
         }
-    }
-
-    private void drawTempScrap(Canvas canvas) {
-        if (tempScrap != null) {
-            tempScrap.draw(this, canvas, scaleFactor);
-        }
-    }
-
-    private void drawNewStroke(Canvas canvas) {
+        if (bubbleMenuShown)
+            bubbleMenu.draw(canvas);
         if (!strokeAdded) {
             stroke.draw(canvas, PAINT);
             strokes.add(stroke);
             allStrokes.add(stroke);
             strokeAdded = true;
         }
+
     }
 
     private void maybeDrawLandingZone(Canvas canvas) {
@@ -611,6 +599,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         if (toBeRemoved != null) {
             toBeRemoved.erase();
             mustShowBubbleMenu = false;
+            bubbleMenuShown = false;
+            if (toBeRemoved == tempScrap)
+                tempScrap = null;
             toBeRemoved = null;
         }
         CaliSmallElement.deleteMarkedFromList(strokes, allStrokes);
@@ -661,7 +652,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the scrap that should appear selected or <code>null</code> if
      *            there shouldn't be any scrap selected
      */
-    void setSelected(Scrap selected) {
+    public void setSelected(Scrap selected) {
         if (this.selected != null && selected != this.selected) {
             Stroke outerBorder = this.selected.deselect();
             if (outerBorder != null) {
@@ -688,7 +679,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @param newTempScrap
      *            the new temporary scrap, cannot be <code>null</code>
      */
-    void changeTempScrap(Scrap newTempScrap) {
+    public void changeTempScrap(Scrap newTempScrap) {
         if (newTempScrap != null) {
             tempScrap = newTempScrap;
             setSelected(tempScrap);
@@ -706,7 +697,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            be added to the view as well, should be <code>true</code> only
      *            for newly created scrap copies
      */
-    void addScrap(Scrap scrap, boolean addContent) {
+    public void addScrap(Scrap scrap, boolean addContent) {
         newSelection = scrap;
         if (!(scrap instanceof Scrap.Temp))
             newScraps.add(scrap);
@@ -722,7 +713,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * 
      * @return a newly created color picker dialog ready to be shown
      */
-    AmbilWarnaDialog getColorPicker() {
+    public AmbilWarnaDialog getColorPicker() {
         return new AmbilWarnaDialog(parent, stroke.getColor(),
                 new OnAmbilWarnaListener() {
                     @Override
@@ -738,27 +729,53 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
+     * Returns a reference to the scrap that is currently selected.
+     * 
+     * @return a reference to the selected scrap, or <code>null</code> if no
+     *         scrap is selected
+     */
+    public Scrap getSelection() {
+        return selected;
+    }
+
+    /**
      * Removes (stops drawing) the argument scrap.
      * 
      * @param scrap
      *            the scrap to be deleted
      */
-    void removeScrap(Scrap scrap) {
+    public void removeScrap(Scrap scrap) {
         toBeRemoved = scrap;
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getAction() & MotionEvent.ACTION_MASK;
-        PointF touchPoint = getTouchPoint(action, event);
-        if (redirectTo != null
-                || !redirectTo.processTouchEvent(action, touchPoint, event)) {
-            for (TouchHandler handler : handlers) {
-                if (handler.processTouchEvent(action, touchPoint, event)) {
-                    redirectTo = handler;
-                    return true;
+        try {
+            PointF touchPoint = getTouchPoint(action, event);
+            boolean redirected = false;
+            if (redirectTo != null) {
+                redirected = redirectTo.processTouchEvent(action, touchPoint,
+                        event);
+            }
+            if (redirected) {
+                if (redirectTo.done()) {
+                    Log.d(VIEW_LOG_TAG, redirectTo + " stopped handling events");
+                    redirectTo = null;
+                }
+                return true;
+            } else {
+                for (TouchHandler handler : handlers) {
+                    if (handler.processTouchEvent(action, touchPoint, event)) {
+                        redirectTo = handler;
+                        Log.d(VIEW_LOG_TAG, "new handler: " + handler);
+                        return true;
+                    }
                 }
             }
+        } catch (Exception e) {
+            // you gave me no choice, Android... :'(
+            Log.e(VIEW_LOG_TAG, "Fatal exception", e);
         }
         return false;
     }
@@ -814,7 +831,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @return <code>true</code> if something changed in this view since last
      *         call
      */
-    boolean hasChanged() {
+    public boolean hasChanged() {
         // FIXME this method is a lame replacement for a proper history
         boolean returnMe = didSomething;
         didSomething = false;
@@ -826,7 +843,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * return <code>true</code> only if changes in this view took place after
      * this method call.
      */
-    void resetChangeCounter() {
+    public void resetChangeCounter() {
         didSomething = false;
     }
 
@@ -840,7 +857,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @return the smallest scrap that completely contains the argument element,
      *         if any exists, <code>null</code>
      */
-    Scrap getSelectedScrap(CaliSmallElement element) {
+    public Scrap getSelectedScrap(CaliSmallElement element) {
         // TODO move it to the specific canvas object
         List<CaliSmallElement> candidates = allScraps
                 .findIntersectionCandidates(element);
@@ -893,7 +910,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         float dy = last.y - first.y;
         float largestSide = test.width >= test.height ? test.height
                 : test.width;
-        // return (dx * dx + dy * dy) < maxStrokeDistanceForLongPress;
         return (dx * dx + dy * dy) < largestSide * largestSide;
     }
 
@@ -902,7 +918,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * 
      * @return <code>true</code> if this view is currently being drawn
      */
-    boolean isRunning() {
+    public boolean isRunning() {
         return running;
     }
 
@@ -952,7 +968,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * 
      * @return a reference to the list of all strokes
      */
-    SpaceOccupationList<Stroke> getStrokeList() {
+    public SpaceOccupationList<Stroke> getStrokeList() {
         return allStrokes;
     }
 
@@ -961,7 +977,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * 
      * @return a reference to the list of all scraps
      */
-    SpaceOccupationList<Scrap> getScrapList() {
+    public SpaceOccupationList<Scrap> getScrapList() {
         return allScraps;
     }
 
@@ -993,7 +1009,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * 
      * @return a reference to the current painter
      */
-    Painter getPainter() {
+    public Painter getPainter() {
         return painter;
     }
 
@@ -1006,7 +1022,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the condition to be {@link Condition#signal()}'ed after the
      *            snapshot has been taken
      */
-    void createSnapshot(File tmpImage, Condition signalCondition) {
+    public void createSnapshot(File tmpImage, Condition signalCondition) {
         FileOutputStream tmp;
         try {
             tmp = new FileOutputStream(tmpImage);
@@ -1028,7 +1044,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * Logs information about what's currently being shown on screen.
      */
-    void printLog() {
+    public void printLog() {
         Utils.debug("{{{SCRAPS}}}\n" + allScraps);
         Utils.debug("{{{STROKES}}}\n" + allStrokes);
         StringBuilder builder = new StringBuilder("{{{PARENTING}}}\n");
@@ -1117,7 +1133,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public class ScaleListener extends GenericTouchHandler {
 
-        private boolean zoomingOrPanning;
+        /**
+         * Creates a new listener for zooming and panning events.
+         */
+        public ScaleListener() {
+            super("ScaleListener");
+        }
 
         public boolean onPointerDown(PointF adjusted, MotionEvent event) {
             longPressListener.removeCallbacks(longPressAction);
@@ -1130,19 +1151,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             mustShowLandingZone = false;
             stroke.reset();
             scaleDetector.onTouchEvent(event);
-            zoomingOrPanning = true;
-            return true;
-        }
-
-        public boolean onPointerUp(PointF adjusted, MotionEvent event) {
-            final int pointerIndex = (event.getAction() & MotionEvent.ACTION_POINTER_INDEX_MASK) >> MotionEvent.ACTION_POINTER_INDEX_SHIFT;
-            final int pointerId = event.getPointerId(pointerIndex);
-            if (pointerId == mActivePointerId) {
-                // This was our active pointer going up. Choose a new
-                // active pointer and adjust accordingly.
-                final int newPointerIndex = pointerIndex == 0 ? 1 : 0;
-                mActivePointerId = event.getPointerId(newPointerIndex);
-            }
             return true;
         }
 
@@ -1155,10 +1163,21 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         @Override
         public boolean processTouchEvent(int action, PointF touched,
                 MotionEvent event) {
-            if (action == MotionEvent.ACTION_POINTER_DOWN)
-                zoomingOrPanning = true;
-            scaleDetector.onTouchEvent(event);
-            return zoomingOrPanning;
+            switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                actionCompleted = false;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                return scaleDetector.onTouchEvent(event);
+            case MotionEvent.ACTION_POINTER_DOWN:
+                return onPointerDown(touched, event);
+            case MotionEvent.ACTION_POINTER_UP:
+                return scaleDetector.onTouchEvent(event);
+            case MotionEvent.ACTION_UP:
+                actionCompleted = true;
+                return true;
+            }
+            return false;
         }
 
         /*
@@ -1262,22 +1281,13 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 latestGhost.toBeDeleted = false;
             setSelected(previousSelection);
         }
-
-        /*
-         * (non-Javadoc)
-         * 
-         * @see
-         * edu.uci.calismall.GenericTouchHandler#onUp(android.graphics.PointF)
-         */
-        @Override
-        public boolean onUp(PointF touchPoint) {
-            zoomingOrPanning = false;
-            return zoomingOrPanning;
-        }
-
     }
 
     private class DrawingHandler extends GenericTouchHandler {
+
+        private DrawingHandler() {
+            super("DrawingHandler");
+        }
 
         public boolean onDown(PointF adjusted) {
             if (!didSomething)
@@ -1285,13 +1295,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             actionStart = -System.currentTimeMillis();
             mustShowLandingZone = false;
             longPressed = false;
-            for (Stroke ghost : ghosts) {
-                Stroke touched = ghost.ghostButtonTouched(adjusted);
-                if (touched != null) {
-                    redirectedGhost = ghost;
-                    return true;
-                }
-            }
             longPressListener.postDelayed(longPressAction, LONG_PRESS_DURATION);
             stroke.setStart(adjusted);
             setSelected(getSelectedScrap(adjusted));
@@ -1316,6 +1319,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
         public boolean onUp(PointF adjusted) {
             mustShowLandingZone = false;
+            actionCompleted = true;
             longPressListener.removeCallbacks(longPressAction);
             if (redirectedGhost != null) {
                 redirectedGhost.setGhost(false, null, null, 0f);
@@ -1334,8 +1338,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 longPressAction.reset(false);
             }
             if (isInLandingZone(adjusted)) {
-                bubbleMenu.setBounds(stroke.getPath(), scaleFactor,
-                        screenBounds);
                 mustShowBubbleMenu = true;
                 tempScrapCreated = true;
             } else {

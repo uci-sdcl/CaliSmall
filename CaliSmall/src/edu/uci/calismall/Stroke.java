@@ -383,9 +383,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
             float top = Math.max(screenBounds.top, topLeft.y - buttonSize);
             Rect position = new Rect((int) left, (int) top,
                     (int) (left + buttonSize), (int) (top + buttonSize));
-            RectF hitArea = new RectF(position);
-            hitArea.inset(-buttonSize * 0.5f, -buttonSize * 0.5f);
-            ghostRevive.setPosition(position, hitArea);
+            ghostRevive.setPosition(position, buttonSize * 0.25f);
         } else {
             ghostUntil = -1;
         }

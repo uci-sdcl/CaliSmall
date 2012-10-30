@@ -18,6 +18,29 @@ public abstract class GenericTouchHandler extends
         ScaleGestureDetector.SimpleOnScaleGestureListener implements
         TouchHandler {
 
+    /**
+     * The value returned by {@link #done()}: subclasses should change the value
+     * of this field to <code>true</code> whenever their management for a
+     * sequence of touch events is completed.
+     * 
+     * <p>
+     * Every time this handler is passed a new {@link MotionEvent#ACTION_DOWN},
+     * the value of this field is reset to <code>false</code>.
+     */
+    protected boolean actionCompleted;
+
+    private final String name;
+
+    /**
+     * Creates a new handler with the argument name.
+     * 
+     * @param name
+     *            the name that identifies this handler
+     */
+    public GenericTouchHandler(String name) {
+        this.name = name;
+    }
+
     /*
      * (non-Javadoc)
      * 
@@ -27,8 +50,32 @@ public abstract class GenericTouchHandler extends
     @Override
     public boolean processTouchEvent(int action, PointF touched,
             MotionEvent event) {
-        // TODO Auto-generated method stub
+        switch (action) {
+        case MotionEvent.ACTION_DOWN:
+            actionCompleted = false;
+            return onDown(touched);
+        case MotionEvent.ACTION_MOVE:
+            return onMove(touched);
+        case MotionEvent.ACTION_POINTER_DOWN:
+            return onPointerDown(touched, event);
+        case MotionEvent.ACTION_POINTER_UP:
+            return onPointerUp(touched, event);
+        case MotionEvent.ACTION_UP:
+            return onUp(touched);
+        case MotionEvent.ACTION_CANCEL:
+            return onCancel();
+        }
         return false;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.TouchHandler#done()
+     */
+    @Override
+    public boolean done() {
+        return actionCompleted;
     }
 
     /*
@@ -90,6 +137,10 @@ public abstract class GenericTouchHandler extends
     @Override
     public boolean onCancel() {
         return false;
+    }
+
+    public String toString() {
+        return name;
     }
 
 }

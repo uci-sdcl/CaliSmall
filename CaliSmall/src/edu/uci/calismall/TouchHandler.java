@@ -112,4 +112,13 @@ public interface TouchHandler {
      *         {@link TouchHandler}'
      */
     boolean onCancel();
+
+    /**
+     * Returns whether this handler has completed handling an action.
+     * 
+     * @return <code>true</code> if this handler has completed its job,
+     *         <code>false</code> if touch events must still be redirected to
+     *         this handler
+     */
+    boolean done();
 }
