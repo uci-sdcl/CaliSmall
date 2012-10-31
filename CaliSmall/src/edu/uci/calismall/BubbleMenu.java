@@ -205,8 +205,8 @@ public class BubbleMenu extends GenericTouchHandler {
     private final CaliView view;
     private PointF initialDistanceToPivot, pivot, referencePoint;
     private Button touched;
-    private float buttonDisplaySize, bSize, padding, minSize, scaleFactor,
-            maxXScale, maxYScale, compensationForRotateButtonPos;
+    private float bSize, padding, minSize, scaleFactor, maxXScale, maxYScale,
+            compensationForRotateButtonPos;
     private Scrap highlighted;
     private boolean topLeftPinned, visible, drawable;
 
@@ -635,7 +635,6 @@ public class BubbleMenu extends GenericTouchHandler {
     void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
         this.scaleFactor = scaleFactor;
         this.bounds.set(bounds);
-        bSize = buttonDisplaySize / scaleFactor;
         padding = bSize * PADDING_TO_BUTTON_SIZE_RATIO;
         minSize = bSize * BUTTONS_PER_SIDE + (BUTTONS_PER_SIDE - 1) * padding;
         updatePositionAndSize(selectionPath);
@@ -650,7 +649,7 @@ public class BubbleMenu extends GenericTouchHandler {
      *            the portion of the canvas currently displayed
      */
     public void setBounds(float scaleFactor, RectF bounds) {
-        buttonDisplaySize = Math.max(bounds.width(), bounds.height())
+        bSize = Math.max(bounds.width(), bounds.height())
                 * BUTTON_SIZE_TO_SCREEN_WIDTH_RATIO;
         setBounds(null, scaleFactor, bounds);
     }
@@ -868,7 +867,7 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private void setHitAreas() {
         for (Button button : buttons) {
-            button.setPosition(null, buttonDisplaySize * 0.25f);
+            button.setPosition(null, bSize * 0.25f);
         }
     }
 
