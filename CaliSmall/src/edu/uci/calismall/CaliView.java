@@ -928,6 +928,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         return running;
     }
 
+    private boolean intersectsBounds(Scrap selection) {
+        RectF selectionBounds = new RectF();
+        selectionBounds.set(selection.getBounds());
+        return selectionBounds.intersect(screenBounds);
+    }
+
     private boolean isInLandingZone(PointF lastPoint) {
         return Math.pow(lastPoint.x - landingZoneCenter.x, 2)
                 + Math.pow(lastPoint.y - landingZoneCenter.y, 2) <= Math.pow(
@@ -1293,7 +1299,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             bubbleMenu.setBounds(scaleFactor, screenBounds);
             if (wasBubbleMenuShown) {
                 previousSelection.outerBorder.restore();
-                setSelected(previousSelection);
+                if (intersectsBounds(previousSelection))
+                    setSelected(previousSelection);
             }
             ghostHandler.setGhostAnimationOnPause(false);
         }
