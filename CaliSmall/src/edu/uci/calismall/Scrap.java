@@ -517,7 +517,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         }
         BORDER_PAINT.setColor(DESELECTED_BORDER_COLOR);
         BORDER_PAINT
-                .setStrokeWidth((CaliView.ABS_STROKE_WIDTH / scaleFactor) / 2);
+                .setStrokeWidth((CaliSmall.ABS_THIN_STROKE_WIDTH / scaleFactor) / 2);
         canvas.drawPath(outerBorder.getPath(), BORDER_PAINT);
     }
 
@@ -532,7 +532,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     protected void highlightBorder(Canvas canvas, float scaleFactor) {
         BORDER_PAINT.setColor(SELECTED_BORDER_COLOR);
         BORDER_PAINT
-                .setStrokeWidth(2 * (CaliView.ABS_STROKE_WIDTH / scaleFactor));
+                .setStrokeWidth(2 * (CaliSmall.ABS_THIN_STROKE_WIDTH / scaleFactor));
         canvas.drawPath(outerBorder.getPath(), BORDER_PAINT);
     }
 

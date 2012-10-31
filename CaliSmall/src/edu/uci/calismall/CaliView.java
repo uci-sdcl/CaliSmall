@@ -346,6 +346,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     float maxStrokeDistanceForLongPress;
     /**
+     * The stroke width chosen by the user.
+     */
+    int currentAbsStrokeWidth = CaliSmall.ABS_THIN_STROKE_WIDTH;
+    /**
+     * Whether stroke size should be rescaled according to the zoom level.
+     */
+    boolean scaleStrokeWithZoom = true;
+    /**
      * The current instance of the bubble menu.
      */
     BubbleMenu bubbleMenu;
@@ -385,6 +393,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private PointF landingZoneCenter;
     private int currentPointerID = INVALID_POINTER_ID, screenWidth,
             screenHeight;
+    private long lastLongPressAnimationRefresh;
 
     static {
         PAINT.setAntiAlias(true);
@@ -1416,6 +1425,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                         selected = parent.getClosestStroke();
                         if (selected != null) {
                             parent.longPressed = true;
+                            parent.lastLongPressAnimationRefresh = System
+                                    .currentTimeMillis();
                             parent.mustShowLongPressCircle = true;
                         }
                     }

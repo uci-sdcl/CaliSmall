@@ -8,15 +8,17 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +36,9 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -43,6 +48,7 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -108,7 +114,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         @Override
         protected void onPostExecute(Void result) {
             dialog.dismiss();
-            parent.setTitle("CaliSmall - " + parent.chosenFile);
+            setTitle(String.format("CaliSmall - (%d/%d) %s",
+                    currentFileListIndex + 1, fileList.size(),
+                    parent.chosenFile));
         }
 
     }
@@ -153,12 +161,149 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     public static final String TAG = "CaliSmall";
 
+    /**
+     * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THINNEST_STROKE_WIDTH = 1;
+    /**
+     * Absolute {@link Stroke} width of thin strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THIN_STROKE_WIDTH = 3;
+    /**
+     * Absolute {@link Stroke} width of medium strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_MEDIUM_STROKE_WIDTH = 5;
+    /**
+     * Absolute {@link Stroke} width of thick strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THICK_STROKE_WIDTH = 7;
+    /**
+     * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    public static final int ABS_THICKEST_STROKE_WIDTH = 9;
+    /**
+     * The amount of time (in milliseconds) before the long pressure animation
+     * is shown.
+     */
+    public static final long LONG_PRESS_DURATION = 300;
+    /**
+     * Time in milliseconds after which the landing zone can be shown.
+     */
+    public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
+    /**
+     * Time in milliseconds between two consecutive screen refreshes (i.e. two
+     * consecutive calls to {@link CaliView#drawView(Canvas)}). To get the FPS
+     * that this value sets, just divide 1000 by the value (so a
+     * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
+     */
+    public static final long SCREEN_REFRESH_TIME = 20;
+
+    /**
+     * The ratio used to make the landing zone the same physical size regardless
+     * of the device that is currently being used.
+     */
+    static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
+    /**
+     * The interval between dashes in landing zones (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    static final float ABS_LANDING_ZONE_INTERVAL = 5;
+    /**
+     * The length that a {@link Stroke} must reach before a landing zone is
+     * shown (to be rescaled by {@link #scaleFactor}).
+     */
+    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 160;
+    /**
+     * Where to put the center of the landing zone on a path (to be rescaled by
+     * {@link #scaleFactor}).
+     */
+    static final float ABS_LANDING_ZONE_PATH_OFFSET = 70;
+    /**
+     * The length over which a Path is no longer considered as a potential tap,
+     * but is viewed as a stroke instead (to be rescaled by {@link #scaleFactor}
+     * ).
+     */
+    static final float ABS_TOUCH_THRESHOLD = 8;
+    /**
+     * The amount of pixels that a touch needs to cover before it is considered
+     * a move action (to be rescaled by {@link #scaleFactor}).
+     */
+    static final float ABS_TOUCH_TOLERANCE = 2;
+
+    /**
+     * Absolute half the size of the rectangle enclosing the circle displayed on
+     * long presses (to be rescaled by {@link #scaleFactor}).
+     */
+    static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
+
+    /**
+     * Absolute length of the increment when drawing the long press circle
+     * between {@link CaliView#draw(Canvas)} calls. This determines the speed at
+     * which the circle is animated.
+     */
+    static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
+    /**
+     * How long should the long press animation last, that is how long it should
+     * take for the circle to be drawn completely in milliseconds.
+     */
+    static final long LONG_PRESS_ANIMATION_DURATION = 350;
+    /**
+     * The starting point for the sweep animation for long presses. 0 is the
+     * rightmost point, -90 is the topmost point.
+     */
+    static final float CIRCLE_SWEEP_START = -90;
+
+    /**
+     * Absolute distance that the first and last point in a {@link Stroke} may
+     * have to be considered a valid target for long-presses scrap recognition
+     * (to be rescaled by {@link #scaleFactor}). The value is squared to speed
+     * up comparison with Euclidean distances.
+     */
+    static final float ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS = 200 * 200;
+    /**
+     * The minimum zoom level that users can reach.
+     */
+    static final float MIN_ZOOM = 1f;
+    /**
+     * The maximum zoom level that users can reach
+     */
+    static final float MAX_ZOOM = 4f;
+    /**
+     * The paint object that is used to draw all strokes with.
+     * 
+     * <p>
+     * Every {@link Stroke} stores values for how this <tt>Paint</tt> object
+     * should be modified before actually drawing it, including the stroke
+     * width, color and fill type. These are set in the
+     * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
+     */
+    static final Paint PAINT = new Paint();
+    /**
+     * The paint object that is used to draw landing zones with.
+     * 
+     * <p>
+     * The dotted effect is obtained by constantly updating the length of the
+     * segments according to the zoom level.
+     */
+    static final Paint LANDING_ZONE_PAINT = new Paint();
+    /**
+     * The paint object that is used to draw the circle animation whenever users
+     * press-and-hold in the proximity of a stroke.
+     */
+    static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
+
     private static final String FILE_EXTENSION = ".csf";
+    private static final String LIST_FILE_NAME = ".file_list";
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
     private static final long AUTO_SAVE_TIME = 20 * 1000,
             AUTO_BACKUP_TIME = 3 * 60 * 1000;
-    private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 50 * 1024;
+    private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
 
     /*************************************************************************
      * DISCLAIMER FOR THE READER
@@ -198,13 +343,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * The current view.
      */
     CaliView view;
-    private String[] fileList;
+    private List<String> fileList = new ArrayList<String>();
     private String chosenFile, autoSaveName, tmpSnapshotName;
+    private int currentFileListIndex = -1;
     private EditText input;
-    private FilenameFilter fileNameFilter;
     private AlertDialog saveDialog, loadDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
     private Timer autoSaverTimer;
+    private MenuItem chosenThickness;
+    private int chosenThicknessNonHighlightedIcon;
     private boolean userPickedANewName;
 
     @Override
@@ -213,15 +360,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         view = new CaliView(this);
         setContentView(view);
         autoSaveName = getResources().getString(R.string.unnamed_files);
-        fileNameFilter = new FilenameFilter() {
-
-            @Override
-            public boolean accept(File dir, String filename) {
-                File test = new File(dir, filename);
-                return (!filename.startsWith("~")
-                        && filename.endsWith(FILE_EXTENSION) && test.canRead());
-            }
-        };
         final EditText input = new EditText(this);
         this.input = input;
         input.setSingleLine();
@@ -235,7 +373,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     userPickedANewName = !name.startsWith(autoSaveName)
                             && !name.startsWith("~" + autoSaveName);
                     save(name);
-                    setTitle(chosenFile);
+                    setTitle(String.format("CaliSmall - (%d/%d) %s",
+                            currentFileListIndex + 1, fileList.size(),
+                            chosenFile));
                     saveDialog.dismiss();
                 }
                 return true;
@@ -250,10 +390,17 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                                    new DialogInterface.OnClickListener() {
 		                                        public void onClick(DialogInterface dialog, int whichButton) {
 		                                            String name = input.getText().toString();
-		                                            userPickedANewName = !name.startsWith(autoSaveName)
-		                                                    && !name.startsWith("~" + autoSaveName);
+//		                                            userPickedANewName = !name.startsWith(autoSaveName)
+//		                                                    && !name.startsWith("~" + autoSaveName);
+		                                            userPickedANewName = !name.equals(chosenFile);
 		                                            save(name);
-		                                            setTitle(chosenFile);
+		                                            setTitle(String.format("CaliSmall - (%d/%d) %s",
+		                                                    currentFileListIndex + 1, fileList.size(), chosenFile));
+		                                            Toast.makeText(
+		                                                    getApplicationContext(),
+		                                                    String.format(
+		                                                            getResources().getString(R.string.file_saved),
+		                                                            chosenFile), Toast.LENGTH_SHORT).show();
 		                                        }
 		                            })
 		                            .setNegativeButton(android.R.string.cancel,
@@ -302,8 +449,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     }
                 }, Painter.SCREEN_REFRESH_TIME * 2);
             }
-            if (chosenFile == null)
-                newProject();
+        }
+        if (chosenFile == null) {
+            newSketch();
         }
     }
 
@@ -320,20 +468,35 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 AUTO_BACKUP_TIME);
     }
 
-    private String[] initFileList() {
-        String[] fileList = null;
+    private List<String> initFileList() {
+        List<String> files = new ArrayList<String>();
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-            fileList = getApplicationContext().getExternalFilesDir(null).list(
-                    fileNameFilter);
-            for (int i = 0; i < fileList.length; i++) {
-                fileList[i] = fileList[i].endsWith(FILE_EXTENSION) ? fileList[i]
-                        .substring(0, fileList[i].lastIndexOf(FILE_EXTENSION))
-                        : fileList[i];
+            File listFileProject = new File(getApplicationContext()
+                    .getExternalFilesDir(null), LIST_FILE_NAME);
+            try {
+                if (!listFileProject.exists())
+                    listFileProject.createNewFile();
+                BufferedReader reader = new BufferedReader(new FileReader(
+                        listFileProject));
+                String line = null;
+                while ((line = reader.readLine()) != null) {
+                    String fileName = line.endsWith(FILE_EXTENSION) ? line
+                            .substring(0, line.lastIndexOf(FILE_EXTENSION))
+                            : line;
+                    files.add(fileName);
+                }
+            } catch (FileNotFoundException e) {
+                try {
+                    listFileProject.createNewFile();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            Arrays.sort(fileList);
         }
-        return fileList;
+        return files;
     }
 
     /**
@@ -348,24 +511,23 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void save(final String input) {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-
             try {
                 lock.lock();
                 File path = getApplicationContext().getExternalFilesDir(null);
                 File newFile = new File(path, input + FILE_EXTENSION);
                 if (userPickedANewName) {
                     // delete the "Unnamed Sketch" file
-                    fileList = null;
-                    if (chosenFile.startsWith(autoSaveName)) {
-                        new File(path, chosenFile + FILE_EXTENSION).delete();
-                        new File(path, "~" + chosenFile + FILE_EXTENSION)
-                                .delete();
-                    }
-                    fileList = initFileList();
+                    // if (chosenFile.startsWith(autoSaveName)) {
+                    new File(path, chosenFile + FILE_EXTENSION).delete();
+                    new File(path, "~" + chosenFile + FILE_EXTENSION).delete();
+                    fileList.remove(currentFileListIndex);
+                    // }
                     chosenFile = input;
+                    fileList.add(currentFileListIndex, input);
                     userPickedANewName = false;
                     restartAutoSaving();
                 }
+                updateFileList();
                 String json = toJSON().toString();
                 FileWriter writer = new FileWriter(newFile);
                 writer.write(json);
@@ -402,6 +564,24 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
     }
 
+    private void updateFileList() {
+        if (Environment.MEDIA_MOUNTED.equals(Environment
+                .getExternalStorageState())) {
+            File listFileProject = new File(getApplicationContext()
+                    .getExternalFilesDir(null), LIST_FILE_NAME);
+            try {
+                PrintStream ps = new PrintStream(listFileProject);
+                for (String file : fileList) {
+                    ps.println(file);
+                }
+                ps.flush();
+                ps.close();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void load(File toBeLoaded) {
         try {
             load(new FileInputStream(toBeLoaded));
@@ -412,6 +592,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void load(InputStream toBeLoaded) {
         try {
+            runOnUiThread(new Runnable() {
+                public void run() {
+                    invalidateOptionsMenu();
+                }
+            });
             BufferedReader reader = new BufferedReader(new InputStreamReader(
                     toBeLoaded));
             String in, newLine = "";
@@ -449,17 +634,26 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         case R.id.color:
             AmbilWarnaDialog dialog = view.getColorPicker();
             dialog.show();
-            break;
-        case R.id.clear:
-            view.clear();
-            break;
-        case R.id.log:
-            view.printLog();
-            break;
-        case R.id.menu_save:
-            saveButtonClicked();
-            break;
+            return true;
+        case R.id.line_thinnest:
+            return onStrokeThicknessSelection(ABS_THINNEST_STROKE_WIDTH);
+        case R.id.line_thin:
+            return onStrokeThicknessSelection(ABS_THIN_STROKE_WIDTH);
+        case R.id.line_medium:
+            return onStrokeThicknessSelection(ABS_MEDIUM_STROKE_WIDTH);
+        case R.id.line_thick:
+            return onStrokeThicknessSelection(ABS_THICK_STROKE_WIDTH);
+        case R.id.line_thickest:
+            return onStrokeThicknessSelection(ABS_THICKEST_STROKE_WIDTH);
+        case R.id.line_zoom:
+            return toggleStrokeWidthScaling();
         case R.id.save:
+            saveButtonClicked();
+            return true;
+        case R.id.save_as:
+            if (chosenFile.startsWith(autoSaveName)) {
+                input.setText("");
+            }
             saveDialog.show();
             break;
         case R.id.open:
@@ -472,8 +666,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             loadPrevious();
             break;
         case R.id.create_new:
-            newProject();
-            break;
+            newSketch();
+            return true;
         case R.id.share:
             share();
             break;
@@ -492,17 +686,108 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return knownOption || super.onOptionsItemSelected(item);
     }
 
-    private void newProject() {
+    private boolean onStrokeThicknessSelection(int selectedThickness) {
+        view.currentAbsStrokeWidth = selectedThickness;
+        if (view.scaleStrokeWithZoom)
+            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth
+                    / view.scaleFactor);
+        else
+            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth);
+        invalidateOptionsMenu();
+        return true;
+    }
+
+    private boolean toggleStrokeWidthScaling() {
+        view.scaleStrokeWithZoom = !view.scaleStrokeWithZoom;
+        invalidateOptionsMenu();
+        return true;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see android.app.Activity#onPrepareOptionsMenu(android.view.Menu)
+     */
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem previous = menu.findItem(R.id.open_previous);
+        previous.setEnabled(currentFileListIndex > 0);
+        previous.getIcon().setAlpha(currentFileListIndex > 0 ? 255 : 85);
+        MenuItem next = menu.findItem(R.id.open_next);
+        next.setEnabled(currentFileListIndex < fileList.size() - 1);
+        Drawable nextIcon = next.getIcon();
+        if (nextIcon != null)
+            nextIcon.setAlpha(currentFileListIndex < fileList.size() - 1 ? 255
+                    : 85);
+        SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
+        MenuItem toggle = lineStyleMenu.findItem(R.id.line_zoom);
+        updateStrokeThicknessSelection(lineStyleMenu);
+        if (!view.scaleStrokeWithZoom) {
+            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth);
+            toggle.setIcon(android.R.drawable.checkbox_off_background);
+        } else {
+            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth
+                    / view.scaleFactor);
+            toggle.setIcon(android.R.drawable.checkbox_on_background);
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    private void updateStrokeThicknessSelection(SubMenu lineStyleMenu) {
+        if (chosenThickness == null) {
+            chosenThickness = lineStyleMenu.findItem(R.id.line_thin);
+            chosenThicknessNonHighlightedIcon = R.drawable.line_thin;
+            chosenThickness.setIcon(R.drawable.line_thin_highlighted);
+        } else {
+            chosenThickness.setIcon(chosenThicknessNonHighlightedIcon);
+            int nonHighlighted = 0;
+            switch (view.currentAbsStrokeWidth) {
+            case ABS_THINNEST_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thinnest);
+                nonHighlighted = R.drawable.line_thinnest;
+                chosenThickness.setIcon(R.drawable.line_thinnest_highlighted);
+                break;
+            case ABS_THIN_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thin);
+                nonHighlighted = R.drawable.line_thin;
+                chosenThickness.setIcon(R.drawable.line_thin_highlighted);
+                break;
+            case ABS_MEDIUM_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_medium);
+                nonHighlighted = R.drawable.line_medium;
+                chosenThickness.setIcon(R.drawable.line_medium_highlighted);
+                break;
+            case ABS_THICK_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thick);
+                nonHighlighted = R.drawable.line_thick;
+                chosenThickness.setIcon(R.drawable.line_thick_highlighted);
+                break;
+            case ABS_THICKEST_STROKE_WIDTH:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_thickest);
+                nonHighlighted = R.drawable.line_thickest;
+                chosenThickness.setIcon(R.drawable.line_thickest_highlighted);
+                break;
+            }
+            chosenThicknessNonHighlightedIcon = nonHighlighted;
+        }
+    }
+
+    private void newSketch() {
         userPickedANewName = false;
+        if (chosenFile != null)
+            save(chosenFile);
         chosenFile = generateAutoSaveName();
+        save(chosenFile);
+        fileList.add(++currentFileListIndex, chosenFile);
+        invalidateOptionsMenu();
         view.clear();
         input.setText("");
-        setTitle("CaliSmall - "
-                + getResources().getString(R.string.unnamed_files));
+        setTitle(String.format("CaliSmall - (%d/%d) %s",
+                currentFileListIndex + 1, fileList.size(), getResources()
+                        .getString(R.string.unnamed_files)));
     }
 
     private void delete() {
-        fileList = null;
         String fileName = chosenFile;
         File path = getApplicationContext().getExternalFilesDir(null);
         File newFile = new File(path, fileName + FILE_EXTENSION);
@@ -511,19 +796,28 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             newFile = new File(path, "~" + fileName + FILE_EXTENSION);
             if (newFile.exists())
                 newFile.delete();
+            fileList.remove(currentFileListIndex);
+            updateFileList();
         }
         fileList = initFileList();
-        loadNext();
+        if (fileList.isEmpty()) {
+            currentFileListIndex--;
+            newSketch();
+        } else {
+            loadPrevious();
+        }
         Toast.makeText(
                 getApplicationContext(),
                 String.format(getResources().getString(R.string.delete_done),
                         fileName), Toast.LENGTH_SHORT).show();
+        invalidateOptionsMenu();
     }
 
     private void saveButtonClicked() {
-        if (chosenFile.startsWith(autoSaveName))
+        if (chosenFile.startsWith(autoSaveName)) {
+            input.setText("");
             saveDialog.show();
-        else {
+        } else {
             restartAutoSaving();
             save(chosenFile);
             Toast.makeText(
@@ -601,21 +895,24 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void showLoadDialog() {
-        fileList = initFileList();
         loadDialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.load_dialog_message)
-                .setItems(fileList, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        loadAndMaybeShowProgressBar(fileList[which]);
-                    }
-                }).create();
+                .setItems(fileList.toArray(new String[fileList.size()]),
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog,
+                                    int which) {
+                                currentFileListIndex = which;
+                                loadAndMaybeShowProgressBar(fileList.get(which));
+                            }
+                        }).create();
         loadDialog.show();
     }
 
     private void loadAndMaybeShowProgressBar(String file) {
+        save(chosenFile);
         chosenFile = file;
         input.setText(chosenFile);
-        view.resetChangeCounter();
+        input.setSelection(chosenFile.length());
         final File toBeLoaded = new File(getApplicationContext()
                 .getExternalFilesDir(null), file + FILE_EXTENSION);
         if (toBeLoaded.length() > MIN_FILE_SIZE_FOR_PROGRESSBAR) {
@@ -631,7 +928,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 fileName = fileName.substring(0,
                         fileName.lastIndexOf(FILE_EXTENSION));
             }
-            setTitle("CaliSmall - " + fileName);
+            setTitle(String.format("CaliSmall - (%d/%d) %s",
+                    currentFileListIndex + 1, fileList.size(), fileName));
             restartAutoSaving();
         }
     }
@@ -643,34 +941,16 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void loadNext() {
         userPickedANewName = false;
-        fileList = initFileList();
-        if (fileList != null && fileList.length > 0) {
-            userPickedANewName = !chosenFile.startsWith(autoSaveName);
-            int fileIndex = Arrays.binarySearch(fileList, chosenFile);
-            fileIndex = fileIndex % fileList.length;
-            if (fileIndex < 0)
-                fileIndex += fileList.length;
-            fileIndex++;
-            fileIndex = fileIndex % fileList.length;
-            loadAndMaybeShowProgressBar(fileList[fileIndex]);
-        }
+        currentFileListIndex = currentFileListIndex == fileList.size() - 1 ? currentFileListIndex
+                : ++currentFileListIndex;
+        loadAndMaybeShowProgressBar(fileList.get(currentFileListIndex));
     }
 
     private void loadPrevious() {
         userPickedANewName = false;
-        fileList = initFileList();
-        if (fileList != null && fileList.length > 0) {
-            userPickedANewName = !chosenFile.startsWith(autoSaveName);
-            int fileIndex = Arrays.binarySearch(fileList, chosenFile);
-            fileIndex = fileIndex % fileList.length;
-            if (fileIndex < 0)
-                fileIndex += fileList.length;
-            fileIndex--;
-            fileIndex = fileIndex % fileList.length;
-            if (fileIndex < 0)
-                fileIndex += fileList.length;
-            loadAndMaybeShowProgressBar(fileList[fileIndex]);
-        }
+        currentFileListIndex = currentFileListIndex > 0 ? --currentFileListIndex
+                : currentFileListIndex;
+        loadAndMaybeShowProgressBar(fileList.get(currentFileListIndex));
     }
 
     /*

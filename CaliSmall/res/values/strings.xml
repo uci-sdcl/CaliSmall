@@ -21,4 +21,10 @@
     <string name="share_message_subject">My Calico sketch</string>
     <string name="share_message_text">Check out this new sketch I made with CaliSmall&#153;!</string>
     <string name="share_message">Share via</string>
+    <string name="line_thinnest">Stroke - 1px</string>
+    <string name="line_thin">Stroke - 3px</string>
+    <string name="line_medium">Stroke - 5px</string>
+    <string name="line_thick">Stroke - 7px</string>
+    <string name="line_thickest">Stroke - 9px</string>
+    <string name="line_resize">Resize with zoom</string>
 </resources>
