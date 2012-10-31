@@ -371,6 +371,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     boolean scaleStrokeWithZoom = true;
     /**
+     * Whether a zoom/pan action is in progress.
+     */
+    boolean zoomingOrPanning;
+    /**
      * The current instance of the bubble menu.
      */
     BubbleMenu bubbleMenu;
@@ -393,6 +397,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private final CaliSmall parent;
     private final List<Stroke> newStrokes;
     private final List<Scrap> newScraps;
+    private Canvas background;
+    private Bitmap snapshot;
     private LongPressAction longPressAction;
     private Thread worker;
     private Painter painter;
@@ -406,7 +412,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private PathMeasure pathMeasure;
     private boolean running, mustShowLandingZone, strokeAdded, mustClearCanvas,
             tempScrapCreated, longPressed, mustShowLongPressCircle,
-            didSomething;
+            didSomething, backgroundOutdated, newCanvas;
     private PointF landingZoneCenter;
     private int currentPointerID = INVALID_POINTER_ID, screenWidth,
             screenHeight;
@@ -456,6 +462,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         scraps.clear();
         allStrokes.clear();
         allScraps.clear();
+        background = new Canvas();
+        backgroundOutdated = true;
         bubbleMenu = new BubbleMenu(this);
         ghostHandler = new GhostStrokeHandler(this);
         longPressAction = new LongPressAction(this);
@@ -519,20 +527,74 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void drawView(Canvas canvas) {
         if (canvas != null) {
-            canvas.drawColor(Color.WHITE);
-            canvas.concat(matrix);
+            if (zoomingOrPanning) {
+                redrawEverything(canvas);
+                backgroundOutdated = true;
+            } else if (backgroundOutdated || newCanvas) {
+                updateBackground();
+                backgroundOutdated = false;
+                newCanvas = false;
+            } else if (snapshot != null) {
+                canvas.drawBitmap(snapshot, 0, 0, PAINT);
+            }
             if (mustShowLongPressCircle) {
                 drawLongPressAnimation(canvas);
             }
             if (mustClearCanvas) {
                 clearCanvas();
+                backgroundOutdated = true;
             } else {
                 maybeDrawLandingZone(canvas);
-                deleteElements();
+                if (deleteElements())
+                    backgroundOutdated = true;
                 maybeCreateBubbleMenu();
-                addNewStrokesAndScraps();
-                drawItems(canvas);
+                if (addNewStrokesAndScraps())
+                    backgroundOutdated = true;
+                if (tempScrap != null) {
+                    tempScrap.draw(this, canvas, scaleFactor);
+                }
+                if (bubbleMenu.isVisible())
+                    bubbleMenu.draw(canvas);
+                stroke.draw(canvas, PAINT);
+                if (!strokeAdded) {
+                    strokes.add(stroke);
+                    allStrokes.add(stroke);
+                    strokeAdded = true;
+                }
             }
+        }
+    }
+
+    private void redrawEverything(Canvas canvas) {
+        canvas.drawColor(Color.WHITE);
+        canvas.concat(matrix);
+        if (mustShowLongPressCircle) {
+            drawLongPressAnimation(canvas);
+        }
+        if (mustClearCanvas) {
+            clearCanvas();
+        } else {
+            maybeDrawLandingZone(canvas);
+            deleteElements();
+            maybeCreateBubbleMenu();
+            addNewStrokesAndScraps();
+            drawItems(canvas);
+        }
+    }
+
+    private void updateBackground() {
+        Utils.debug("redrawing background, " + scraps.size() + " scraps and "
+                + strokes.size() + " strokes");
+        snapshot = Bitmap.createBitmap(screenWidth, screenHeight,
+                Config.ARGB_8888);
+        background = new Canvas(snapshot);
+        background.drawColor(Color.WHITE);
+        for (Scrap scrap : scraps) {
+            scrap.draw(this, background, scaleFactor);
+        }
+        for (Stroke stroke : strokes) {
+            if (stroke.hasToBeDrawnVectorially())
+                stroke.draw(background, PAINT);
         }
     }
 
@@ -586,7 +648,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             allStrokes.add(stroke);
             strokeAdded = true;
         }
-
     }
 
     private void maybeDrawLandingZone(Canvas canvas) {
@@ -623,7 +684,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         return null;
     }
 
-    private void deleteElements() {
+    private boolean deleteElements() {
+        boolean removedSomething = false;
         if (toBeRemoved != null) {
             toBeRemoved.erase();
             if (toBeRemoved == tempScrap) {
@@ -631,10 +693,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 bubbleMenu.setVisible(false);
             }
             toBeRemoved = null;
+            removedSomething = true;
         }
         CaliSmallElement.deleteMarkedFromList(strokes, allStrokes);
         CaliSmallElement.deleteMarkedFromList(scraps, allScraps);
         ghostHandler.deleteOldStrokes();
+        return removedSomething;
     }
 
     private void longPress(Stroke selected) {
@@ -649,22 +713,26 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
     }
 
-    private void addNewStrokesAndScraps() {
+    private boolean addNewStrokesAndScraps() {
+        boolean addedSomething = false;
         if (!newStrokes.isEmpty()) {
             strokes.addAll(newStrokes);
             allStrokes.addAll(newStrokes);
             newStrokes.clear();
+            addedSomething = true;
         }
         if (!newScraps.isEmpty()) {
             scraps.addAll(newScraps);
             allScraps.addAll(newScraps);
             newScraps.clear();
+            addedSomething = true;
         }
         if (newSelection != null) {
             setSelected(newSelection);
             previousSelection = newSelection;
             newSelection = null;
         }
+        return addedSomething;
     }
 
     /**
@@ -839,6 +907,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             stroke = new Stroke(this, new Path(), stroke);
             activeStroke = stroke;
             strokeAdded = false;
+            backgroundOutdated = true;
         }
     }
 
@@ -990,6 +1059,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
             int height) {
         setBounds(width, height);
+        snapshot = Bitmap.createBitmap(width, height, Config.ARGB_8888);
+        background = new Canvas(snapshot);
     }
 
     private void setBounds(int width, int height) {
@@ -1241,6 +1312,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 wasBubbleMenuShown = false;
             bubbleMenu.setVisible(false);
             ghostHandler.setGhostAnimationOnPause(true);
+            zoomingOrPanning = true;
             return true;
         }
 
@@ -1311,6 +1383,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
          */
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
+            zoomingOrPanning = false;
             if (scaleStrokeWithZoom) {
                 // rescale paint brush and connect circle
                 stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
@@ -1528,6 +1601,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             scrap.addChildrenFromJSON();
         }
         createNewStroke();
+        newCanvas = true;
         return this;
     }
 
