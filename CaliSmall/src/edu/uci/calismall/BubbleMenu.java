@@ -208,7 +208,7 @@ public class BubbleMenu extends GenericTouchHandler {
     private float buttonDisplaySize = ABS_B_SIZE, bSize, padding, minSize,
             scaleFactor, maxXScale, maxYScale, compensationForRotateButtonPos;
     private Scrap highlighted;
-    private boolean topLeftPinned;
+    private boolean topLeftPinned, visible, drawable;
 
     /**
      * Initializes a new BubbleMenu that will pick image files from the
@@ -310,7 +310,7 @@ public class BubbleMenu extends GenericTouchHandler {
             // FIXME control should be moved outside
             Scrap newScrap = new Scrap(selected, false);
             view.addScrap(newScrap, false);
-            ((Scrap.Temp) selected).dontTurnIntoGhost();
+            ((Scrap.Temp) selected).setGhostEffect(false);
             touched = null;
         }
         return true;
@@ -332,7 +332,9 @@ public class BubbleMenu extends GenericTouchHandler {
     }
 
     private boolean scrapErase(int action, PointF touchPoint, Scrap selected) {
+        selected.outerBorder.delete();
         view.removeScrap(selected);
+        view.setSelected(null);
         return false;
     }
 
@@ -564,7 +566,9 @@ public class BubbleMenu extends GenericTouchHandler {
      */
     @Override
     public boolean onDown(PointF touchPoint) {
-        if (buttonTouched(touchPoint, view.getSelection()))
+        Scrap previousSelection = view.getSelection();
+        view.setPreviousSelection(previousSelection);
+        if (buttonTouched(touchPoint, previousSelection))
             return onTouch(MotionEvent.ACTION_DOWN, touchPoint,
                     view.getSelection());
         else
@@ -593,8 +597,15 @@ public class BubbleMenu extends GenericTouchHandler {
     public boolean onUp(PointF touchPoint) {
         if (!onTouch(MotionEvent.ACTION_UP, touchPoint, view.getSelection())) {
             actionCompleted = true;
+            reset();
         }
         return true;
+    }
+
+    private void reset() {
+        for (Button button : buttons) {
+            button.position.set(new Rect());
+        }
     }
 
     /**
@@ -627,9 +638,7 @@ public class BubbleMenu extends GenericTouchHandler {
         bSize = buttonDisplaySize / scaleFactor;
         padding = bSize * PADDING_TO_BUTTON_SIZE_RATIO;
         minSize = bSize * BUTTONS_PER_SIDE + (BUTTONS_PER_SIDE - 1) * padding;
-        if (selectionPath != null) {
-            updatePositionAndSize(selectionPath);
-        }
+        updatePositionAndSize(selectionPath);
     }
 
     /**
@@ -645,7 +654,8 @@ public class BubbleMenu extends GenericTouchHandler {
     }
 
     private void updatePositionAndSize(Path outerBorder) {
-        outerBorder.computeBounds(sel, true);
+        if (outerBorder != null)
+            outerBorder.computeBounds(sel, true);
         updatePivotButtonsPosition();
         applySizeConstraints();
         applySpaceContraints();
@@ -862,5 +872,43 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private void updateMenu(Scrap selection) {
         updatePositionAndSize(selection.getBorder());
+    }
+
+    /**
+     * Returns whether this bubble menu is currently displayed on screen.
+     * 
+     * @return <code>true</code> if this menu is currently being drawn on screen
+     */
+    public boolean isVisible() {
+        return visible;
+    }
+
+    /**
+     * Sets whether this bubble menu is currently being displayed on screen.
+     * 
+     * @param visible
+     *            <code>true</code> if this bubble menu is shown on screen
+     */
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
+    /**
+     * Returns whether this bubble menu is ready to be drawn.
+     * 
+     * @return <code>true</code> if this bubble menu must be drawn to Canvas
+     */
+    public boolean isDrawable() {
+        return drawable;
+    }
+
+    /**
+     * Sets whether this bubble menu should be drawn.
+     * 
+     * @param drawable
+     *            <code>true</code> if this bubble menu must be drawn
+     */
+    public void setDrawable(boolean drawable) {
+        this.drawable = drawable;
     }
 }

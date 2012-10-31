@@ -73,6 +73,34 @@ public class GhostStrokeHandler extends GenericTouchHandler {
         return false;
     }
 
+    /**
+     * Sets whether ghost fade out animations must be executed, and whether all
+     * ghost revive buttons for all ghost strokes must be drawn.
+     * 
+     * @param isPaused
+     *            <code>true</code> if ghost animations should be paused and
+     *            revive buttons not be drawn
+     */
+    public void setGhostAnimationOnPause(boolean isPaused) {
+        if (isPaused) {
+            for (Iterator<Stroke> iterator = ghosts.iterator(); iterator
+                    .hasNext();) {
+                Stroke next = iterator.next();
+                if (next.isGhost())
+                    next.setGhostAnimationOnPause(isPaused, null, -1f);
+            }
+        } else {
+            for (Iterator<Stroke> iterator = ghosts.iterator(); iterator
+                    .hasNext();) {
+                Stroke next = iterator.next();
+                if (next.isGhost())
+                    next.setGhostAnimationOnPause(isPaused,
+                            parentView.screenBounds,
+                            parentView.bubbleMenu.getButtonSize());
+            }
+        }
+    }
+
     /*
      * (non-Javadoc)
      * 
@@ -94,8 +122,9 @@ public class GhostStrokeHandler extends GenericTouchHandler {
         if (touchedGhost != null) {
             touchedGhost.setGhost(false, null, null, 0);
             touchedGhost = null;
+            return true;
         }
-        return super.onUp(touchPoint);
+        return false;
     }
 
     /**

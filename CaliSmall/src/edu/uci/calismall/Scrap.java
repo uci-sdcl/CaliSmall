@@ -662,18 +662,18 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             parentScrap.remove(this);
             parent = null;
         }
-        toBeDeleted = true;
+        delete();
         mustBeDrawnVectorially(false);
-        outerBorder.toBeDeleted = true;
+        outerBorder.delete();
         for (Stroke stroke : getAllStrokes()) {
-            stroke.toBeDeleted = true;
+            stroke.delete();
             if (stroke.parent != null) {
                 Scrap parentScrap = (Scrap) stroke.parent;
                 parentScrap.remove(stroke);
             }
         }
         for (Scrap scrap : getAllScraps()) {
-            scrap.toBeDeleted = true;
+            scrap.delete();
             if (scrap.parent != null) {
                 Scrap parentScrap = (Scrap) scrap.parent;
                 parentScrap.remove(scrap);
@@ -1059,9 +1059,12 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         /**
          * Prevents this temp scrap's outer border from becoming a ghost upon
          * deselection.
+         * 
+         * @param doPause
+         *            whether the effect should be paused
          */
-        public void dontTurnIntoGhost() {
-            dontTurnIntoGhost = true;
+        public void setGhostEffect(boolean doPause) {
+            dontTurnIntoGhost = !doPause;
         }
 
         /*

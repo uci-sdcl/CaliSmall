@@ -366,13 +366,13 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private final SpaceOccupationList<Scrap> allScraps;
     private final Handler longPressListener = new Handler();
     private final CaliSmall parent;
+    private final List<Stroke> newStrokes;
+    private final List<Scrap> newScraps;
     private LongPressAction longPressAction;
     private Thread worker;
     private Painter painter;
     private Scrap selected, previousSelection, newSelection, toBeRemoved,
             tempScrap;
-    private final List<Stroke> newStrokes;
-    private final List<Scrap> newScraps;
     private List<TouchHandler> handlers;
     private ScaleListener scaleListener;
     private TouchHandler redirectTo;
@@ -380,10 +380,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private DrawingHandler drawingHandler;
     private PathMeasure pathMeasure;
     private boolean running, mustShowLandingZone, strokeAdded, mustClearCanvas,
-            bubbleMenuShown, mustShowBubbleMenu, tempScrapCreated, longPressed,
-            mustShowLongPressCircle, didSomething;
+            tempScrapCreated, longPressed, mustShowLongPressCircle,
+            didSomething;
     private PointF landingZoneCenter;
-    private Stroke redirectedGhost;
     private int currentPointerID = INVALID_POINTER_ID, screenWidth,
             screenHeight;
 
@@ -441,9 +440,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         handlers = new ArrayList<TouchHandler>() {
             {
                 // order DOES matter! calls are chained
+                add(ghostHandler);
                 add(bubbleMenu);
                 add(scaleListener);
-                add(ghostHandler);
                 add(drawingHandler);
             }
         };
@@ -459,7 +458,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         mustShowLandingZone = false;
         strokeAdded = false;
         mustClearCanvas = false;
-        bubbleMenuShown = false;
         tempScrapCreated = false;
         longPressed = false;
         mustShowLongPressCircle = false;
@@ -551,7 +549,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (stroke.hasToBeDrawnVectorially())
                 stroke.draw(canvas, PAINT);
         }
-        if (bubbleMenuShown)
+        if (bubbleMenu.isVisible())
             bubbleMenu.draw(canvas);
         if (!strokeAdded) {
             stroke.draw(canvas, PAINT);
@@ -570,8 +568,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private void maybeCreateBubbleMenu() {
-        if (mustShowBubbleMenu) {
-            mustShowBubbleMenu = false;
+        if (!bubbleMenu.isVisible() && bubbleMenu.isDrawable()) {
             if (tempScrapCreated) {
                 Stroke border = getActiveStroke();
                 allStrokes.remove(border);
@@ -579,7 +576,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 changeTempScrap(new Scrap.Temp(border, scaleFactor));
                 tempScrapCreated = false;
             }
-            bubbleMenuShown = true;
+            bubbleMenu.setDrawable(false);
+            bubbleMenu.setVisible(true);
         }
     }
 
@@ -599,10 +597,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private void deleteElements() {
         if (toBeRemoved != null) {
             toBeRemoved.erase();
-            mustShowBubbleMenu = false;
-            bubbleMenuShown = false;
-            if (toBeRemoved == tempScrap)
+            if (toBeRemoved == tempScrap) {
                 tempScrap = null;
+                bubbleMenu.setVisible(false);
+            }
             toBeRemoved = null;
         }
         CaliSmallElement.deleteMarkedFromList(strokes, allStrokes);
@@ -615,10 +613,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (selected.parent != null) {
                 ((Scrap) selected.parent).remove(selected);
             }
-            stroke.toBeDeleted = true;
+            stroke.delete();
             activeStroke = selected;
             tempScrapCreated = true;
-            mustShowBubbleMenu = true;
+            bubbleMenu.setDrawable(true);
         }
     }
 
@@ -659,10 +657,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         if (selected != null) {
             bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
                     screenBounds);
-            mustShowBubbleMenu = true;
+            bubbleMenu.setDrawable(true);
             selected.select();
         } else {
-            bubbleMenuShown = false;
+            bubbleMenu.setVisible(false);
         }
         this.selected = selected;
     }
@@ -754,7 +752,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             }
             if (redirected) {
                 if (redirectTo.done()) {
-                    Log.d(VIEW_LOG_TAG, redirectTo + " stopped handling events");
                     redirectTo = null;
                 }
                 return true;
@@ -762,7 +759,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 for (TouchHandler handler : handlers) {
                     if (handler.processTouchEvent(action, touchPoint, event)) {
                         redirectTo = handler;
-                        Log.d(VIEW_LOG_TAG, "new handler: " + handler);
                         return true;
                     }
                 }
@@ -892,6 +888,22 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             }
         }
         return null;
+    }
+
+    /**
+     * Sets the previous selection.
+     * 
+     * <p>
+     * Previous selections represent the scrap that was selected when the last
+     * sequence of action (meaning anything taking place between a
+     * {@link MotionEvent#ACTION_DOWN} and a {@link MotionEvent#ACTION_UP})
+     * started.
+     * 
+     * @param previousSelection
+     *            the previousSelection to set
+     */
+    public void setPreviousSelection(Scrap previousSelection) {
+        this.previousSelection = previousSelection;
     }
 
     private boolean isCloseEnough(CaliSmallElement candidate) {
@@ -1127,6 +1139,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public class ScaleListener extends GenericTouchHandler {
 
+        private boolean wasBubbleMenuShown;
+
         /**
          * Creates a new listener for zooming and panning events.
          * 
@@ -1139,7 +1153,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
         public boolean onPointerDown(PointF adjusted, MotionEvent event) {
             longPressListener.removeCallbacks(longPressAction);
-            bubbleMenuShown = false;
             mustShowLandingZone = false;
             stroke.reset();
             scaleDetector.onTouchEvent(event);
@@ -1182,6 +1195,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         public boolean onScaleBegin(ScaleGestureDetector detector) {
             previousScaledCenterX = detector.getFocusX() / scaleFactor;
             previousScaledCenterY = detector.getFocusY() / scaleFactor;
+            if (previousSelection != null) {
+                wasBubbleMenuShown = true;
+                previousSelection.outerBorder.setGhost(false, null, null, -1f);
+                previousSelection.outerBorder.delete();
+            } else
+                wasBubbleMenuShown = false;
+            bubbleMenu.setVisible(false);
+            ghostHandler.setGhostAnimationOnPause(true);
             return true;
         }
 
@@ -1269,7 +1290,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             LANDING_ZONE_PAINT.setPathEffect(new DashPathEffect(new float[] {
                     newInterval, newInterval }, (float) 1.0));
             updateBounds();
-            setSelected(previousSelection);
+            bubbleMenu.setBounds(scaleFactor, screenBounds);
+            if (wasBubbleMenuShown) {
+                previousSelection.outerBorder.restore();
+                setSelected(previousSelection);
+            }
+            ghostHandler.setGhostAnimationOnPause(false);
         }
     }
 
@@ -1311,11 +1337,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             mustShowLandingZone = false;
             actionCompleted = true;
             longPressListener.removeCallbacks(longPressAction);
-            if (redirectedGhost != null) {
-                redirectedGhost.setGhost(false, null, null, 0f);
-                redirectedGhost = null;
-                return true;
-            }
             if (longPressAction.completed) {
                 stroke.reset();
                 createNewStroke();
@@ -1328,7 +1349,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 longPressAction.reset(false);
             }
             if (isInLandingZone(adjusted)) {
-                mustShowBubbleMenu = true;
+                bubbleMenu.setDrawable(true);
                 tempScrapCreated = true;
             } else {
                 Scrap newSelection;

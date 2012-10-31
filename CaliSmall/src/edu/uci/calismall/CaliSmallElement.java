@@ -106,12 +106,6 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     protected PointF previousTopLeftPoint = topLeftPoint;
     /**
-     * Whether this element must be deleted. Elements are only removed from
-     * lists by the drawing thread, to avoid
-     * {@link ConcurrentModificationException}'s while drawing.
-     */
-    protected boolean toBeDeleted;
-    /**
      * Whether this element has already been added to the list of elements
      * within a {@link Temp} and should therefore be ignored when testing for
      * elements within the newly created {@link Temp}.
@@ -131,6 +125,12 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     protected float height;
 
     private boolean mustBeDrawn = true;
+    /**
+     * Whether this element must be deleted. Elements are only removed from
+     * lists by the drawing thread, to avoid
+     * {@link ConcurrentModificationException}'s while drawing.
+     */
+    private boolean toBeDeleted;
 
     /**
      * Creates a new element.
@@ -268,6 +268,24 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      *         outside of this element's area
      */
     abstract boolean contains(PointF point);
+
+    /**
+     * Marks this element as <i>toBeDeleted</i>, so that calls to
+     * {@link #deleteMarkedFromList(List, SpaceOccupationList)} will remove it
+     * from lists.
+     */
+    public void delete() {
+        toBeDeleted = true;
+    }
+
+    /**
+     * Unmarks this element as <i>toBeDeleted</i>, so that calls to
+     * {@link #deleteMarkedFromList(List, SpaceOccupationList)} won't remove it
+     * from lists.
+     */
+    public void restore() {
+        toBeDeleted = false;
+    }
 
     /**
      * Tests whether the argument element is completely contained in this

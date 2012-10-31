@@ -55,6 +55,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     private static final Paint GHOST_PAINT = new Paint();
     private static final int GHOST_PAINT_OPACITY_PERCENTAGE = 25;
     private static final int GHOST_PAINT_START_OPACITY = GHOST_PAINT_OPACITY_PERCENTAGE * 255 / 100;
+    private static final float X_WEIGHT_FOR_GHOST_REVIVE = 1.7f;
     /**
      * The amount of time that every ghost stroke is displayed before
      * disappearing.
@@ -87,8 +88,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     protected int color = DEFAULT_COLOR;
     private int ghostOpacity = GHOST_PAINT_START_OPACITY;
     private final float[] matrixValues;
-    private boolean isDot;
-    private long ghostUntil;
+    private boolean isDot, drawGhostRevive;
+    private long ghostUntil, ghostTimeLeft;
     private BubbleMenu.Button ghostRevive;
 
     static {
@@ -178,16 +179,18 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      */
     public boolean addAndDrawPoint(PointF newPoint, float touchTolerance) {
         boolean added = false;
-        final PointF last = points.get(points.size() - 1);
-        final float dx = Math.abs(newPoint.x - last.x);
-        final float dy = Math.abs(newPoint.y - last.y);
-        if (dx >= touchTolerance || dy >= touchTolerance) {
-            path.quadTo(last.x, last.y, (newPoint.x + last.x) / 2,
-                    (newPoint.y + last.y) / 2);
-            points.add(newPoint);
-            setBoundaries();
-            added = true;
-        }
+        if (!points.isEmpty()) {
+            final PointF last = points.get(points.size() - 1);
+            final float dx = Math.abs(newPoint.x - last.x);
+            final float dy = Math.abs(newPoint.y - last.y);
+            if (dx >= touchTolerance || dy >= touchTolerance) {
+                path.quadTo(last.x, last.y, (newPoint.x + last.x) / 2,
+                        (newPoint.y + last.y) / 2);
+                points.add(newPoint);
+                setBoundaries();
+                added = true;
+            }
+        } // else setStart has not been called, that's a problem
         return added;
     }
 
@@ -372,17 +375,14 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     public Stroke setGhost(boolean isGhost, RectF screenBounds,
             Resources resources, float buttonSize) {
         if (isGhost) {
+            drawGhostRevive = true;
             ghostUntil = System.currentTimeMillis() + GHOST_TIME
                     + GHOST_FADEOUT_TIME;
             ghostRevive = new BubbleMenu.Button(new BitmapDrawable(resources,
                     BitmapFactory.decodeResource(resources,
                             R.drawable.ghost_revive)));
-            PointF topLeft = getMostTopLeftPoint();
-            float left = Math.max(screenBounds.left, topLeft.x - buttonSize);
-            float top = Math.max(screenBounds.top, topLeft.y - buttonSize);
-            Rect position = new Rect((int) left, (int) top,
-                    (int) (left + buttonSize), (int) (top + buttonSize));
-            ghostRevive.setPosition(position, buttonSize * 0.25f);
+            setGhostRevivePosition(getMostTopLeftPoint(), screenBounds,
+                    buttonSize);
         } else {
             ghostUntil = -1;
         }
@@ -426,7 +426,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * @return this stroke if its ghost revive button should be triggered,
      *         <code>null</code> otherwise
      */
-    Stroke ghostButtonTouched(PointF touchPoint) {
+    public Stroke ghostButtonTouched(PointF touchPoint) {
         return ghostRevive != null && ghostRevive.contains(touchPoint) ? this
                 : null;
     }
@@ -435,7 +435,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         float min = Float.MAX_VALUE;
         PointF topLeft = null;
         for (PointF point : points) {
-            float value = 1.7f * point.x + point.y;
+            float value = X_WEIGHT_FOR_GHOST_REVIVE * point.x + point.y;
             if (value < min) {
                 min = value;
                 topLeft = point;
@@ -557,22 +557,72 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
 
     private void drawGhost(Canvas canvas) {
         if (ghostRevive != null) {
-            GHOST_PAINT.setColor(color);
-            GHOST_PAINT.setAlpha(ghostOpacity);
-            GHOST_PAINT.setStrokeWidth(strokeWidth);
-            GHOST_PAINT.setStyle(style);
-            canvas.drawPath(path, GHOST_PAINT);
             long now = System.currentTimeMillis();
-            ghostRevive.draw(canvas, ghostOpacity);
             if (now > ghostUntil) {
-                toBeDeleted = true;
-                ghostRevive = null;
+                delete();
             } else if (now > ghostUntil - GHOST_FADEOUT_TIME) {
+                GHOST_PAINT.setColor(color);
+                GHOST_PAINT.setAlpha(ghostOpacity);
+                GHOST_PAINT.setStrokeWidth(strokeWidth);
+                GHOST_PAINT.setStyle(style);
+                canvas.drawPath(path, GHOST_PAINT);
+                if (drawGhostRevive)
+                    ghostRevive.draw(canvas, ghostOpacity);
                 // update alpha to show fadeout
                 ghostOpacity = (int) Math
                         .floor((((double) GHOST_PAINT_START_OPACITY / GHOST_FADEOUT_TIME) * (ghostUntil - now)));
             }
         }
+    }
+
+    /**
+     * Marks this element as <i>toBeDeleted</i>, so that calls to
+     * {@link #deleteMarkedFromList(List, SpaceOccupationList)} will remove it
+     * from lists. Also marks this stroke as non-ghost.
+     */
+    @Override
+    public void delete() {
+        super.delete();
+        ghostRevive = null;
+        ghostUntil = -1;
+    }
+
+    /**
+     * Sets whether the ghost revive (pencil) icon should be drawn, and whether
+     * the ghost fade out animation should be executed.
+     * 
+     * @param isPaused
+     *            <code>true</code> if the animation should be put on pause and
+     *            the ghost revive button not be drawn
+     * @param screenBounds
+     *            the current screen bounds, can and should be <code>null</code>
+     *            if <tt>doDraw</tt> is <code>false</code>
+     * @param buttonSize
+     *            the current size of buttons, can and should be <tt>-1</tt> if
+     *            <tt>doDraw</tt> is <code>false</code>
+     */
+    public void setGhostAnimationOnPause(boolean isPaused, RectF screenBounds,
+            float buttonSize) {
+        drawGhostRevive = !isPaused;
+        if (isPaused) {
+            ghostTimeLeft = ghostUntil - System.currentTimeMillis();
+            ghostUntil = Long.MAX_VALUE;
+        } else {
+            if (isGhost()) {
+                setGhostRevivePosition(getMostTopLeftPoint(), screenBounds,
+                        buttonSize);
+                ghostUntil = System.currentTimeMillis() + ghostTimeLeft;
+            }
+        }
+    }
+
+    private void setGhostRevivePosition(PointF topLeft, RectF screenBounds,
+            float buttonSize) {
+        float left = Math.max(screenBounds.left, topLeft.x - buttonSize);
+        float top = Math.max(screenBounds.top, topLeft.y - buttonSize);
+        Rect position = new Rect((int) left, (int) top,
+                (int) (left + buttonSize), (int) (top + buttonSize));
+        ghostRevive.setPosition(position, buttonSize * 0.25f);
     }
 
     /*
