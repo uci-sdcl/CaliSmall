@@ -36,14 +36,13 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.graphics.Canvas;
-import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -163,139 +162,29 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     /**
      * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
-     * {@link #scaleFactor}).
+     * {@link CaliView#scaleFactor}).
      */
     public static final int ABS_THINNEST_STROKE_WIDTH = 1;
     /**
      * Absolute {@link Stroke} width of thin strokes (to be rescaled by
-     * {@link #scaleFactor}).
+     * {@link CaliView#scaleFactor}).
      */
     public static final int ABS_THIN_STROKE_WIDTH = 3;
     /**
      * Absolute {@link Stroke} width of medium strokes (to be rescaled by
-     * {@link #scaleFactor}).
+     * {@link CaliView#scaleFactor}).
      */
     public static final int ABS_MEDIUM_STROKE_WIDTH = 5;
     /**
      * Absolute {@link Stroke} width of thick strokes (to be rescaled by
-     * {@link #scaleFactor}).
+     * {@link CaliView#scaleFactor}).
      */
     public static final int ABS_THICK_STROKE_WIDTH = 7;
     /**
      * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
-     * {@link #scaleFactor}).
+     * {@link CaliView#scaleFactor}).
      */
     public static final int ABS_THICKEST_STROKE_WIDTH = 9;
-    /**
-     * The amount of time (in milliseconds) before the long pressure animation
-     * is shown.
-     */
-    public static final long LONG_PRESS_DURATION = 300;
-    /**
-     * Time in milliseconds after which the landing zone can be shown.
-     */
-    public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
-    /**
-     * Time in milliseconds between two consecutive screen refreshes (i.e. two
-     * consecutive calls to {@link CaliView#drawView(Canvas)}). To get the FPS
-     * that this value sets, just divide 1000 by the value (so a
-     * <tt>SCREEN_REFRESH_TIME</tt> of <tt>20</tt> translates to 50 FPS).
-     */
-    public static final long SCREEN_REFRESH_TIME = 20;
-
-    /**
-     * The ratio used to make the landing zone the same physical size regardless
-     * of the device that is currently being used.
-     */
-    static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
-    /**
-     * The interval between dashes in landing zones (to be rescaled by
-     * {@link #scaleFactor}).
-     */
-    static final float ABS_LANDING_ZONE_INTERVAL = 5;
-    /**
-     * The length that a {@link Stroke} must reach before a landing zone is
-     * shown (to be rescaled by {@link #scaleFactor}).
-     */
-    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 160;
-    /**
-     * Where to put the center of the landing zone on a path (to be rescaled by
-     * {@link #scaleFactor}).
-     */
-    static final float ABS_LANDING_ZONE_PATH_OFFSET = 70;
-    /**
-     * The length over which a Path is no longer considered as a potential tap,
-     * but is viewed as a stroke instead (to be rescaled by {@link #scaleFactor}
-     * ).
-     */
-    static final float ABS_TOUCH_THRESHOLD = 8;
-    /**
-     * The amount of pixels that a touch needs to cover before it is considered
-     * a move action (to be rescaled by {@link #scaleFactor}).
-     */
-    static final float ABS_TOUCH_TOLERANCE = 2;
-
-    /**
-     * Absolute half the size of the rectangle enclosing the circle displayed on
-     * long presses (to be rescaled by {@link #scaleFactor}).
-     */
-    static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
-
-    /**
-     * Absolute length of the increment when drawing the long press circle
-     * between {@link CaliView#draw(Canvas)} calls. This determines the speed at
-     * which the circle is animated.
-     */
-    static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
-    /**
-     * How long should the long press animation last, that is how long it should
-     * take for the circle to be drawn completely in milliseconds.
-     */
-    static final long LONG_PRESS_ANIMATION_DURATION = 350;
-    /**
-     * The starting point for the sweep animation for long presses. 0 is the
-     * rightmost point, -90 is the topmost point.
-     */
-    static final float CIRCLE_SWEEP_START = -90;
-
-    /**
-     * Absolute distance that the first and last point in a {@link Stroke} may
-     * have to be considered a valid target for long-presses scrap recognition
-     * (to be rescaled by {@link #scaleFactor}). The value is squared to speed
-     * up comparison with Euclidean distances.
-     */
-    static final float ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS = 200 * 200;
-    /**
-     * The minimum zoom level that users can reach.
-     */
-    static final float MIN_ZOOM = 1f;
-    /**
-     * The maximum zoom level that users can reach
-     */
-    static final float MAX_ZOOM = 4f;
-    /**
-     * The paint object that is used to draw all strokes with.
-     * 
-     * <p>
-     * Every {@link Stroke} stores values for how this <tt>Paint</tt> object
-     * should be modified before actually drawing it, including the stroke
-     * width, color and fill type. These are set in the
-     * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
-     */
-    static final Paint PAINT = new Paint();
-    /**
-     * The paint object that is used to draw landing zones with.
-     * 
-     * <p>
-     * The dotted effect is obtained by constantly updating the length of the
-     * segments according to the zoom level.
-     */
-    static final Paint LANDING_ZONE_PAINT = new Paint();
-    /**
-     * The paint object that is used to draw the circle animation whenever users
-     * press-and-hold in the proximity of a stroke.
-     */
-    static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
 
     private static final String FILE_EXTENSION = ".csf";
     private static final String LIST_FILE_NAME = ".file_list";
@@ -423,6 +312,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                         // Canceled.
                     }
         }).create();
+        fileList = initFileList();
 		// @formatter:on
         final Intent intent = getIntent();
         if (intent != null) {
@@ -612,7 +502,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
-            e.printStackTrace();
+            Toast.makeText(getApplicationContext(), R.string.load_failed,
+                    Toast.LENGTH_SHORT).show();
+            loadPrevious();
+            Log.e(TAG, "JSONException", e);
         }
     }
 

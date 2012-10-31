@@ -89,7 +89,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     private int ghostOpacity = GHOST_PAINT_START_OPACITY;
     private final float[] matrixValues;
     private boolean isDot, drawGhostRevive;
-    private long ghostUntil, ghostTimeLeft;
+    private long ghostUntil = -1, ghostTimeLeft;
     private BubbleMenu.Button ghostRevive;
 
     static {

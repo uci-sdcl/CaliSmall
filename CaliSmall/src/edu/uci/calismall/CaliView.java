@@ -124,6 +124,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
 
     /**
+     * How long should the long press animation last, that is how long it should
+     * take for the circle to be drawn completely in milliseconds.
+     */
+    static final long LONG_PRESS_ANIMATION_DURATION = 350;
+
+    /**
      * Absolute length of the increment when drawing the long press circle
      * between {@link CaliView#draw(Canvas)} calls. This determines the speed at
      * which the circle is animated.
@@ -150,6 +156,11 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The maximum zoom level that users can reach
      */
     static final float MAX_ZOOM = 4f;
+    /**
+     * The ratio used to make the landing zone the same physical size regardless
+     * of the device that is currently being used.
+     */
+    static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
     /**
      * The paint object that is used to draw all strokes with.
      * 
@@ -290,6 +301,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * the panning actions executed by the user so far.
      */
     float canvasOffsetY;
+    /**
+     * The abstract radius (to be rescaled by {@link #scaleFactor}) of landing
+     * zones for this device, meaning that it's rescaled to look the same
+     * physical size across devices.
+     */
+    float scaledLandingZoneAbsRadius;
     /**
      * The radius of the circle that represents the landing zone.
      */
@@ -520,12 +537,15 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private void drawLongPressAnimation(Canvas canvas) {
-        landingZoneCircleSweepAngle += ABS_CIRCLE_SWEEP_INCREMENT;
+        final long deltaT = System.currentTimeMillis()
+                - lastLongPressAnimationRefresh;
+        landingZoneCircleSweepAngle += (360 * deltaT / LONG_PRESS_ANIMATION_DURATION);
         canvas.drawArc(longPressCircleBounds, CIRCLE_SWEEP_START,
                 landingZoneCircleSweepAngle, false, LONG_PRESS_CIRCLE_PAINT);
         if (landingZoneCircleSweepAngle >= 360) {
             longPressAction.reset(true);
         }
+        lastLongPressAnimationRefresh = System.currentTimeMillis();
     }
 
     /**
@@ -981,6 +1001,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                     screenBounds);
         } else {
             bubbleMenu.setBounds(scaleFactor, screenBounds);
+            scaledLandingZoneAbsRadius = Math.max(width, height)
+                    * LANDING_ZONE_RADIUS_TO_WIDTH_RATIO;
+            landingZoneRadius = scaledLandingZoneAbsRadius / scaleFactor;
         }
     }
 
@@ -1288,10 +1311,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
          */
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
-            // rescale paint brush and connect circle
-            stroke.setStrokeWidth(ABS_STROKE_WIDTH / scaleFactor);
-            LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(stroke.getStrokeWidth() * 2);
-            landingZoneRadius = ABS_LANDING_ZONE_RADIUS / scaleFactor;
+            if (scaleStrokeWithZoom) {
+                // rescale paint brush and connect circle
+                stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
+            }
+            LONG_PRESS_CIRCLE_PAINT
+                    .setStrokeWidth(CaliSmall.ABS_THIN_STROKE_WIDTH
+                            / scaleFactor * 2);
+            landingZoneRadius = scaledLandingZoneAbsRadius / scaleFactor;
             minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
                     / scaleFactor;
             landingZonePathOffset = ABS_LANDING_ZONE_PATH_OFFSET / scaleFactor;
@@ -1470,8 +1497,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         for (int i = 0; i < scraps.size(); i++) {
             jsonScraps.add(scraps.get(i).toJSON());
         }
-        json.put("strokes", new JSONArray(strokes));
-        json.put("scraps", new JSONArray(scraps));
+        json.put("strokes", new JSONArray(jsonStrokes));
+        json.put("scraps", new JSONArray(jsonScraps));
         return json;
     }
 
