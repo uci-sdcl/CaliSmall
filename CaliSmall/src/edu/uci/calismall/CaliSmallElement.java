@@ -132,6 +132,8 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     private boolean toBeDeleted;
 
+    private boolean committedToBg;
+
     /**
      * Creates a new element.
      * 
@@ -256,6 +258,42 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
         for (CaliSmallElement element : elements) {
             element.addedToSelection = true;
         }
+    }
+
+    /**
+     * Marks this element as <i>committed</i> to the background image or unmarks
+     * it.
+     * 
+     * <p>
+     * An element is <i>committed</i> when the committer thread has added it to
+     * the bitmap image that is drawn on the background. As soon as an element
+     * is marked committed, Android's drawing thread is free to stop drawing it
+     * on the foreground, which is reserved to active elements like strokes,
+     * selections, ghost strokes and the bubble menu.
+     * 
+     * @param isCommitted
+     *            whether this element can be discarded by the drawing thread
+     */
+    public void setCommitted(boolean isCommitted) {
+        committedToBg = isCommitted;
+    }
+
+    /**
+     * Returns whether this element has been <i>committed</i> to the background
+     * image.
+     * 
+     * <p>
+     * An element is <i>committed</i> when the committer thread has added it to
+     * the bitmap image that is drawn on the background. As soon as an element
+     * is marked committed, Android's drawing thread is free to stop drawing it
+     * on the foreground, which is reserved to active elements like strokes,
+     * selections, ghost strokes and the bubble menu.
+     * 
+     * @return <code>true</code> if the committer thread has committed this
+     *         element to the background
+     */
+    public boolean isCommitted() {
+        return committedToBg;
     }
 
     /**

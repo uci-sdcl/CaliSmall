@@ -738,6 +738,12 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         if (hasToBeDrawnVectorially() || (topLevelForEdit && snapshot == null)) {
             drawShadedRegion(canvas);
             drawBorder(canvas, scaleFactor);
+            for (Scrap scrap : getAllScraps()) {
+                scrap.draw(parent, canvas, scaleFactor);
+            }
+            for (Stroke stroke : strokes) {
+                stroke.draw(canvas, PAINT);
+            }
         } else if (topLevelForEdit) {
             canvas.drawBitmap(snapshot, snapshotMatrix, null);
         }
@@ -857,6 +863,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         matrix.reset();
         setBoundaries();
         contentChanged = forceSnapshotRedraw;
+        parentView.forceSingleRedraw();
     }
 
     /**
@@ -972,6 +979,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                 if (!scrap.addedToSelection) {
                     if (outerBorder.contains(scrap.outerBorder)) {
                         scraps.add(scrap);
+                        scrap.mustBeDrawnVectorially(false);
                         allScrapsInSelection.add(scrap);
                         if (scrap.parent != null) {
                             ((Scrap) scrap.parent).remove(scrap);
@@ -996,6 +1004,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                 if (!stroke.addedToSelection) {
                     if (outerBorder.contains(stroke)) {
                         strokes.add(stroke);
+                        stroke.mustBeDrawnVectorially(false);
                         allStrokesInSelection.add(stroke);
                         stroke.addedToSelection = true;
                         if (stroke.parent != null) {
@@ -1043,6 +1052,12 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                     highlight(canvas, scaleFactor);
                     drawShadedRegion(canvas);
                     drawBorder(canvas, scaleFactor);
+                    for (Scrap scrap : getAllScraps()) {
+                        scrap.draw(parent, canvas, scaleFactor);
+                    }
+                    for (Stroke stroke : strokes) {
+                        stroke.draw(canvas, PAINT);
+                    }
                 } else {
                     canvas.drawBitmap(snapshot, snapshotMatrix, null);
                 }
