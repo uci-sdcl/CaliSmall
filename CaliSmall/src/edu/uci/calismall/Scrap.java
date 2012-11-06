@@ -975,7 +975,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                     this);
             for (CaliSmallElement element : candidates) {
                 Stroke stroke = (Stroke) element;
-                if (!stroke.addedToSelection) {
+                if (!stroke.addedToSelection && !stroke.isGhost()) {
                     if (outerBorder.contains(stroke)) {
                         strokes.add(stroke);
                         allStrokesInSelection.add(stroke);

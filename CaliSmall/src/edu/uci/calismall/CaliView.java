@@ -103,7 +103,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The length that a {@link Stroke} must reach before a landing zone is
      * shown (to be rescaled by {@link #scaleFactor}).
      */
-    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 160;
+    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 190;
     /**
      * Where to put the center of the landing zone on a path (to be rescaled by
      * {@link #scaleFactor}).
@@ -227,6 +227,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * by the drawing thread (or by the committer thread).
      */
     Stroke activeStroke;
+    /**
+     * The stroke used to select items.
+     * 
+     * <p>
+     * This stroke will most of the times be the same as {@link #activeStroke},
+     * but keeping a separate reference helps in dealing with corner cases.
+     */
+    Stroke selectionStroke;
     /**
      * The transformation matrix that is applied to the canvas, which stores all
      * zooming and panning actions.
@@ -742,7 +750,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
     private void maybeCreateTempScrap() {
         if (userCreatedSelection) {
-            Stroke border = activeStroke;
+            Stroke border = selectionStroke;
             border.delete();
             createNewStroke();
             activeStroke = stroke;
@@ -788,9 +796,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (selected.parent != null) {
                 ((Scrap) selected.parent).remove(selected);
             }
-            stroke.delete();
+            selected.delete();
             activeStroke = selected;
             userCreatedSelection = true;
+            forceSingleRedraw = true;
         }
     }
 
@@ -1625,6 +1634,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             }
             if (isInLandingZone(adjusted)) {
                 Utils.debug("in landing zone");
+                selectionStroke = stroke;
                 userCreatedSelection = true;
             } else {
                 Scrap newSelection;
@@ -1652,6 +1662,17 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             landingZoneCenter.set(-1, -1);
             return true;
         }
+
+        /*
+         * (non-Javadoc)
+         * 
+         * @see edu.uci.calismall.GenericTouchHandler#onCancel()
+         */
+        @Override
+        public boolean onCancel() {
+            onUp(new PointF(-1, -1));
+            return true;
+        }
     }
 
     private static class LongPressAction implements Runnable {
@@ -1668,6 +1689,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         public void run() {
             if (completed) {
                 if (!parent.hasMovedEnough()) {
+                    parent.selectionStroke = selected;
                     parent.longPress(selected);
                     selected = null;
                 }

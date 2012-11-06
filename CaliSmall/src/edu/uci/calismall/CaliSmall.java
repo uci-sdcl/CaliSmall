@@ -501,7 +501,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
     }
 
-    private SaveProgressBar saveAndMaybeShowProgressBar(final String input) {
+    private SaveProgressBar getSaveProgressBar(final String input) {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
             File path = getApplicationContext().getExternalFilesDir(null);
@@ -538,9 +538,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                             }).create();
         }
         if (view.areThereMoreThanThisPoints(MIN_POINTS_PER_PROGRESSBAR)) {
-            SaveProgressBar progressBar = new SaveProgressBar(this);
+            return new SaveProgressBar(this);
+        }
+        return null;
+    }
+
+    private void saveAndMaybeShowProgressBar(final String input) {
+        if (view.areThereMoreThanThisPoints(MIN_POINTS_PER_PROGRESSBAR)) {
+            SaveProgressBar progressBar = getSaveProgressBar(input);
             progressBar.execute(chosenFile);
-            return progressBar;
         } else {
             try {
                 save(chosenFile, toJSON().toString());
@@ -548,7 +554,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 e.printStackTrace();
             }
         }
-        return null;
     }
 
     private void updateFileList() {
@@ -897,6 +902,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         final CaliSmall parent = this;
         Runnable callback = new Runnable() {
             public void run() {
+                Utils.debug("loading");
                 chosenFile = file;
                 input.setText(chosenFile);
                 input.setSelection(chosenFile.length());
@@ -925,10 +931,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             }
         };
         if (view.hasChanged()) {
-            SaveProgressBar saveProgressBar = saveAndMaybeShowProgressBar(chosenFile);
-            if (saveProgressBar != null)
+            SaveProgressBar saveProgressBar = getSaveProgressBar(chosenFile);
+            if (saveProgressBar != null) {
                 saveProgressBar.setCallback(callback);
-            return;
+                saveProgressBar.execute(chosenFile);
+                return;
+            } else {
+                saveAndMaybeShowProgressBar(chosenFile);
+            }
         }
         callback.run();
     }

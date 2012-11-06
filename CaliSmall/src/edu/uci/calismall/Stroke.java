@@ -592,6 +592,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     @Override
     public void delete() {
         super.delete();
+        drawGhostRevive = false;
         ghostRevive = null;
         ghostUntil = -1;
     }
