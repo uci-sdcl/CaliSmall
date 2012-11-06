@@ -400,6 +400,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     // a list of scraps kept in chronological order (oldest first)
     private final List<Scrap> scraps;
     private final List<Stroke> foregroundStrokes;
+    private final List<Stroke> newStrokes;
+    private final List<Scrap> newScraps;
     /**
      * A list containing all created scraps sorted by their position in the
      * canvas.
@@ -412,8 +414,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private final SpaceOccupationList<Scrap> allScraps;
     private final Handler longPressListener = new Handler();
     private final CaliSmall parent;
-    private final List<Stroke> newStrokes;
-    private final List<Scrap> newScraps;
     private Canvas background;
     private Bitmap snapshot;
     private LongPressAction longPressAction;
@@ -644,9 +644,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (scrap.hasToBeDrawnVectorially())
                 scrap.draw(this, background, scaleFactor, true);
         }
-        // if (selected != null && selected.hasToBeDrawnVectorially()) {
-        // selected.draw(this, background, scaleFactor, false);
-        // }
         for (Stroke stroke : strokes) {
             if (!stroke.hasToBeDeleted() && !stroke.isGhost()
                     && stroke.hasToBeDrawnVectorially())
@@ -1017,6 +1014,25 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
+     * Returns if this view contains at least as many points in its strokes as
+     * the argument quantity.
+     * 
+     * @param howManyPoints
+     *            the reference number of points
+     * @return <code>true</code> if this view contains at least
+     *         <tt>howManyPoints</tt>
+     */
+    public boolean areThereMoreThanThisPoints(int howManyPoints) {
+        int pointsSoFar = 0;
+        for (Stroke stroke : strokes) {
+            pointsSoFar += stroke.sizeInNumberOfPoints();
+            if (pointsSoFar > howManyPoints)
+                return true;
+        }
+        return false;
+    }
+
+    /**
      * Resets the change counter, meaning that the {@link #hasChanged()} will
      * return <code>true</code> only if changes in this view took place after
      * this method call.
@@ -1336,6 +1352,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
     }
 
+    /**
+     * Periodically draws strokes that are in the foreground to the foreground,
+     * marking them as <i>committed</i>, so that the drawing thread can ignore
+     * them and stop drawing them.
+     * 
+     * @author Michele Bonazza
+     * 
+     */
     private class Committer extends TimerTask {
 
         private CaliView parentView;
@@ -1354,8 +1378,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (!foregroundStrokes.isEmpty()) {
                 for (int i = 0; i < foregroundStrokes.size(); i++) {
                     Stroke stroke = foregroundStrokes.get(i);
-                    if (!stroke.isGhost() && !stroke.isCommitted()
-                            && stroke.hasToBeDrawnVectorially()
+                    if (!stroke.isCommitted() && !stroke.isGhost()
                             && !stroke.hasToBeDeleted()) {
                         Utils.debug("committing stroke");
                         stroke.draw(background, PAINT);

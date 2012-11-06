@@ -19,8 +19,9 @@ import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
 import java.util.List;
-import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -65,13 +66,14 @@ import android.widget.Toast;
  */
 public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
-    private final class ProgressBar extends AsyncTask<InputStream, Void, Void> {
+    private final class LoadProgressBar extends
+            AsyncTask<InputStream, Void, Void> {
 
         private final CaliSmall parent;
         private ProgressDialog dialog;
         private InputStream toBeLoaded;
 
-        private ProgressBar(CaliSmall parent) {
+        private LoadProgressBar(CaliSmall parent) {
             this.parent = parent;
         }
 
@@ -120,6 +122,75 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     }
 
+    private final class SaveProgressBar extends AsyncTask<String, Void, Void> {
+
+        private final CaliSmall parent;
+        private ProgressDialog dialog;
+        private String toBeSaved;
+        private Runnable callback;
+
+        private SaveProgressBar(CaliSmall parent) {
+            this.parent = parent;
+        }
+
+        /*
+         * (non-Javadoc)
+         * 
+         * @see android.os.AsyncTask#doInBackground(Params[])
+         */
+        @Override
+        protected Void doInBackground(String... params) {
+            toBeSaved = params[0];
+            try {
+                save(toBeSaved, parent.toJSON().toString());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            restartAutoSaving();
+            return null;
+        }
+
+        private SaveProgressBar setCallback(Runnable callback) {
+            this.callback = callback;
+            return this;
+        }
+
+        /*
+         * (non-Javadoc)
+         * 
+         * @see android.os.AsyncTask#onPreExecute()
+         */
+        @Override
+        protected void onPreExecute() {
+            if (saveDialog != null) {
+                saveDialog.hide();
+                saveDialog.dismiss();
+            }
+            Resources res = getResources();
+            dialog = ProgressDialog.show(parent,
+                    res.getString(R.string.save_dialog_progress),
+                    res.getString(R.string.save_dialog_progress_message), true);
+        }
+
+        /*
+         * (non-Javadoc)
+         * 
+         * @see android.os.AsyncTask#onPostExecute(java.lang.Object)
+         */
+        @Override
+        protected void onPostExecute(Void result) {
+            dialog.dismiss();
+            Toast.makeText(
+                    getApplicationContext(),
+                    String.format(
+                            getResources().getString(R.string.file_saved),
+                            toBeSaved), Toast.LENGTH_SHORT).show();
+            if (callback != null)
+                callback.run();
+        }
+
+    }
+
     private final class AutoSaveTask extends TimerTask {
 
         private final boolean saveBackupFiles;
@@ -144,12 +215,20 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                         .getExternalFilesDir(null), chosenFile + FILE_EXTENSION);
                 if (file.lastModified() > lastRun) {
                     // time to save a new backup!
-                    save("~" + chosenFile);
+                    try {
+                        save("~" + chosenFile, parent.toJSON().toString());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
                 lastRun = System.currentTimeMillis();
             } else {
                 if (view.hasChanged()) {
-                    save(chosenFile);
+                    try {
+                        save(chosenFile, parent.toJSON().toString());
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
@@ -185,6 +264,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * {@link CaliView#scaleFactor}).
      */
     public static final int ABS_THICKEST_STROKE_WIDTH = 9;
+    /**
+     * The number of threads used to execute timer tasks with.
+     */
+    public static final int THREADS_FOR_TIMERS = 2;
 
     private static final String FILE_EXTENSION = ".csf";
     private static final String LIST_FILE_NAME = ".file_list";
@@ -193,6 +276,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private static final long AUTO_SAVE_TIME = 20 * 1000,
             AUTO_BACKUP_TIME = 3 * 60 * 1000;
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
+    private static final int MIN_POINTS_PER_PROGRESSBAR = 1000;
 
     /*************************************************************************
      * DISCLAIMER FOR THE READER
@@ -238,7 +322,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private EditText input;
     private AlertDialog saveDialog, loadDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
-    private Timer autoSaverTimer;
+    private ScheduledExecutorService autoSaverTimer;
     private MenuItem chosenThickness;
     private int chosenThicknessNonHighlightedIcon;
     private boolean userPickedANewName;
@@ -263,7 +347,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     String name = input.getText().toString();
                     userPickedANewName = !name.startsWith(autoSaveName)
                             && !name.startsWith("~" + autoSaveName);
-                    save(name);
+                    saveAndMaybeShowProgressBar(name);
                     setTitle(String.format("CaliSmall - (%d/%d) %s",
                             currentFileListIndex + 1, fileList.size(),
                             chosenFile));
@@ -281,17 +365,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                                    new DialogInterface.OnClickListener() {
 		                                        public void onClick(DialogInterface dialog, int whichButton) {
 		                                            String name = input.getText().toString();
-//		                                            userPickedANewName = !name.startsWith(autoSaveName)
-//		                                                    && !name.startsWith("~" + autoSaveName);
 		                                            userPickedANewName = !name.equals(chosenFile);
-		                                            save(name);
+		                                            saveAndMaybeShowProgressBar(name);
 		                                            setTitle(String.format("CaliSmall - (%d/%d) %s",
 		                                                    currentFileListIndex + 1, fileList.size(), chosenFile));
-		                                            Toast.makeText(
-		                                                    getApplicationContext(),
-		                                                    String.format(
-		                                                            getResources().getString(R.string.file_saved),
-		                                                            chosenFile), Toast.LENGTH_SHORT).show();
 		                                        }
 		                            })
 		                            .setNegativeButton(android.R.string.cancel,
@@ -321,7 +398,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             final android.net.Uri data = intent.getData();
             if (data != null) {
                 if (chosenFile != null)
-                    save(chosenFile);
+                    saveAndMaybeShowProgressBar(chosenFile);
                 new Handler().postDelayed(new Runnable() {
 
                     @Override
@@ -352,17 +429,19 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     public void pauseAutoSaving() {
         if (autoSaverTimer != null) {
-            autoSaverTimer.cancel();
+            autoSaver.cancel();
+            autoBackupSaver.cancel();
+            autoSaverTimer.shutdownNow();
         }
-        autoSaverTimer = new Timer();
+        autoSaverTimer = Executors.newScheduledThreadPool(THREADS_FOR_TIMERS);
     }
 
     private void restartAutoSaving() {
         pauseAutoSaving();
         autoSaverTimer.scheduleAtFixedRate(autoSaver, AUTO_SAVE_TIME,
-                AUTO_SAVE_TIME);
-        autoSaverTimer.schedule(autoBackupSaver, AUTO_BACKUP_TIME,
-                AUTO_BACKUP_TIME);
+                AUTO_SAVE_TIME, TimeUnit.MILLISECONDS);
+        autoSaverTimer.scheduleAtFixedRate(autoBackupSaver, AUTO_BACKUP_TIME,
+                AUTO_BACKUP_TIME, TimeUnit.MILLISECONDS);
     }
 
     private List<String> initFileList() {
@@ -405,38 +484,37 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return view;
     }
 
-    private void save(final String input) {
+    private void save(final String input, final String jsonData) {
+        try {
+            lock.lock();
+            File path = getApplicationContext().getExternalFilesDir(null);
+            File newFile = new File(path, input + FILE_EXTENSION);
+            updateFileList();
+            FileWriter writer = new FileWriter(newFile);
+            writer.write(jsonData);
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private SaveProgressBar saveAndMaybeShowProgressBar(final String input) {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-            try {
-                lock.lock();
-                File path = getApplicationContext().getExternalFilesDir(null);
-                File newFile = new File(path, input + FILE_EXTENSION);
-                if (userPickedANewName) {
-                    // delete the "Unnamed Sketch" file
-                    // if (chosenFile.startsWith(autoSaveName)) {
-                    new File(path, chosenFile + FILE_EXTENSION).delete();
-                    new File(path, "~" + chosenFile + FILE_EXTENSION).delete();
-                    fileList.remove(currentFileListIndex);
-                    // }
-                    chosenFile = input;
-                    fileList.add(currentFileListIndex, input);
-                    userPickedANewName = false;
-                    restartAutoSaving();
-                }
-                updateFileList();
-                String json = toJSON().toString();
-                FileWriter writer = new FileWriter(newFile);
-                writer.write(json);
-                writer.flush();
-                writer.close();
-            } catch (JSONException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                lock.unlock();
+            File path = getApplicationContext().getExternalFilesDir(null);
+            if (userPickedANewName) {
+                new File(path, chosenFile + FILE_EXTENSION).delete();
+                new File(path, "~" + chosenFile + FILE_EXTENSION).delete();
+                fileList.remove(currentFileListIndex);
+                chosenFile = input;
+                fileList.add(currentFileListIndex, input);
+                userPickedANewName = false;
+                restartAutoSaving();
             }
+            updateFileList();
         } else {
             new AlertDialog.Builder(this)
                     .setTitle(R.string.save_dialog_fail_title)
@@ -459,6 +537,18 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                                 }
                             }).create();
         }
+        if (view.areThereMoreThanThisPoints(MIN_POINTS_PER_PROGRESSBAR)) {
+            SaveProgressBar progressBar = new SaveProgressBar(this);
+            progressBar.execute(chosenFile);
+            return progressBar;
+        } else {
+            try {
+                save(chosenFile, toJSON().toString());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
     }
 
     private void updateFileList() {
@@ -675,9 +765,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void newSketch() {
         userPickedANewName = false;
         if (chosenFile != null)
-            save(chosenFile);
+            saveAndMaybeShowProgressBar(chosenFile);
         chosenFile = generateAutoSaveName();
-        save(chosenFile);
+        saveAndMaybeShowProgressBar(chosenFile);
         fileList.add(++currentFileListIndex, chosenFile);
         invalidateOptionsMenu();
         view.clear();
@@ -719,17 +809,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             saveDialog.show();
         } else {
             restartAutoSaving();
-            save(chosenFile);
-            Toast.makeText(
-                    getApplicationContext(),
-                    String.format(
-                            getResources().getString(R.string.file_saved),
-                            chosenFile), Toast.LENGTH_SHORT).show();
+            saveAndMaybeShowProgressBar(chosenFile);
         }
     }
 
     private void share() {
-        save(chosenFile);
+        saveAndMaybeShowProgressBar(chosenFile);
         File path = getApplicationContext().getExternalFilesDir(null);
         File newFile = new File(path, chosenFile + FILE_EXTENSION);
         Intent intent = new Intent(android.content.Intent.ACTION_SEND);
@@ -808,35 +893,49 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         loadDialog.show();
     }
 
-    private void loadAndMaybeShowProgressBar(String file) {
-        save(chosenFile);
-        chosenFile = file;
-        input.setText(chosenFile);
-        input.setSelection(chosenFile.length());
-        final File toBeLoaded = new File(getApplicationContext()
-                .getExternalFilesDir(null), file + FILE_EXTENSION);
-        if (toBeLoaded.length() > MIN_FILE_SIZE_FOR_PROGRESSBAR) {
-            try {
-                new ProgressBar(this).execute(new FileInputStream(toBeLoaded));
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
+    private void loadAndMaybeShowProgressBar(final String file) {
+        final CaliSmall parent = this;
+        Runnable callback = new Runnable() {
+            public void run() {
+                chosenFile = file;
+                input.setText(chosenFile);
+                input.setSelection(chosenFile.length());
+                final File toBeLoaded = new File(getApplicationContext()
+                        .getExternalFilesDir(null), file + FILE_EXTENSION);
+                if (toBeLoaded.length() > MIN_FILE_SIZE_FOR_PROGRESSBAR) {
+                    try {
+                        new LoadProgressBar(parent)
+                                .execute(new FileInputStream(toBeLoaded));
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    load(toBeLoaded);
+                    String fileName = toBeLoaded.getName();
+                    if (fileName.endsWith(FILE_EXTENSION)) {
+                        fileName = fileName.substring(0,
+                                fileName.lastIndexOf(FILE_EXTENSION));
+                    }
+                    setTitle(String
+                            .format("CaliSmall - (%d/%d) %s",
+                                    currentFileListIndex + 1, fileList.size(),
+                                    fileName));
+                    restartAutoSaving();
+                }
             }
-        } else {
-            load(toBeLoaded);
-            String fileName = toBeLoaded.getName();
-            if (fileName.endsWith(FILE_EXTENSION)) {
-                fileName = fileName.substring(0,
-                        fileName.lastIndexOf(FILE_EXTENSION));
-            }
-            setTitle(String.format("CaliSmall - (%d/%d) %s",
-                    currentFileListIndex + 1, fileList.size(), fileName));
-            restartAutoSaving();
+        };
+        if (view.hasChanged()) {
+            SaveProgressBar saveProgressBar = saveAndMaybeShowProgressBar(chosenFile);
+            if (saveProgressBar != null)
+                saveProgressBar.setCallback(callback);
+            return;
         }
+        callback.run();
     }
 
     private void loadAndMaybeShowProgressBar(InputStream input) {
         view.resetChangeCounter();
-        new ProgressBar(this).execute(input);
+        new LoadProgressBar(this).execute(input);
     }
 
     private void loadNext() {

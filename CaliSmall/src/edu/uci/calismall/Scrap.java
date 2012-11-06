@@ -994,28 +994,29 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
 
         private void highlight(Canvas canvas, float scaleFactor) {
             for (Stroke stroke : strokes) {
-                if (stroke.parent == this) {
-                    if (stroke.getStyle() == Style.FILL) {
-                        PointF startPoint = stroke.getStartPoint();
-                        if (startPoint != null) {
-                            HIGHLIGHT_PAINT.setStrokeWidth(stroke
-                                    .getStrokeWidth()
-                                    * HIGHLIGHTED_STROKE_WIDTH_MUL
-                                    / scaleFactor);
-                            HIGHLIGHT_PAINT.setStyle(Style.FILL);
-                            canvas.drawCircle(startPoint.x, startPoint.y,
-                                    stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
-                        }
-                        HIGHLIGHT_PAINT.setStyle(Style.STROKE);
-                    } else {
-                        HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
-                                * HIGHLIGHTED_STROKE_WIDTH_MUL);
-                        canvas.drawPath(stroke.getPath(), HIGHLIGHT_PAINT);
-                    }
-                }
+                highlightStroke(stroke, canvas, scaleFactor);
             }
             for (Scrap scrap : getAllScraps()) {
                 scrap.drawHighlightedBorder(canvas, scaleFactor);
+            }
+        }
+
+        private void highlightStroke(Stroke stroke, Canvas canvas,
+                float scaleFactor) {
+            if (stroke.getStyle() == Style.FILL) {
+                PointF startPoint = stroke.getStartPoint();
+                if (startPoint != null) {
+                    HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
+                            * HIGHLIGHTED_STROKE_WIDTH_MUL / scaleFactor);
+                    HIGHLIGHT_PAINT.setStyle(Style.FILL);
+                    canvas.drawCircle(startPoint.x, startPoint.y,
+                            stroke.getStrokeWidth(), HIGHLIGHT_PAINT);
+                }
+                HIGHLIGHT_PAINT.setStyle(Style.STROKE);
+            } else {
+                HIGHLIGHT_PAINT.setStrokeWidth(stroke.getStrokeWidth()
+                        * HIGHLIGHTED_STROKE_WIDTH_MUL);
+                canvas.drawPath(stroke.getPath(), HIGHLIGHT_PAINT);
             }
         }
 
@@ -1041,6 +1042,22 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                     drawBorder(canvas, scaleFactor);
             } else {
                 canvas.drawBitmap(snapshot, snapshotMatrix, null);
+            }
+        }
+
+        public void
+                drawOnBitmap(Canvas canvas, Bitmap bitmap, float scaleFactor) {
+            highlight(canvas, scaleFactor);
+            drawShadedRegion(canvas);
+            drawBorder(canvas, scaleFactor);
+            for (Stroke stroke : strokes) {
+                SNAPSHOT_PAINT.setColor(stroke.getColor());
+                SNAPSHOT_PAINT.setStrokeWidth(stroke.getStrokeWidth());
+                SNAPSHOT_PAINT.setStyle(stroke.getStyle());
+                canvas.drawPath(stroke.getPath(), SNAPSHOT_PAINT);
+            }
+            for (Scrap scrap : scraps) {
+                scrap.drawOnBitmap(canvas, bitmap, scaleFactor);
             }
         }
 

@@ -502,6 +502,15 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     /**
+     * Returns how many points does this stroke contain.
+     * 
+     * @return the number of points in this stroke
+     */
+    public int sizeInNumberOfPoints() {
+        return points.size();
+    }
+
+    /**
      * Resets this stroke, clearing all points.
      * 
      * <p>

@@ -168,6 +168,15 @@ public class SpaceOccupationList<T extends CaliSmallElement> {
     }
 
     /**
+     * Returns the number of elements in this list.
+     * 
+     * @return the size of this list
+     */
+    public int size() {
+        return list.size();
+    }
+
+    /**
      * Updates this list to mirror the change in position that the argument
      * <tt>element</tt> underwent.
      * 
