@@ -249,6 +249,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         view = new CaliView(this);
         setContentView(view);
         autoSaveName = getResources().getString(R.string.unnamed_files);
+        autoSaver = new AutoSaveTask(this, false);
+        autoBackupSaver = new AutoSaveTask(this, true);
         final EditText input = new EditText(this);
         this.input = input;
         input.setSingleLine();
@@ -345,13 +347,18 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
     }
 
-    private void restartAutoSaving() {
+    /**
+     * Puts the auto save in pause.
+     */
+    public void pauseAutoSaving() {
         if (autoSaverTimer != null) {
             autoSaverTimer.cancel();
         }
         autoSaverTimer = new Timer();
-        autoSaver = new AutoSaveTask(this, false);
-        autoBackupSaver = new AutoSaveTask(this, true);
+    }
+
+    private void restartAutoSaving() {
+        pauseAutoSaving();
         autoSaverTimer.scheduleAtFixedRate(autoSaver, AUTO_SAVE_TIME,
                 AUTO_SAVE_TIME);
         autoSaverTimer.schedule(autoBackupSaver, AUTO_BACKUP_TIME,

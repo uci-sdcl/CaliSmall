@@ -109,10 +109,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      */
     protected Stroke outerBorder;
     /**
-     * Whether this scrap is currently selected.
-     */
-    protected boolean selected;
-    /**
      * The bitmap to which strokes are temporarily painted when editing the
      * scrap.
      */
@@ -242,12 +238,13 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            the stroke to be added to this scrap
      */
     public void add(Stroke stroke) {
-        if (stroke != null && !strokes.contains(stroke))
+        if (stroke != null && !strokes.contains(stroke)) {
             strokes.add(stroke);
-        stroke.parent = this;
-        stroke.previousParent = null;
-        // refresh the snapshot the next time!
-        contentChanged = true;
+            stroke.parent = this;
+            stroke.previousParent = null;
+            // refresh the snapshot the next time!
+            contentChanged = true;
+        }
     }
 
     /**
@@ -513,9 +510,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            the current scale factor applied to the canvas
      */
     protected void drawBorder(Canvas canvas, float scaleFactor) {
-        if (selected) {
-            highlightBorder(canvas, scaleFactor);
-        }
         BORDER_PAINT.setColor(DESELECTED_BORDER_COLOR);
         BORDER_PAINT
                 .setStrokeWidth((CaliSmall.ABS_THIN_STROKE_WIDTH / scaleFactor) / 2);
@@ -530,11 +524,12 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * @param scaleFactor
      *            the current scale factor applied to the canvas
      */
-    protected void highlightBorder(Canvas canvas, float scaleFactor) {
+    protected void drawHighlightedBorder(Canvas canvas, float scaleFactor) {
         BORDER_PAINT.setColor(SELECTED_BORDER_COLOR);
         BORDER_PAINT
                 .setStrokeWidth(2 * (CaliSmall.ABS_THIN_STROKE_WIDTH / scaleFactor));
         canvas.drawPath(outerBorder.getPath(), BORDER_PAINT);
+        drawBorder(canvas, scaleFactor);
     }
 
     /**
@@ -574,16 +569,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      */
     public boolean isEmpty() {
         return scraps.isEmpty() && strokes.isEmpty();
-    }
-
-    /**
-     * Returns whether this scrap is currently selected.
-     * 
-     * @return <code>true</code> if this scrap is now selected (and therefore
-     *         highlighted)
-     */
-    public boolean isSelected() {
-        return selected;
     }
 
     /**
@@ -630,13 +615,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     }
 
     /**
-     * Sets whether this scrap is the selected one.
-     */
-    public void select() {
-        this.selected = true;
-    }
-
-    /**
      * Deselects this scrap, meaning that it won't be drawn as highlighted
      * anymore. The bitmap snapshot created to be shown while editing this scrap
      * is dropped and will only be recreated if the scrap is selected and edited
@@ -646,7 +624,6 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *         {@link CaliView}, is not <code>null</code> only for temp scraps
      */
     public Stroke deselect() {
-        this.selected = false;
         // free up some space
         snapshot = null;
         return null;
@@ -715,11 +692,8 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * Draws this scrap to the argument <tt>canvas</tt>.
      * 
      * <p>
-     * Drawing a scrap means drawing:
-     * <ol>
-     * <li>the border delimiting the scrap</li>
-     * <li>the shaded region that highlights the content of the scrap</li>
-     * </ol>.
+     * Drawing a scrap means drawing the shaded region that highlights its
+     * content and, optionally, the border sorrounding the scrap.
      * 
      * <p>
      * The content of a scrap is drawn using the objects in {@link CaliSmall}'s
@@ -734,8 +708,11 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            the canvas onto which this scrap must be drawn
      * @param scaleFactor
      *            the current scale factor applied to the canvas
+     * @param drawBorder
+     *            whether the scrap's border must be drawn
      */
-    public void draw(CaliView parent, Canvas canvas, float scaleFactor) {
+    public void draw(CaliView parent, Canvas canvas, float scaleFactor,
+            boolean drawBorder) {
         if (hasToBeDrawnVectorially() || (topLevelForEdit && snapshot == null)) {
             drawShadedRegion(canvas);
             drawBorder(canvas, scaleFactor);
@@ -859,6 +836,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         matrix.reset();
         setBoundaries();
         contentChanged = forceSnapshotRedraw;
+        parentView.setHighlighted(this);
         parentView.forceSingleRedraw();
     }
 
@@ -1037,19 +1015,32 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
                 }
             }
             for (Scrap scrap : getAllScraps()) {
-                scrap.highlightBorder(canvas, scaleFactor);
+                scrap.drawHighlightedBorder(canvas, scaleFactor);
             }
         }
 
-        public void draw(CaliView parent, Canvas canvas, float scaleFactor) {
-            if (selected) {
-                if (hasToBeDrawnVectorially() || snapshot == null) {
-                    highlight(canvas, scaleFactor);
-                    drawShadedRegion(canvas);
+        /*
+         * (non-Javadoc)
+         * 
+         * @see
+         * edu.uci.calismall.Scrap#drawHighlightedBorder(android.graphics.Canvas
+         * , float)
+         */
+        @Override
+        protected void drawHighlightedBorder(Canvas canvas, float scaleFactor) {
+            // don't highlight, it's ugly!
+            drawBorder(canvas, scaleFactor);
+        }
+
+        public void draw(CaliView parent, Canvas canvas, float scaleFactor,
+                boolean drawBorder) {
+            if (hasToBeDrawnVectorially() || snapshot == null) {
+                highlight(canvas, scaleFactor);
+                drawShadedRegion(canvas);
+                if (drawBorder)
                     drawBorder(canvas, scaleFactor);
-                } else {
-                    canvas.drawBitmap(snapshot, snapshotMatrix, null);
-                }
+            } else {
+                canvas.drawBitmap(snapshot, snapshotMatrix, null);
             }
         }
 

@@ -208,7 +208,7 @@ public class BubbleMenu extends GenericTouchHandler {
     private float bSize, padding, minSize, scaleFactor, maxXScale, maxYScale,
             compensationForRotateButtonPos;
     private Scrap highlighted;
-    private boolean topLeftPinned, visible, drawable;
+    private boolean topLeftPinned, visible;
 
     /**
      * Initializes a new BubbleMenu that will pick image files from the
@@ -312,6 +312,7 @@ public class BubbleMenu extends GenericTouchHandler {
             view.addScrap(newScrap, false);
             ((Scrap.Temp) selected).setGhostEffect(false);
             touched = null;
+            view.forceSingleRedraw();
         }
         return true;
     }
@@ -439,12 +440,11 @@ public class BubbleMenu extends GenericTouchHandler {
     private void updateHighlighted(Scrap selected) {
         Scrap toBeHighlighted = view.getSelectedScrap(selected);
         if (toBeHighlighted != highlighted) {
-            if (toBeHighlighted != null)
-                toBeHighlighted.select();
             if (highlighted != null) {
                 highlighted.deselect();
             }
             highlighted = toBeHighlighted;
+            parentView.setHighlighted(toBeHighlighted);
         }
     }
 
@@ -892,24 +892,5 @@ public class BubbleMenu extends GenericTouchHandler {
      */
     public void setVisible(boolean visible) {
         this.visible = visible;
-    }
-
-    /**
-     * Returns whether this bubble menu is ready to be drawn.
-     * 
-     * @return <code>true</code> if this bubble menu must be drawn to Canvas
-     */
-    public boolean isDrawable() {
-        return drawable;
-    }
-
-    /**
-     * Sets whether this bubble menu should be drawn.
-     * 
-     * @param drawable
-     *            <code>true</code> if this bubble menu must be drawn
-     */
-    public void setDrawable(boolean drawable) {
-        this.drawable = drawable;
     }
 }
