@@ -577,8 +577,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void load(File toBeLoaded) {
         try {
             load(new FileInputStream(toBeLoaded));
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (FileNotFoundException e) {
+            fileList.remove(currentFileListIndex);
+            updateFileList();
         }
     }
 
@@ -902,7 +903,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         final CaliSmall parent = this;
         Runnable callback = new Runnable() {
             public void run() {
-                Utils.debug("loading");
                 chosenFile = file;
                 input.setText(chosenFile);
                 input.setSelection(chosenFile.length());
