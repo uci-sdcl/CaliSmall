@@ -202,7 +202,6 @@ public class BubbleMenu extends GenericTouchHandler {
     private final Button shrink, scrap, erase, move, copy, rotate, resize;
     private final Button topLeft, topRight, bottomRight;
     private final RectF sel, bounds;
-    private final CaliView view;
     private PointF initialDistanceToPivot, pivot, referencePoint;
     private Button touched;
     private float bSize, padding, minSize, scaleFactor, maxXScale, maxYScale,
@@ -219,7 +218,6 @@ public class BubbleMenu extends GenericTouchHandler {
      */
     BubbleMenu(CaliView parent) {
         super("BubbleMenu", parent);
-        view = parent;
         sel = new RectF();
         bounds = new RectF();
         Resources resources = parent.getResources();
@@ -309,10 +307,9 @@ public class BubbleMenu extends GenericTouchHandler {
         if (selected instanceof Scrap.Temp) {
             // FIXME control should be moved outside
             Scrap newScrap = new Scrap(selected, false);
-            view.addScrap(newScrap, false);
+            parentView.addScrap(newScrap, false);
             ((Scrap.Temp) selected).setGhostEffect(false);
             touched = null;
-            view.forceSingleRedraw();
         }
         return true;
     }
@@ -321,12 +318,12 @@ public class BubbleMenu extends GenericTouchHandler {
         if (action == MotionEvent.ACTION_DOWN) {
             if (selected instanceof Scrap.Temp) {
                 selected = new Scrap.Temp(selected, scaleFactor);
-                view.addScrap(selected, true);
-                view.changeTempScrap(selected);
+                parentView.addScrap(selected, true);
+                parentView.changeTempScrap(selected);
             } else {
                 selected = new Scrap(selected, true);
-                view.addScrap(selected, true);
-                view.setSelected(selected);
+                parentView.addScrap(selected, true);
+                parentView.setSelected(selected);
             }
         }
         return scrapMove(action, touchPoint, selected);
@@ -334,8 +331,8 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private boolean scrapErase(int action, PointF touchPoint, Scrap selected) {
         selected.outerBorder.delete();
-        view.removeScrap(selected);
-        view.setSelected(null);
+        parentView.removeScrap(selected);
+        parentView.setSelected(null);
         return false;
     }
 
@@ -438,7 +435,7 @@ public class BubbleMenu extends GenericTouchHandler {
     }
 
     private void updateHighlighted(Scrap selected) {
-        Scrap toBeHighlighted = view.getSelectedScrap(selected);
+        Scrap toBeHighlighted = parentView.getSelectedScrap(selected);
         if (toBeHighlighted != highlighted) {
             if (highlighted != null) {
                 highlighted.deselect();
@@ -475,7 +472,7 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private void fixParenting(Scrap.Temp tempScrap) {
         for (Stroke stroke : tempScrap.getStrokes()) {
-            CaliSmallElement newParent = view.getSelectedScrap(stroke);
+            CaliSmallElement newParent = parentView.getSelectedScrap(stroke);
             CaliSmallElement previousParent = stroke.getPreviousParent();
             if (newParent != previousParent) {
                 if (previousParent != null)
@@ -486,7 +483,7 @@ public class BubbleMenu extends GenericTouchHandler {
             }
         }
         for (Scrap scrap : tempScrap.getScraps()) {
-            CaliSmallElement newParent = view.getSelectedScrap(scrap);
+            CaliSmallElement newParent = parentView.getSelectedScrap(scrap);
             CaliSmallElement previousParent = scrap.getPreviousParent();
             if (newParent != scrap.getParent()) {
                 if (previousParent != null && previousParent != tempScrap) {
@@ -566,11 +563,11 @@ public class BubbleMenu extends GenericTouchHandler {
      */
     @Override
     public boolean onDown(PointF touchPoint) {
-        Scrap previousSelection = view.getSelection();
-        view.setPreviousSelection(previousSelection);
+        Scrap previousSelection = parentView.getSelection();
+        parentView.setPreviousSelection(previousSelection);
         if (buttonTouched(touchPoint, previousSelection))
             return onTouch(MotionEvent.ACTION_DOWN, touchPoint,
-                    view.getSelection());
+                    parentView.getSelection());
         else
             actionCompleted = true;
         return false;
@@ -584,7 +581,7 @@ public class BubbleMenu extends GenericTouchHandler {
      */
     @Override
     public boolean onMove(PointF touchPoint) {
-        onTouch(MotionEvent.ACTION_MOVE, touchPoint, view.getSelection());
+        onTouch(MotionEvent.ACTION_MOVE, touchPoint, parentView.getSelection());
         return true;
     }
 
@@ -595,7 +592,8 @@ public class BubbleMenu extends GenericTouchHandler {
      */
     @Override
     public boolean onUp(PointF touchPoint) {
-        if (!onTouch(MotionEvent.ACTION_UP, touchPoint, view.getSelection())) {
+        if (!onTouch(MotionEvent.ACTION_UP, touchPoint,
+                parentView.getSelection())) {
             actionCompleted = true;
             reset();
         }

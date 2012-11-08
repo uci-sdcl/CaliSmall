@@ -808,7 +808,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         case RESIZE:
             contentMatrix = new Matrix();
         }
-        parentView.forceSingleRedraw();
+        parentView.forceRedraw();
     }
 
     /**
@@ -837,7 +837,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         setBoundaries();
         contentChanged = forceSnapshotRedraw;
         parentView.setHighlighted(this);
-        parentView.forceSingleRedraw();
+        parentView.forceRedraw();
     }
 
     /**

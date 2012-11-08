@@ -215,6 +215,19 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     /**
+     * Returns whether this stroke is to be considered a <i>tap</i> according to
+     * the argument threshold.
+     * 
+     * @param tapThreshold
+     *            the maximum size of the enclosing rectangle for strokes that
+     *            are to be considered <i>taps</i>
+     * @return <code>true</code> if this stroke is a tap
+     */
+    public boolean isTap(float tapThreshold) {
+        return (width + height) <= tapThreshold;
+    }
+
+    /**
      * Sets the style of this stroke to the argument <tt>style</tt>.
      * 
      * @param style
@@ -628,11 +641,13 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
 
     private void setGhostRevivePosition(PointF topLeft, RectF screenBounds,
             float buttonSize) {
-        float left = Math.max(screenBounds.left, topLeft.x - buttonSize);
-        float top = Math.max(screenBounds.top, topLeft.y - buttonSize);
-        Rect position = new Rect((int) left, (int) top,
-                (int) (left + buttonSize), (int) (top + buttonSize));
-        ghostRevive.setPosition(position, buttonSize * 0.25f);
+        if (ghostRevive != null) {
+            float left = Math.max(screenBounds.left, topLeft.x - buttonSize);
+            float top = Math.max(screenBounds.top, topLeft.y - buttonSize);
+            Rect position = new Rect((int) left, (int) top,
+                    (int) (left + buttonSize), (int) (top + buttonSize));
+            ghostRevive.setPosition(position, buttonSize * 0.25f);
+        }
     }
 
     /*

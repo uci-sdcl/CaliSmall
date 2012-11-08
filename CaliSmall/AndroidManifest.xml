@@ -14,27 +14,40 @@
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
-
         <activity
             android:name=".CaliSmall"
-            android:label="@string/title_activity_cali_small"
-            android:configChanges="keyboardHidden|orientation|screenSize" >
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            android:label="@string/title_activity_cali_small" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <intent-filter android:icon="@drawable/ic_launcher" android:label="Calico Sketch File">
+            <intent-filter
+                android:icon="@drawable/ic_launcher"
+                android:label="Calico Sketch File" >
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="content" android:host="*"
-                    android:pathPattern=".*\\.csf" />
-                <data android:scheme="file" android:host="*"
-                    android:pathPattern=".*\\.csf" />
+
+                <data
+                    android:host="*"
+                    android:pathPattern=".*\\.csf"
+                    android:scheme="content" />
+                <data
+                    android:host="*"
+                    android:pathPattern=".*\\.csf"
+                    android:scheme="file" />
             </intent-filter>
-            <intent-filter android:icon="@drawable/ic_launcher" android:label="Calico Sketch File">
+            <intent-filter
+                android:icon="@drawable/ic_launcher"
+                android:label="Calico Sketch File" >
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:host="*"
+
+                <data
+                    android:host="*"
                     android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>

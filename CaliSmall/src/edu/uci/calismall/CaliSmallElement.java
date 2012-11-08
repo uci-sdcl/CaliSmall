@@ -515,16 +515,6 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     public abstract List<PointF> getPointsForInclusionTests();
 
-    /**
-     * Returns the sum of the enclosing rectangle's width and height.
-     * 
-     * @return the sum of width and height of the rectangle enclosing this
-     *         element
-     */
-    float getRectSize() {
-        return width + height;
-    }
-
     public String toString() {
         StringBuilder builder = new StringBuilder(getClass().getSimpleName());
         builder.append(" ").append(id.toString()).append(" ")
