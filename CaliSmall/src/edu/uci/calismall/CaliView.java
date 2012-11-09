@@ -1206,7 +1206,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         setBounds(width, height);
         snapshot = Bitmap.createBitmap(width, height, Config.ARGB_8888);
         background = new Canvas(snapshot);
-        updateBackground();
+        forceSingleRedraw = true;
     }
 
     private void setBounds(int width, int height) {
