@@ -121,6 +121,8 @@ public class GhostStrokeHandler extends GenericTouchHandler {
     public boolean onUp(PointF touchPoint) {
         if (touchedGhost != null) {
             touchedGhost.setGhost(false, null, null, 0);
+            touchedGhost.mustBeDrawnVectorially(true);
+            parentView.addStroke(touchedGhost);
             touchedGhost = null;
             return true;
         }

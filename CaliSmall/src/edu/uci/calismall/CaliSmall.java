@@ -494,6 +494,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             writer.write(jsonData);
             writer.flush();
             writer.close();
+            view.resetChangeCounter();
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -944,7 +945,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void loadAndMaybeShowProgressBar(InputStream input) {
-        view.resetChangeCounter();
         new LoadProgressBar(this).execute(input);
     }
 
@@ -980,6 +980,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     @Override
     public CaliSmall fromJSON(JSONObject jsonData) throws JSONException {
         view.fromJSON(jsonData);
+        view.resetChangeCounter();
         return this;
     }
 

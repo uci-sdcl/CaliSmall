@@ -519,6 +519,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         mustClearCanvas = false;
         longPressed = false;
         mustShowLongPressCircle = false;
+        didSomething = false;
         matrix = new Matrix();
         screenBounds = new RectF();
         longPressCircleBounds = new RectF();
@@ -900,6 +901,29 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         if (addContent) {
             newStrokes.addAll(scrap.getAllStrokes());
             newScraps.addAll(scrap.getAllScraps());
+        }
+    }
+
+    /**
+     * Adds the argument stroke to the list of new strokes that must be added to
+     * the canvas.
+     * 
+     * <p>
+     * Since this method is only called by
+     * {@link GhostStrokeHandler#onUp(PointF)} when a ghost stroke is to be
+     * submitted to the canvas, if the argument <tt>stroke</tt> is the same as
+     * {@link #selectionStroke}, this last field is reset. So, the message is:
+     * if you use this method passing it the {@link #selectionStroke}, be aware
+     * that you're altering the selection.
+     * 
+     * @param stroke
+     *            the new stroke to be added
+     */
+    public void addStroke(Stroke stroke) {
+        if (stroke != null) {
+            newStrokes.add(stroke);
+            if (stroke == selectionStroke)
+                selectionStroke = null;
         }
     }
 
