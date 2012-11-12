@@ -236,13 +236,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     Stroke selectionStroke;
     /**
-     * A new ghost stroke to be drawn to the foreground.
-     * 
-     * <p>
-     * Added upon deselection of a temporary scrap.
-     */
-    Stroke newGhost;
-    /**
      * The transformation matrix that is applied to the canvas, which stores all
      * zooming and panning actions.
      */
@@ -417,7 +410,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private final List<Stroke> foregroundStrokes;
     private final List<Stroke> newStrokes;
     private final List<Scrap> newScraps;
-    private Stroke currentGhost;
     /**
      * A list containing all created scraps sorted by their position in the
      * canvas.
@@ -608,13 +600,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 bubbleMenu.draw(canvas);
             }
             activeStroke.draw(canvas, PAINT);
-            if (currentGhost != null) {
-                if (currentGhost.isGhost()) {
-                    currentGhost.draw(canvas, PAINT);
-                } else {
-                    currentGhost = null;
-                }
-            }
+            ghostHandler.drawGhosts(canvas, PAINT);
             drawLandingZone(canvas);
             if (activeStroke != stroke) {
                 // that is, after DrawingHandler.onUp() has been called
@@ -814,10 +800,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             foregroundStrokes.addAll(newStrokes);
             newStrokes.clear();
         }
-        if (newGhost != null) {
-            currentGhost = newGhost;
-            newGhost = null;
-        }
         if (!newScraps.isEmpty()) {
             scraps.addAll(newScraps);
             allScraps.addAll(newScraps);
@@ -844,7 +826,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             Stroke outerBorder = this.selected.deselect();
             if (outerBorder != null) {
                 ghostHandler.addGhost(outerBorder);
-                newGhost = outerBorder;
             }
         }
         highlighted = selected;

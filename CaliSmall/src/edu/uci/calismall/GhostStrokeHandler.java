@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.PointF;
 
 /**
@@ -53,6 +55,24 @@ public class GhostStrokeHandler extends GenericTouchHandler {
         ghost.setGhost(true, parentView.screenBounds,
                 parentView.getResources(),
                 parentView.bubbleMenu.getButtonSize());
+    }
+
+    /**
+     * Draws all ghost strokes to the argument <tt>canvas</tt>, using the
+     * argument <tt>paint</tt>.
+     * 
+     * @param canvas
+     *            the canvas onto which ghost strokes will be drawn
+     * @param paint
+     *            the pain with which to draw ghost strokes
+     */
+    public void drawGhosts(Canvas canvas, Paint paint) {
+        for (int i = 0; i < ghosts.size(); i++) {
+            Stroke ghost = ghosts.get(i);
+            if (ghost.isGhost()) {
+                ghost.draw(canvas, paint);
+            }
+        }
     }
 
     /*
