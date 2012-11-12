@@ -425,6 +425,7 @@ public class BubbleMenu extends GenericTouchHandler {
         touched = null;
         setBounds(selected.getBorder(), scaleFactor, bounds);
         scrap(action, touchPoint, selected);
+        parentView.forceRedraw();
         return true;
     }
 
