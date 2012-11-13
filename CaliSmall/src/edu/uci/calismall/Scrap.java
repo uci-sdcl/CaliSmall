@@ -1062,6 +1062,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         }
 
         protected void drawBorder(Canvas canvas, float scaleFactor) {
+            dashInterval = CaliView.ABS_LANDING_ZONE_INTERVAL / scaleFactor;
             TEMP_BORDER_PAINT.setPathEffect(new DashPathEffect(new float[] {
                     dashInterval, dashInterval }, pathPhase));
             pathPhase += 1 / scaleFactor;
