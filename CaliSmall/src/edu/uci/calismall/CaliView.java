@@ -88,7 +88,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * Time in milliseconds after which the landing zone can be shown.
      */
-    public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
+    public static final long LANDING_ZONE_TIME_THRESHOLD = 700;
     /**
      * Absolute radius for landing zones (to be rescaled by {@link #scaleFactor}
      * ).
