@@ -6,6 +6,12 @@
 	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
     <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.1/jquery-ui.min.js"></script>
 	<script type="text/javascript">
+        function checkboxChange(checkbox, elementId) {
+            if (checkbox.checked)
+                jQuery('#link-' + elementId.id).css('text-decoration', 'line-through');
+            else
+                jQuery('#link-' + elementId.id).css('text-decoration', 'none');
+        }
         jQuery(document).ready(function() {
             index = 1;
         	jQuery('.list_entry').each(function() {
@@ -16,7 +22,7 @@
                 var desc = element.children('.test').children('.desc');
                 var expected = element.children('.expected').children('.desc');
                 // TODO escape HTML from desc if possible!
-                jQuery('#checklist').append('<div><input type="checkbox" name="' + name.text() + '" /><a id="link-' + elementId + '" href="#' + elementId + '" title="' + desc.text() + '">' + name.text() + "</a></div>");
+                jQuery('#checklist').append('<div><input type="checkbox" name="' + name.text() + '" onChange="checkboxChange(this, ' + elementId + ')" /><a id="link-' + elementId + '" href="#' + elementId + '" title="' + desc.text() + '">' + name.text() + "</a></div>");
                 desc.before('<span class="exp">Test: </span>');
                 expected.before('<span class="exp">Expected: </span>').after('<div class="top"><a href="#link-' + elementId + ' ">[Top]</a></div>');
                 index++;
@@ -103,7 +109,7 @@
 			</div>
 
             <div class="list_entry">
-                <div class="name">Stroke style&amp;weight</div>
+                <div class="name">Stroke style &amp; weight</div>
                 <div class="test">
                     <span class="desc">Change the thickness and color of strokes, draw them. Tick the 'Resize with zoom' checkbox, zoom in, draw stroke, zoom out.</span>
                 </div>
@@ -400,6 +406,16 @@
                 </div>
                 <div class="expected">
                     <span class="desc">Ghost strokes for which the pencil icon is pressed are turned into regular strokes, keeping the same style as the original stroke (used to create the temp scrap with).</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Press and hold</div>
+                <div class="test">
+                    <span class="desc">Draw a circle without hitting the landing zone; press-and-hold within the circle. Draw a capital L; press-and-hold within the triangle that would result from connecting the start point with the end point.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The circle stroke turns into a selection: the stroke is replaced by a dotted line. In the L case, nothing should happen.</span>
                 </div>
             </div>
 
