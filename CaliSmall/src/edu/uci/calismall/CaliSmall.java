@@ -16,7 +16,6 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
 import java.util.Date;
 import java.util.List;
 import java.util.TimerTask;
@@ -37,7 +36,6 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -142,9 +140,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         protected Void doInBackground(String... params) {
             toBeSaved = params[0];
             try {
+                lock.lock();
                 save(toBeSaved, parent.toJSON().toString());
+                fileHasBeenSaved = true;
+                fileSaved.signalAll();
             } catch (JSONException e) {
                 e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
             restartAutoSaving();
             return null;
@@ -307,18 +310,23 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * loaded a sketch file.
      */
     Condition fileOpened = lock.newCondition();
+
     /**
-     * Lock used while loading files to prevent the drawing thread from
-     * encountering {@link ConcurrentModificationException}'s.
+     * Condition that is signalled by the thread that is saving a file when it's
+     * done.
      */
-    Object loadingLock = new Object();
+    Condition fileSaved = lock.newCondition();
     /**
      * The current view.
      */
     CaliView view;
+    /**
+     * Whether the current project has been saved to file.
+     */
+    boolean fileHasBeenSaved;
     private List<String> fileList = new ArrayList<String>();
     private String chosenFile, autoSaveName, tmpSnapshotName;
-    private int currentFileListIndex = -1;
+    private int currentFileListIndex = 0;
     private EditText input;
     private AlertDialog saveDialog, loadDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
@@ -545,14 +553,21 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void saveAndMaybeShowProgressBar(final String input) {
+        fileHasBeenSaved = false;
         if (view.areThereMoreThanThisPoints(MIN_POINTS_PER_PROGRESSBAR)) {
             SaveProgressBar progressBar = getSaveProgressBar(input);
-            progressBar.execute(chosenFile);
+            if (progressBar != null)
+                progressBar.execute(chosenFile);
         } else {
             try {
+                lock.lock();
                 save(chosenFile, toJSON().toString());
+                fileHasBeenSaved = true;
+                fileSaved.signalAll();
             } catch (JSONException e) {
                 e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
         }
     }
@@ -711,11 +726,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         previous.setEnabled(currentFileListIndex > 0);
         previous.getIcon().setAlpha(currentFileListIndex > 0 ? 255 : 85);
         MenuItem next = menu.findItem(R.id.open_next);
-        next.setEnabled(currentFileListIndex < fileList.size() - 1);
-        Drawable nextIcon = next.getIcon();
-        if (nextIcon != null)
-            nextIcon.setAlpha(currentFileListIndex < fileList.size() - 1 ? 255
-                    : 85);
+        if (currentFileListIndex == fileList.size() - 1) {
+            next.setIcon(R.drawable.ic_next_new);
+        } else {
+            next.setIcon(R.drawable.ic_next);
+        }
         SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
         MenuItem toggle = lineStyleMenu.findItem(R.id.line_zoom);
         updateStrokeThicknessSelection(lineStyleMenu);
@@ -771,13 +786,26 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void newSketch() {
         userPickedANewName = false;
-        if (chosenFile != null)
+        if (chosenFile != null) {
             saveAndMaybeShowProgressBar(chosenFile);
+            try {
+                lock.lock();
+                while (!fileHasBeenSaved) {
+                    try {
+                        fileSaved.await();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } finally {
+                lock.unlock();
+            }
+        }
+        view.clear();
         chosenFile = generateAutoSaveName();
         saveAndMaybeShowProgressBar(chosenFile);
-        fileList.add(++currentFileListIndex, chosenFile);
+        fileList.add(currentFileListIndex, chosenFile);
         invalidateOptionsMenu();
-        view.clear();
         input.setText("");
         setTitle(String.format("CaliSmall - (%d/%d) %s",
                 currentFileListIndex + 1, fileList.size(), getResources()
@@ -789,16 +817,18 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         File path = getApplicationContext().getExternalFilesDir(null);
         File newFile = new File(path, fileName + FILE_EXTENSION);
         if (newFile.exists()) {
-            newFile.delete();
+            if (!newFile.delete())
+                Utils.debug("couldn't delete file");
             newFile = new File(path, "~" + fileName + FILE_EXTENSION);
             if (newFile.exists())
-                newFile.delete();
+                if (newFile.delete())
+                    Utils.debug("couldn't delete file");
             fileList.remove(currentFileListIndex);
             updateFileList();
         }
         fileList = initFileList();
         if (fileList.isEmpty()) {
-            currentFileListIndex--;
+            currentFileListIndex = 0;
             newSketch();
         } else {
             loadPrevious();
@@ -950,9 +980,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void loadNext() {
         userPickedANewName = false;
-        currentFileListIndex = currentFileListIndex == fileList.size() - 1 ? currentFileListIndex
-                : ++currentFileListIndex;
-        loadAndMaybeShowProgressBar(fileList.get(currentFileListIndex));
+        currentFileListIndex++;
+        if (currentFileListIndex == fileList.size()) {
+            newSketch();
+        } else {
+            loadAndMaybeShowProgressBar(fileList.get(currentFileListIndex));
+        }
     }
 
     private void loadPrevious() {

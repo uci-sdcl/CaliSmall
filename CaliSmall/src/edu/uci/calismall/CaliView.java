@@ -531,7 +531,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         selectionStroke = null;
         committerTimer = new Timer();
         scaleListener.onScaleEnd(scaleDetector);
-        forcedRedraw = true;
+        forceSingleRedraw = true;
     }
 
     /**
@@ -711,6 +711,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         setSelected(null);
         stroke = null;
         createNewStroke();
+        forceSingleRedraw = true;
         mustClearCanvas = false;
     }
 
