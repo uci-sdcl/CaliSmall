@@ -88,12 +88,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * Time in milliseconds after which the landing zone can be shown.
      */
-    public static final long LANDING_ZONE_TIME_THRESHOLD = 700;
-    /**
-     * Absolute radius for landing zones (to be rescaled by {@link #scaleFactor}
-     * ).
-     */
-    static final float ABS_LANDING_ZONE_RADIUS = 25;
+    public static final long LANDING_ZONE_TIME_THRESHOLD = 500;
     /**
      * The interval between dashes in landing zones (to be rescaled by
      * {@link #scaleFactor}).
@@ -103,7 +98,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The length that a {@link Stroke} must reach before a landing zone is
      * shown (to be rescaled by {@link #scaleFactor}).
      */
-    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 190;
+    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 340;
     /**
      * Where to put the center of the landing zone on a path (to be rescaled by
      * {@link #scaleFactor}).
@@ -119,7 +114,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The amount of pixels that a touch needs to cover before it is considered
      * a move action (to be rescaled by {@link #scaleFactor}).
      */
-    static final float ABS_TOUCH_TOLERANCE = 2;
+    static final float ABS_TOUCH_TOLERANCE = 4;
 
     /**
      * Absolute half the size of the rectangle enclosing the circle displayed on

@@ -300,14 +300,16 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * having a width of half the stroke's width.
      */
     public void turnIntoDot() {
-        isDot = true;
-        PointF center = points.get(0);
-        path.reset();
-        points.clear();
-        points.add(center);
-        style = Paint.Style.FILL;
-        path.addCircle(center.x, center.y, strokeWidth / 2, Direction.CW);
-        setBoundaries();
+        if (points.size() == 1) {
+            isDot = true;
+            PointF center = points.get(0);
+            path.reset();
+            points.clear();
+            points.add(center);
+            style = Paint.Style.FILL;
+            path.addCircle(center.x, center.y, strokeWidth / 2, Direction.CW);
+            setBoundaries();
+        }
     }
 
     /**
