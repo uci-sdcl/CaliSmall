@@ -1,0 +1,408 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>CaliSmall Glitch Spotting Hand Guide</title>
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.9.1/jquery-ui.min.js"></script>
+	<script type="text/javascript">
+        jQuery(document).ready(function() {
+            index = 1;
+        	jQuery('.list_entry').each(function() {
+                var element = jQuery(this);
+                var elementId = 'list' + index;
+                element.attr('id', elementId);
+                var name = element.children('.name');
+                var desc = element.children('.test').children('.desc');
+                var expected = element.children('.expected').children('.desc');
+                // TODO escape HTML from desc if possible!
+                jQuery('#checklist').append('<div><input type="checkbox" name="' + name.text() + '" /><a id="link-' + elementId + '" href="#' + elementId + '" title="' + desc.text() + '">' + name.text() + "</a></div>");
+                desc.before('<span class="exp">Test: </span>');
+                expected.before('<span class="exp">Expected: </span>').after('<div class="top"><a href="#link-' + elementId + ' ">[Top]</a></div>');
+                index++;
+            });
+            jQuery("#checklist div a").click(function() {
+                jQuery(jQuery(this).attr("href")).effect("highlight", {color: '#fffbb8'}, 2500);
+            });
+            jQuery(".top a").click(function() {
+                jQuery(jQuery(this).attr("href")).effect("highlight", {color: '#fffbb8'}, 2500);
+            });
+        });
+    </script>
+    <style type="text/css">
+        html { min-height: 100%; }
+        body { 
+            font-family: Helvetica, Sans-Serif; font-size:18px; 
+            background: #eefaff; /* Old browsers */
+            background: -moz-linear-gradient(top,  #eefaff 0%, #f2fbff 38%, #ffffff 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#eefaff), color-stop(38%,#f2fbff), color-stop(100%,#ffffff)); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(top,  #eefaff 0%,#f2fbff 38%,#ffffff 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(top,  #eefaff 0%,#f2fbff 38%,#ffffff 100%); /* Opera 11.10+ */
+            background: -ms-linear-gradient(top,  #eefaff 0%,#f2fbff 38%,#ffffff 100%); /* IE10+ */
+            background: linear-gradient(to bottom,  #eefaff 0%,#f2fbff 38%,#ffffff 100%); /* W3C */
+            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#eefaff', endColorstr='#ffffff',GradientType=0 ); /* IE6-9 */
+            line-height: 1.75em;
+            margin: 3em auto; 
+            width:75%;
+        }
+        a { color: #216a8a; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .top a { font-size: 0.7em; }
+        #title { color: #67a7c3; font-size: 2em; margin-bottom: 1em; }
+        #checklist { margin-bottom: 0px; }
+        #list { 
+            background-color: #fafffc;
+            border: 1px solid #002340;
+            border-radius: 5px;
+            -moz-border-radius: 5px; /* Firefox 3.6 and earlier */
+            display: inline-block;
+            margin-top: 1em;
+            padding: 1em 1em 1em 0.5em;
+        }
+        form#checklist div { line-height: 1.6em; vertical-align: middle; }
+        form#checklist input { vertical-align: middle; }
+        .title, .list_entry .name { color: #67a7c3; margin-top: 1em; margin-bottom: 0.5em; font-size: 1.3em; }
+        .title { font-size: 1.5em; }
+        .exp { color: #67a7c3; font-weight: bold; font-style: italic; }
+    </style>
+</head>
+    <body>
+		<div id="title">CaliSmall Glitch Spotting Hand Guide</div>
+		<div id="intro">This is a TO-DO list to help you spot glitches in CaliSmall whenever you made significant changes to its code. Every step is explained in detail in the <a href="#expected">expected results section</a>, whereas the list to be followed (along with check boxes to select as you're testing the steps) is found in the <a href="#checklist">checklist section</a>. <br /><br />Enjoy!</div>
+		<div>
+			<div class="title">Checklist</div>
+            <div>This is a list of all tests that must pass for every release of CaliSmall (internal or public). Click on the items to get a description of how the test should be performed and what are the expected results.</div>
+            <span id="list"><form id="checklist"></form></span>
+
+            <div class="title" id="expected">Expected results</div>
+
+            <!-- USE THE CALIGLITCH.SUBLIME-SNIPPET TEMPLATE TO GENERATE ENTRIES, OR... -->
+            <!-- COPY AND PASTE THE FOLLOWING LINES TO ADD ENTRIES, KEEPING THE STRUCTURE AND REPLACING TEXT!
+
+            *** COPY FROM HERE ***
+            <div class="list_entry">
+                <div class="name"></div>
+                <div class="test">
+                    <span class="desc">.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">.</span>
+                </div>
+            </div>
+            *** TO HERE ***
+
+            -->
+			<div class="list_entry">
+				<div class="name">Stroke drawing</div>
+                <div class="test">
+                    <span class="desc">Touch the screen with a stylus or with a single finger and drag it around the screen; release it.</span>
+                </div>
+				<div class="expected">
+                    <span class="desc">A stroke should be displayed with the current stroke style (as set in the menu), with no flickering or slowdowns. As soon as the stroke is 'long enough' and if the stroke has not been drawn very fast, a landing zone should appear near the beginning of the stroke.</span>
+                </div>
+			</div>
+
+            <div class="list_entry">
+                <div class="name">Stroke style&amp;weight</div>
+                <div class="test">
+                    <span class="desc">Change the thickness and color of strokes, draw them. Tick the 'Resize with zoom' checkbox, zoom in, draw stroke, zoom out.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Stroke color and thickness adjust accordingly, stroke thickness is rescaled while zooming according to the checkbox selection status.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Landing zone</div>
+                <div class="test">
+                    <span class="desc">Draw a long stroke; if a landing zone appear, finish your stroke within that area.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">A landing zone appears and if stroke finishes within its area a temporary scrap (a selection) is created.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap creation</div>
+                <div class="test">
+                    <span class="desc">Draw some strokes. Draw a stroke wrapping some (but not all) of the strokes. End that stroke in the landing zone.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">A temporary scrap is created, all strokes fully contained within the selection are highlighted, all strokes at least partly outside of the selection are <b>not</b> highlighted.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap move</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; use the move button to drag it around several times. Drag the scrap over the current screen boundaries.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The temporary scrap follows the movement of the move button; temp scraps can be moved outside of the screen, the bubble menu shrinking down to its minimum width, height or both according to the scrap's position.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap copy</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; press the copy button. Then, press and drag the copy button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">On button press a new temporary scrap containing copies of all elements in the original scrap is created. The position of elements inside the original scrap is unaffected by the operation.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap resize</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; use the resize button to enlarge or reduce the size of the temp scrap.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The temp scrap and all its content is resized keeping relative positions and proportions intacted. Whenever the temp scrap hits minimum size, it can't be reduced any further (to prevent resizing from being an unrecoverable operation).</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap rotate</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; use the rotate button to rotate it along with all of its content.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The temp scrap rotates keeping all relative positions intacted.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap deselect</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; tap away from it.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The temporary scrap greenish background disappears, as long as all highlight strokes. The outer border of the scrap is replaced with a 'ghost stroke' that starts to fade as soon as it's being displayed.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap delete</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; press the delete button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The scrap and all of its content are deleted from the canvas. No ghost strokes are shown.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap creation</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap containing some strokes; press the 'scrap' button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">A scrap is created replacing the temporary scrap. No ghost stroke is displayed. The created scrap contains all strokes that were part of the temporary scrap, and no more. The 'scrap' button disappears, the 'scrap drop' button appears. The new scrap's outer border has the exact same shape as the temp scrap one's.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap creation - from 'shrink wrapped' button</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap containing some strokes; press the 'shrink wrapped' button. Create an empty temporary scrap; press the 'shrink wrapped' button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">If the temp scrap contains strokes and/or scraps, a new scrap is created having a rounded rectangle border large enough to contain all the temp scrap's content, along with some padding. If the temp scrap is empty, a new empty scrap is created having as outer border the smallest rounded rectangle fully enclosing the original temp scrap's border. No ghost stroke is displayed. The 'scrap' button disappears, the 'scrap drop' button appears.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap move</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; use the move button to drag it around several times. Drag the scrap over the current screen boundaries.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The scrap follows the movement of the move button; scraps can be moved outside of the screen, the bubble menu shrinking down to its minimum width, height or both according to the scrap's position.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap copy</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; press the copy button. Then, press and drag the copy button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">On button press a new scrap containing copies of all elements in the original scrap is created. The position of elements inside the original scrap is unaffected by the operation.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap resize</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; use the resize button to enlarge or reduce the size of the scrap.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The scrap and all its content is resized keeping relative positions and proportions intacted. Whenever the scrap hits minimum size, it can't be reduced any further (to prevent resizing from being an unrecoverable operation).</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap rotate</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; use the rotate button to rotate it along with all of its content.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The scrap rotates keeping all relative positions intacted.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap select/deselect</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; tap away from it. Start drawing inside the scrap; without creating a new stroke, start drawing outside of the scrap's perimeter. Tap on the scrap. Tap on the scrap again. Tap away from the scrap.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">This is what must happen, following the same order as the input operations': 
+                        <ol>
+                            <li>as soon as the scrap is created, its border is highlighted, and a bubble menu wraps around it</li>
+                            <li>tapping away from the scrap <i>deselects</i> the scrap: its border is no longer highlighted, the bubble menu disappears. No smudge should be left on the screen if the 'tap area' is reasonably small</li>
+                            <li>as soon as a stroke is drawn inside the scrap, the scrap gets selected (and highlighted); it keeps being selected as long as the stroke doesn't exit the scrap's area</li>
+                            <li>as soon as the stroke exits the scrap's area, the scrap is deselected</li>
+                            <li>tapping on the scrap selects it, without leaving any trace of the tap stroke</li>
+                            <li>tapping on a selected stroke creates a dot</li>
+                            <li>tapping away deselects the scrap once again, without leaving smudges on the canvas</li>
+                        </ol>
+                        As soon as the stroke exits the scrap's area, that scrap cannot be selected anymore until a new stroke is created.
+                    </span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap delete</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; press the delete button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The scrap and all of its content are deleted from the canvas. No ghost strokes are shown.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Scrap drop</div>
+                <div class="test">
+                    <span class="desc">Create a non-empty scrap; press the 'scrap drop' button.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The scrap border and background disappear. All strokes and scraps within the selected scrap are drawn to the canvas. The outer scrap's border turns into a ghost stroke.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Temporary Scrap creation - with Scraps</div>
+                <div class="test">
+                    <span class="desc">Draw some strokes, create some scraps. Draw a stroke wrapping some (but not all) of the strokes and some (but not all) of the scraps. End that stroke in the landing zone.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">A temporary scrap is created, all strokes and scraps fully contained within the selection are highlighted, all strokes and scraps at least partly outside of the selection are <b>not</b> highlighted. Strokes can be selected even if their parent scrap is <i>not</i> selected.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Pinch to zoom</div>
+                <div class="test">
+                    <span class="desc">Draw some strokes; perform a pinch-to-zoom gesture on some area of the canvas.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The view zooms in and out or pans left and right according to the performed gesture. Strokes don't change position and they're resized according to the current zoom level. Changing stroke thickness and/or value for the 'Resize with zoom' checkbox results in the correct resizing of new strokes (it doesn't affect previous strokes). The view can never move outside of the canvas boundaries.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Pinch to zoom - Temporary Scrap</div>
+                <div class="test">
+                    <span class="desc">Create a temporary scrap; zoom in and out, pan left and right several times.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">The temporary scrap's outer border and background is not shown while performing gestures, it appears only when gestures end. As soon as a zooming/panning gesture is done, the bubble menu is shown again and the temporary scrap's border and background are drawn again, unless it's fully outside of the view.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Pinch to zoom - Ghost strokes</div>
+                <div class="test">
+                    <span class="desc">Create a couple of ghost strokes by creating temporary scraps and deselecting them; perform a 2-finger gesture (panning/zooming).</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">While performing the gesture, all ghost strokes are not displayed and set on pause. As soon as the gesture is completed, ghost strokes are shown again and the fading animation takes from where it was set on pause.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Pinch to zoom - Selected Scraps</div>
+                <div class="test">
+                    <span class="desc">Create a scrap; perform a 2-finger gesture (panning/zooming).</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">While performing the gesture, the bubble menu is hidden. As soon as the gesture is completed, the original selection is restored and the bubble menu is shown.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Parenting - Temporary Scraps</div>
+                <div class="test">
+                    <span class="desc">Create a stroke; create a scrap; create a temp scrap wrapping both; move the temp scrap.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Both the stroke and the scrap move together according to the temp scrap's position.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Parenting - 2 Scraps</div>
+                <div class="test">
+                    <span class="desc">Create 2 disjoint scraps; drag the smaller inside the larger; move the larger; drag the smaller (partly) out of the larger; drag it back to the larger; resize the smaller so that it becomes the largest; resize it again so it's contained within the other; do the same for rotation.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Parenting is adjusted for all operations: move, scale, rotate. Whenever a scrap is moved/scaled/rotated so that its parent changes (if dropped), the target parent is highlighted.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Parenting - several Scraps</div>
+                <div class="test">
+                    <span class="desc">Create at least 5 scraps of various sizes, dragging them and resizing/rotating them to make them change parents.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Parenting is consistent regardless of the operations performed on scraps.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Parenting - Scraps and Temporary Scraps</div>
+                <div class="test">
+                    <span class="desc">Create a scrap with at least 2 children scraps and some strokes; create temporary scraps to select and move content from a scrap to another; deselect temp scraps and create new ones.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Parenting is consistent regardless of any number of parent changes.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Ghost Strokes creation</div>
+                <div class="test">
+                    <span class="desc">Create a temp scrap and deselect it. Create a number of temp scraps in rapid succession.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Whenever a temp scrap is deselected its outer border is replaced with a ghost stroke. Each ghost stroke starts fading out as soon as it's displayed.</span>
+                </div>
+            </div>
+
+            <div class="list_entry">
+                <div class="name">Ghost Strokes revive</div>
+                <div class="test">
+                    <span class="desc">Create a number of ghost strokes in rapid succession. Tap on the pencil icon for some of them.</span>
+                </div>
+                <div class="expected">
+                    <span class="desc">Ghost strokes for which the pencil icon is pressed are turned into regular strokes, keeping the same style as the original stroke (used to create the temp scrap with).</span>
+                </div>
+            </div>
+
+		</div>
+    </body>
+</html>
