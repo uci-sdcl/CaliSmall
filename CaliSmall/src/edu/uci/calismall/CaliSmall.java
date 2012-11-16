@@ -140,14 +140,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         protected Void doInBackground(String... params) {
             toBeSaved = params[0];
             try {
-                lock.lock();
+                saveLock.lock();
                 save(toBeSaved, parent.toJSON().toString());
                 fileHasBeenSaved = true;
                 fileSaved.signalAll();
             } catch (JSONException e) {
                 e.printStackTrace();
             } finally {
-                lock.unlock();
+                saveLock.unlock();
             }
             restartAutoSaving();
             return null;
@@ -241,32 +241,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * Tag used for the whole application in LogCat files.
      */
     public static final String TAG = "CaliSmall";
-
-    /**
-     * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
-     * {@link CaliView#scaleFactor}).
-     */
-    public static final int ABS_THINNEST_STROKE_WIDTH = 1;
-    /**
-     * Absolute {@link Stroke} width of thin strokes (to be rescaled by
-     * {@link CaliView#scaleFactor}).
-     */
-    public static final int ABS_THIN_STROKE_WIDTH = 3;
-    /**
-     * Absolute {@link Stroke} width of medium strokes (to be rescaled by
-     * {@link CaliView#scaleFactor}).
-     */
-    public static final int ABS_MEDIUM_STROKE_WIDTH = 5;
-    /**
-     * Absolute {@link Stroke} width of thick strokes (to be rescaled by
-     * {@link CaliView#scaleFactor}).
-     */
-    public static final int ABS_THICK_STROKE_WIDTH = 7;
-    /**
-     * Absolute {@link Stroke} width of thinnest strokes (to be rescaled by
-     * {@link CaliView#scaleFactor}).
-     */
-    public static final int ABS_THICKEST_STROKE_WIDTH = 9;
     /**
      * The number of threads used to execute timer tasks with.
      */
@@ -299,23 +273,27 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * A lock that is shared between the drawing thread and the Event Dispatch
      * Thread used when opening files.
      */
-    Lock lock = new ReentrantLock();
+    Lock openLock = new ReentrantLock();
+    /**
+     * A lock that is used to synchronize the saving and opening actions.
+     */
+    Lock saveLock = new ReentrantLock();
     /**
      * Condition that is signalled by the drawing thread just before setting
      * itself to sleep.
      */
-    Condition drawingThreadWaiting = lock.newCondition();
+    Condition drawingThreadWaiting = openLock.newCondition();
     /**
      * Condition that is signalled by the file opening thread just after having
      * loaded a sketch file.
      */
-    Condition fileOpened = lock.newCondition();
+    Condition fileOpened = openLock.newCondition();
 
     /**
      * Condition that is signalled by the thread that is saving a file when it's
      * done.
      */
-    Condition fileSaved = lock.newCondition();
+    Condition fileSaved = saveLock.newCondition();
     /**
      * The current view.
      */
@@ -494,7 +472,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void save(final String input, final String jsonData) {
         try {
-            lock.lock();
+            openLock.lock();
             File path = getApplicationContext().getExternalFilesDir(null);
             File newFile = new File(path, input + FILE_EXTENSION);
             updateFileList();
@@ -506,7 +484,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            lock.unlock();
+            openLock.unlock();
         }
     }
 
@@ -560,14 +538,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 progressBar.execute(chosenFile);
         } else {
             try {
-                lock.lock();
+                saveLock.lock();
                 save(chosenFile, toJSON().toString());
                 fileHasBeenSaved = true;
                 fileSaved.signalAll();
             } catch (JSONException e) {
                 e.printStackTrace();
             } finally {
-                lock.unlock();
+                saveLock.unlock();
             }
         }
     }
@@ -616,8 +594,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 newLine = "\n";
             }
             reader.close();
-            JSONObject json = new JSONObject(builder.toString());
-            syncAndLoad(json);
+            syncAndLoad(builder.toString());
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
@@ -647,16 +624,18 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             AmbilWarnaDialog dialog = view.getColorPicker();
             dialog.show();
             return true;
-        case R.id.line_thinnest:
-            return onStrokeThicknessSelection(ABS_THINNEST_STROKE_WIDTH);
-        case R.id.line_thin:
-            return onStrokeThicknessSelection(ABS_THIN_STROKE_WIDTH);
-        case R.id.line_medium:
-            return onStrokeThicknessSelection(ABS_MEDIUM_STROKE_WIDTH);
-        case R.id.line_thick:
-            return onStrokeThicknessSelection(ABS_THICK_STROKE_WIDTH);
-        case R.id.line_thickest:
-            return onStrokeThicknessSelection(ABS_THICKEST_STROKE_WIDTH);
+        case R.id.line_1px:
+            return onStrokeThicknessSelection(1);
+        case R.id.line_2px:
+            return onStrokeThicknessSelection(2);
+        case R.id.line_3px:
+            return onStrokeThicknessSelection(3);
+        case R.id.line_5px:
+            return onStrokeThicknessSelection(5);
+        case R.id.line_7px:
+            return onStrokeThicknessSelection(7);
+        case R.id.line_9px:
+            return onStrokeThicknessSelection(9);
         case R.id.line_zoom:
             return toggleStrokeWidthScaling();
         case R.id.save:
@@ -747,37 +726,42 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void updateStrokeThicknessSelection(SubMenu lineStyleMenu) {
         if (chosenThickness == null) {
-            chosenThickness = lineStyleMenu.findItem(R.id.line_thin);
-            chosenThicknessNonHighlightedIcon = R.drawable.line_thin;
-            chosenThickness.setIcon(R.drawable.line_thin_highlighted);
+            chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
+            chosenThicknessNonHighlightedIcon = R.drawable.line_2px;
+            chosenThickness.setIcon(R.drawable.line_2px_highlighted);
         } else {
             chosenThickness.setIcon(chosenThicknessNonHighlightedIcon);
             int nonHighlighted = 0;
             switch (view.currentAbsStrokeWidth) {
-            case ABS_THINNEST_STROKE_WIDTH:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_thinnest);
-                nonHighlighted = R.drawable.line_thinnest;
-                chosenThickness.setIcon(R.drawable.line_thinnest_highlighted);
+            case 1:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_1px);
+                nonHighlighted = R.drawable.line_1px;
+                chosenThickness.setIcon(R.drawable.line_1px_highlighted);
                 break;
-            case ABS_THIN_STROKE_WIDTH:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_thin);
-                nonHighlighted = R.drawable.line_thin;
-                chosenThickness.setIcon(R.drawable.line_thin_highlighted);
+            case 2:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
+                nonHighlighted = R.drawable.line_2px;
+                chosenThickness.setIcon(R.drawable.line_2px_highlighted);
                 break;
-            case ABS_MEDIUM_STROKE_WIDTH:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_medium);
-                nonHighlighted = R.drawable.line_medium;
-                chosenThickness.setIcon(R.drawable.line_medium_highlighted);
+            case 3:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_3px);
+                nonHighlighted = R.drawable.line_3px;
+                chosenThickness.setIcon(R.drawable.line_3px_highlighted);
                 break;
-            case ABS_THICK_STROKE_WIDTH:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_thick);
-                nonHighlighted = R.drawable.line_thick;
-                chosenThickness.setIcon(R.drawable.line_thick_highlighted);
+            case 5:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_5px);
+                nonHighlighted = R.drawable.line_5px;
+                chosenThickness.setIcon(R.drawable.line_5px_highlighted);
                 break;
-            case ABS_THICKEST_STROKE_WIDTH:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_thickest);
-                nonHighlighted = R.drawable.line_thickest;
-                chosenThickness.setIcon(R.drawable.line_thickest_highlighted);
+            case 7:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
+                nonHighlighted = R.drawable.line_7px;
+                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
+                break;
+            case 9:
+                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
+                nonHighlighted = R.drawable.line_7px;
+                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
                 break;
             }
             chosenThicknessNonHighlightedIcon = nonHighlighted;
@@ -789,7 +773,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         if (chosenFile != null) {
             saveAndMaybeShowProgressBar(chosenFile);
             try {
-                lock.lock();
+                saveLock.lock();
                 while (!fileHasBeenSaved) {
                     try {
                         fileSaved.await();
@@ -798,7 +782,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     }
                 }
             } finally {
-                lock.unlock();
+                saveLock.unlock();
             }
         }
         view.clear();
@@ -870,9 +854,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         File tmpImage = new File(path, chosenFile + ".png");
         tmpSnapshotName = chosenFile + ".png";
         try {
-            lock.lock();
+            openLock.lock();
             Painter painter = view.getPainter();
-            painter.stopForFileOpen(lock, fileOpened, drawingThreadWaiting);
+            painter.stopForFileOpen(openLock, fileOpened, drawingThreadWaiting);
             while (!painter.isWaiting())
                 try {
                     drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
@@ -882,7 +866,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 }
             view.createSnapshot(tmpImage, fileOpened);
         } finally {
-            lock.unlock();
+            openLock.unlock();
         }
         Intent intent = new Intent(android.content.Intent.ACTION_SEND);
         intent.setType("image/png");
@@ -1017,21 +1001,21 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return this;
     }
 
-    private void syncAndLoad(JSONObject jsonData) throws JSONException {
+    private void syncAndLoad(String jsonFilePath) throws JSONException {
         try {
-            lock.lock();
+            openLock.lock();
             Painter painter = view.getPainter();
-            painter.stopForFileOpen(lock, fileOpened, drawingThreadWaiting);
+            painter.stopForFileOpen(openLock, fileOpened, drawingThreadWaiting);
             while (!painter.isWaiting()) {
                 drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
                         TimeUnit.MILLISECONDS);
             }
-            fromJSON(jsonData);
+            fromJSON(new JSONObject(jsonFilePath));
             fileOpened.signalAll();
         } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
-            lock.unlock();
+            openLock.unlock();
         }
     }
 

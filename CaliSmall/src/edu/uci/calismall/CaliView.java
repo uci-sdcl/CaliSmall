@@ -93,73 +93,72 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The interval between dashes in landing zones (to be rescaled by
      * {@link #scaleFactor}).
      */
-    static final float ABS_LANDING_ZONE_INTERVAL = 5;
+    public static final float ABS_LANDING_ZONE_INTERVAL = 5;
     /**
      * The length that a {@link Stroke} must reach before a landing zone is
      * shown (to be rescaled by {@link #scaleFactor}).
      */
-    static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 340;
+    public static final float ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE = 340;
     /**
      * Where to put the center of the landing zone on a path (to be rescaled by
      * {@link #scaleFactor}).
      */
-    static final float ABS_LANDING_ZONE_PATH_OFFSET = 70;
+    public static final float ABS_LANDING_ZONE_PATH_OFFSET = 70;
     /**
      * The length over which a Path is no longer considered as a potential tap,
      * but is viewed as a stroke instead (to be rescaled by {@link #scaleFactor}
      * ).
      */
-    static final float ABS_TOUCH_THRESHOLD = 8;
+    public static final float ABS_TOUCH_THRESHOLD = 8;
     /**
      * The amount of pixels that a touch needs to cover before it is considered
      * a move action (to be rescaled by {@link #scaleFactor}).
      */
-    static final float ABS_TOUCH_TOLERANCE = 4;
+    public static final float ABS_TOUCH_TOLERANCE = 4;
 
     /**
      * Absolute half the size of the rectangle enclosing the circle displayed on
      * long presses (to be rescaled by {@link #scaleFactor}).
      */
-    static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
+    public static final float ABS_CIRCLE_BOUNDS_HALF_SIZE = 75;
 
     /**
      * How long should the long press animation last, that is how long it should
      * take for the circle to be drawn completely in milliseconds.
      */
-    static final long LONG_PRESS_ANIMATION_DURATION = 350;
+    public static final long LONG_PRESS_ANIMATION_DURATION = 350;
 
     /**
      * Absolute length of the increment when drawing the long press circle
      * between {@link CaliView#draw(Canvas)} calls. This determines the speed at
      * which the circle is animated.
      */
-    static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
+    public static final float ABS_CIRCLE_SWEEP_INCREMENT = 25;
     /**
      * The starting point for the sweep animation for long presses. 0 is the
      * rightmost point, -90 is the topmost point.
      */
-    static final float CIRCLE_SWEEP_START = -90;
-
+    public static final float CIRCLE_SWEEP_START = -90;
     /**
      * Absolute distance that the first and last point in a {@link Stroke} may
      * have to be considered a valid target for long-presses scrap recognition
      * (to be rescaled by {@link #scaleFactor}). The value is squared to speed
      * up comparison with Euclidean distances.
      */
-    static final float ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS = 200 * 200;
+    public static final float ABS_MAX_STROKE_DISTANCE_FOR_LONG_PRESS = 200 * 200;
     /**
      * The minimum zoom level that users can reach.
      */
-    static final float MIN_ZOOM = 1f;
+    public static final float MIN_ZOOM = 1f;
     /**
      * The maximum zoom level that users can reach
      */
-    static final float MAX_ZOOM = 4f;
+    public static final float MAX_ZOOM = 4f;
     /**
      * The ratio used to make the landing zone the same physical size regardless
      * of the device that is currently being used.
      */
-    static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
+    public static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
     /**
      * The paint object that is used to draw all strokes with.
      * 
@@ -169,7 +168,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * width, color and fill type. These are set in the
      * {@link Stroke#draw(Canvas, Paint)} method for every stroke to be drawn.
      */
-    static final Paint PAINT = new Paint();
+    public static final Paint PAINT = new Paint();
     /**
      * The paint object that is used to draw landing zones with.
      * 
@@ -177,18 +176,25 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The dotted effect is obtained by constantly updating the length of the
      * segments according to the zoom level.
      */
-    static final Paint LANDING_ZONE_PAINT = new Paint();
+    public static final Paint LANDING_ZONE_PAINT = new Paint();
     /**
      * The paint object that is used to draw the circle animation whenever users
      * press-and-hold in the proximity of a stroke.
      */
-    static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
-
+    public static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
     /**
      * The amount of time that passes between two consecutive executions of the
      * {@link Committer}.
      */
-    static final long COMMITTER_REFRESH_PERIOD = 500;
+    public static final long COMMITTER_REFRESH_PERIOD = 500;
+    /**
+     * The stroke thickness used by default.
+     */
+    public static final int DEFAULT_STROKE_THICKNESS = 2;
+    /**
+     * The stroke thickness in use when drawing the long press animation.
+     */
+    public static final int LONG_PRESS_CIRCLE_THICKNESS = 3;
     /**
      * A rectangle representing the screen boundaries translated to the current
      * metrics (i.e. accounting for the current zoom level).
@@ -380,7 +386,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * The stroke width chosen by the user.
      */
-    int currentAbsStrokeWidth = CaliSmall.ABS_THIN_STROKE_WIDTH;
+    int currentAbsStrokeWidth = DEFAULT_STROKE_THICKNESS;
     /**
      * Whether stroke size should be rescaled according to the zoom level.
      */
@@ -432,7 +438,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private DrawingHandler drawingHandler;
     private PathMeasure pathMeasure;
     private boolean running, mustShowLandingZone, mustClearCanvas, longPressed,
-            mustShowLongPressCircle, didSomething, forcedRedraw;
+            mustShowLongPressCircle, didSomething, forcedRedraw,
+            foregroundRefresh;
     private PointF landingZoneCenter;
     private int currentPointerID = INVALID_POINTER_ID, screenWidth,
             screenHeight;
@@ -474,6 +481,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         newStrokes = new ArrayList<Stroke>();
         newScraps = new ArrayList<Scrap>();
         reset();
+        committerTimer = new Timer();
         getHolder().addCallback(this);
     }
 
@@ -522,16 +530,13 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         canvasOffsetX = 0;
         canvasOffsetY = 0;
         landingZoneCircleSweepAngle = 0;
-        int height = screenHeight;
-        int width = screenWidth;
-        setBounds(width, height);
-        stroke = null;
+        setBounds(screenWidth, screenHeight);
+        if (stroke != null)
+            stroke.reset();
         createNewStroke();
         activeStroke = stroke;
         selectionStroke = null;
-        committerTimer = new Timer();
         scaleListener.onScaleEnd(scaleDetector);
-        forceSingleRedraw = true;
     }
 
     /**
@@ -541,20 +546,18 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the canvas onto which this view is to be drawn
      */
     public void drawView(Canvas canvas) {
-        if (canvas != null) {
-            if (forceContinuousRedraw || forceSingleRedraw) {
-                forcedRedraw = true;
-                forceSingleRedraw = false;
-                redrawEverything(canvas);
-                return;
-            } else if (forcedRedraw) {
-                forcedRedraw = false;
-                // force a full redraw by Android Drawing Thread
-                updateBackground();
-            }
-            drawBackground(canvas);
-            drawForeground(canvas);
+        if (forceContinuousRedraw || forceSingleRedraw) {
+            forcedRedraw = true;
+            forceSingleRedraw = false;
+            redrawEverything(canvas);
+            return;
+        } else if (forcedRedraw) {
+            forcedRedraw = false;
+            // force a full redraw by Android Drawing Thread
+            updateBackground();
         }
+        drawBackground(canvas);
+        drawForeground(canvas);
     }
 
     private void redrawEverything(Canvas canvas) {
@@ -584,6 +587,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
         if (mustClearCanvas) {
             clearCanvas();
+        } else if (foregroundRefresh) {
+            forceSingleRedraw = true;
+            foregroundRefresh = false;
         } else {
             deleteElements();
             boolean tempScrapCreated = createTempScrap();
@@ -650,7 +656,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private void updateBackground() {
-        Utils.debug("redrawing bg");
         snapshot = Bitmap.createBitmap(screenWidth, screenHeight,
                 Config.ARGB_8888);
         background = new Canvas(snapshot);
@@ -1560,9 +1565,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 // rescale paint brush and connect circle
                 stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
             }
-            LONG_PRESS_CIRCLE_PAINT
-                    .setStrokeWidth(CaliSmall.ABS_THIN_STROKE_WIDTH
-                            / scaleFactor * 2);
+            LONG_PRESS_CIRCLE_PAINT.setStrokeWidth(LONG_PRESS_CIRCLE_THICKNESS
+                    / scaleFactor * 2);
             landingZoneRadius = scaledLandingZoneAbsRadius / scaleFactor;
             minPathLengthForLandingZone = ABS_MIN_PATH_LENGTH_FOR_LANDING_ZONE
                     / scaleFactor;
@@ -1776,6 +1780,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     @Override
     public CaliView fromJSON(JSONObject jsonData) throws JSONException {
+        Stroke restore = activeStroke;
         reset();
         JSONArray array = jsonData.getJSONArray("strokes");
         for (int i = 0; i < array.length(); i++) {
@@ -1794,7 +1799,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         for (Scrap scrap : scraps) {
             scrap.addChildrenFromJSON();
         }
-        createNewStroke();
+        // this lets the new stroke be added to fg
+        activeStroke = restore;
+        // let android flip the buffer twice... weird, I know..
+        foregroundRefresh = true;
         return this;
     }
 

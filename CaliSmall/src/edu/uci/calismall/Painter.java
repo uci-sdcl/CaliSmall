@@ -55,10 +55,10 @@ public class Painter implements Runnable {
             try {
                 canvas = holder.lockCanvas();
                 if (canvas != null) {
-                    while (waitForFileOpen) {
-                        waitForFileOpen();
-                    }
                     view.drawView(canvas);
+                }
+                if (waitForFileOpen) {
+                    waitForFileOpen();
                 }
             } catch (IllegalArgumentException e) {
                 // activity sent to bg, don't care
