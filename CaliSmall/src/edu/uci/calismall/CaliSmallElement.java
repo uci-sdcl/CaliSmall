@@ -97,6 +97,11 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     protected CaliSmallElement previousParent;
 
     /**
+     * The rectangle enclosing this element.
+     */
+    protected RectF bounds;
+
+    /**
      * The top-left corner of the {@link RectF} enclosing this element.
      */
     protected PointF topLeftPoint = new PointF();
@@ -142,6 +147,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      */
     protected CaliSmallElement(CaliView parentView) {
         this.parentView = parentView;
+        this.bounds = new RectF();
     }
 
     /**
@@ -435,14 +441,13 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      *            the perimeter of the region enclosing this element
      */
     protected void setBoundaries(Path path) {
-        RectF rect = new RectF();
-        path.computeBounds(rect, true);
-        setArea(rect);
-        Rect rounded = new Rect((int) FloatMath.floor(rect.left),
-                (int) FloatMath.floor(rect.top),
-                (int) FloatMath.ceil(rect.right),
-                (int) FloatMath.ceil(rect.bottom));
-        boundaries.setPath(path, new Region(rounded));
+        path.computeBounds(bounds, true);
+        setArea(bounds);
+        Rect intRegion = new Rect((int) FloatMath.floor(bounds.left),
+                (int) FloatMath.floor(bounds.top),
+                (int) FloatMath.ceil(bounds.right),
+                (int) FloatMath.ceil(bounds.bottom));
+        boundaries.setPath(path, new Region(intRegion));
     }
 
     /**

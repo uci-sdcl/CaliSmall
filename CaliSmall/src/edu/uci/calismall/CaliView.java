@@ -435,6 +435,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private ScaleListener scaleListener;
     private TouchHandler redirectTo;
     private GhostStrokeHandler ghostHandler;
+    private EraserHandler eraserHandler;
     private DrawingHandler drawingHandler;
     private PathMeasure pathMeasure;
     private boolean running, mustShowLandingZone, mustClearCanvas, longPressed,
@@ -480,6 +481,16 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         allScraps = new SpaceOccupationList<Scrap>();
         newStrokes = new ArrayList<Stroke>();
         newScraps = new ArrayList<Scrap>();
+        eraserHandler = new EraserHandler(this);
+        bubbleMenu = new BubbleMenu(this);
+        ghostHandler = new GhostStrokeHandler(this);
+        longPressAction = new LongPressAction(this);
+        drawingHandler = new DrawingHandler(this);
+        scaleListener = new ScaleListener(this);
+        scaleDetector = new ScaleGestureDetector(parent, scaleListener);
+        // order DOES matter! calls are chained, see onTouchEvent
+        handlers = new TouchHandler[] { eraserHandler, ghostHandler,
+                bubbleMenu, scaleListener, drawingHandler };
         reset();
         committerTimer = new Timer();
         getHolder().addCallback(this);
@@ -492,15 +503,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         allStrokes.clear();
         allScraps.clear();
         background = new Canvas();
-        bubbleMenu = new BubbleMenu(this);
-        ghostHandler = new GhostStrokeHandler(this);
-        longPressAction = new LongPressAction(this);
-        drawingHandler = new DrawingHandler(this);
-        scaleListener = new ScaleListener(this);
-        scaleDetector = new ScaleGestureDetector(parent, scaleListener);
-        // order DOES matter! calls are chained, see onTouchEvent
-        handlers = new TouchHandler[] { ghostHandler, bubbleMenu,
-                scaleListener, drawingHandler };
         newStrokes.clear();
         newScraps.clear();
         pathMeasure = new PathMeasure();
@@ -831,14 +833,20 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
         highlighted = selected;
         if (selected != null) {
-            bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
-                    screenBounds);
+            bubbleMenu.setBounds(selected, scaleFactor, screenBounds);
             bubbleMenu.setVisible(true);
         } else {
             tempScrap = null;
             bubbleMenu.setVisible(false);
         }
         this.selected = selected;
+    }
+
+    /**
+     * Enables/disables the eraser mode.
+     */
+    public void toggleEraserMode() {
+        eraserHandler.toggleEnabled();
     }
 
     /**
@@ -1105,6 +1113,24 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         return null;
     }
 
+    /**
+     * Returns all strokes that may contain the argument point.
+     * 
+     * @param point
+     *            the test point
+     * @return a sorted list (from smallest to largest) of strokes whose areas
+     *         include the argument point
+     */
+    public List<Stroke> getIntersectingStrokes(PointF point) {
+        List<Stroke> candidates = new ArrayList<Stroke>();
+        for (int i = 0; i < strokes.size(); i++) {
+            Stroke stroke = strokes.get(i);
+            if (stroke.isPointWithinBounds(point))
+                candidates.add(stroke);
+        }
+        return candidates;
+    }
+
     private Stroke getClosestStroke() {
         List<CaliSmallElement> candidates = allStrokes
                 .findIntersectionCandidates(activeStroke);
@@ -1112,7 +1138,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         Collections.sort(candidates);
         for (CaliSmallElement candidate : candidates) {
             if (candidate.contains(stroke.getStartPoint())
-                    && isCloseEnough(candidate)) {
+                    && isClosedEnough(candidate)) {
                 return (Stroke) candidate;
             }
         }
@@ -1135,7 +1161,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         this.previousSelection = previousSelection;
     }
 
-    private boolean isCloseEnough(CaliSmallElement candidate) {
+    private boolean isClosedEnough(CaliSmallElement candidate) {
         if (candidate == null || !(candidate instanceof Stroke))
             return false;
         Stroke test = (Stroke) candidate;
@@ -1196,8 +1222,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         screenHeight = height;
         updateBounds();
         if (selected != null) {
-            bubbleMenu.setBounds(selected.getBorder(), scaleFactor,
-                    screenBounds);
+            bubbleMenu.setBounds(selected, scaleFactor, screenBounds);
         } else {
             bubbleMenu.setBounds(scaleFactor, screenBounds);
             scaledLandingZoneAbsRadius = Math.max(width, height)

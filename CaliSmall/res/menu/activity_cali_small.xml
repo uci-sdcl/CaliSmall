@@ -1,10 +1,17 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item android:id="@+id/eraser" android:alphabeticShortcut="e"
+        android:icon="@drawable/ic_eraser"
+        android:menuCategory="container"
+        android:orderInCategory="0"
+        android:showAsAction="always"
+        android:title="Eraser">
+    </item>
     <item
         android:id="@+id/color"
         android:alphabeticShortcut="c"
         android:icon="@drawable/ic_color"
         android:menuCategory="container"
-        android:orderInCategory="0"
+        android:orderInCategory="1"
         android:showAsAction="always"
         android:title="Color">
     </item>
@@ -12,7 +19,7 @@
         android:id="@+id/line_style"
         android:icon="@drawable/ic_line_style"
         android:menuCategory="container"
-        android:orderInCategory="1"
+        android:orderInCategory="2"
         android:showAsAction="always"
         android:title="Line Style">
         <menu>
@@ -51,7 +58,7 @@
         android:alphabeticShortcut="p"
         android:icon="@drawable/ic_previous"
         android:menuCategory="container"
-        android:orderInCategory="2"
+        android:orderInCategory="3"
         android:showAsAction="always"
         android:title="Open Previous"
         android:titleCondensed="Previous">
@@ -61,7 +68,7 @@
         android:alphabeticShortcut="a"
         android:icon="@drawable/ic_new"
         android:menuCategory="container"
-        android:orderInCategory="3"
+        android:orderInCategory="4"
         android:showAsAction="always"
         android:title="New">
     </item>
@@ -70,7 +77,7 @@
         android:alphabeticShortcut="n"
         android:icon="@drawable/ic_next"
         android:menuCategory="container"
-        android:orderInCategory="4"
+        android:orderInCategory="5"
         android:showAsAction="always"
         android:title="Open Next"
         android:titleCondensed="Next">

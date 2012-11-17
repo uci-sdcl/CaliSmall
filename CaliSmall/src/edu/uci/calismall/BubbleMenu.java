@@ -14,6 +14,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.FloatMath;
 import android.view.MotionEvent;
+import edu.uci.calismall.Scrap.Temp;
 import edu.uci.calismall.Scrap.Transformation;
 
 /**
@@ -116,6 +117,7 @@ public class BubbleMenu extends GenericTouchHandler {
         private final Rect position;
         private final RectF hitArea;
         private ButtonListener listener;
+        private boolean enabled;
 
         /**
          * Creates a new button.
@@ -127,6 +129,7 @@ public class BubbleMenu extends GenericTouchHandler {
             scaledButton = bitmap;
             position = new Rect();
             hitArea = new RectF();
+            enabled = true;
         }
 
         /**
@@ -142,7 +145,8 @@ public class BubbleMenu extends GenericTouchHandler {
             if (alpha > -1) {
                 scaledButton.setAlpha(alpha);
             }
-            scaledButton.draw(canvas);
+            if (enabled)
+                scaledButton.draw(canvas);
         }
 
         /**
@@ -423,7 +427,7 @@ public class BubbleMenu extends GenericTouchHandler {
             shrinkWrapped(int action, PointF touchPoint, Scrap selected) {
         selected.setRect(scaleFactor);
         touched = null;
-        setBounds(selected.getBorder(), scaleFactor, bounds);
+        setBounds(selected, scaleFactor, bounds);
         scrap(action, touchPoint, selected);
         parentView.forceRedraw();
         return true;
@@ -621,22 +625,27 @@ public class BubbleMenu extends GenericTouchHandler {
 
     /**
      * Updates the position of buttons in this menu according to the argument
-     * <tt>selectionPath</tt> and current <tt>scaleFactor</tt> applied to the
+     * <tt>selection</tt> and current <tt>scaleFactor</tt> applied to the
      * canvas.
      * 
-     * @param selectionPath
-     *            the path drawn by the user to select elements in the canvas
+     * @param selection
+     *            the current selection
      * @param scaleFactor
      *            the current (cumulative) scale factor applied to the canvas
      * @param bounds
      *            the portion of the canvas currently displayed
      */
-    void setBounds(Path selectionPath, float scaleFactor, RectF bounds) {
+    void setBounds(Scrap selection, float scaleFactor, RectF bounds) {
         this.scaleFactor = scaleFactor;
         this.bounds.set(bounds);
+        if (selection instanceof Temp) {
+            scrap.enabled = true;
+        } else {
+            scrap.enabled = false;
+        }
         padding = bSize * PADDING_TO_BUTTON_SIZE_RATIO;
         minSize = bSize * BUTTONS_PER_SIDE + (BUTTONS_PER_SIDE - 1) * padding;
-        updatePositionAndSize(selectionPath);
+        updatePositionAndSize(selection == null ? null : selection.getBorder());
     }
 
     /**

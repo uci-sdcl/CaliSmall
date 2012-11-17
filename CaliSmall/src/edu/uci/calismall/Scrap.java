@@ -6,6 +6,7 @@ package edu.uci.calismall;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
@@ -426,9 +427,25 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      * @return all strokes children of this scrap
      */
     public List<Stroke> getAllStrokes() {
-        List<Stroke> allStrokes = new ArrayList<Stroke>(strokes);
+        List<Stroke> allStrokes = new ArrayList<Stroke>();
+        for (Iterator<Stroke> iterator = strokes.iterator(); iterator.hasNext();) {
+            Stroke next = iterator.next();
+            if (next.hasToBeDeleted()) {
+                iterator.remove();
+            } else {
+                allStrokes.add(next);
+            }
+        }
         for (Scrap scrap : getAllScraps()) {
-            allStrokes.addAll(scrap.strokes);
+            for (Iterator<Stroke> iterator = scrap.strokes.iterator(); iterator
+                    .hasNext();) {
+                Stroke next = iterator.next();
+                if (next.hasToBeDeleted()) {
+                    iterator.remove();
+                } else {
+                    allStrokes.add(next);
+                }
+            }
         }
         return allStrokes;
     }
@@ -1123,6 +1140,13 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     @Override
     public List<PointF> getPointsForInclusionTests() {
         return outerBorder.getPointsForInclusionTests();
+    }
+
+    /**
+     * Forces a redraw of the bitmap snapshot for this scrap.
+     */
+    public void forceBitmapRedraw() {
+        contentChanged = true;
     }
 
     /*

@@ -620,10 +620,13 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public boolean onOptionsItemSelected(MenuItem item) {
         boolean knownOption = true;
         switch (item.getItemId()) {
+        case R.id.eraser:
+            view.toggleEraserMode();
+            break;
         case R.id.color:
             AmbilWarnaDialog dialog = view.getColorPicker();
             dialog.show();
-            return true;
+            break;
         case R.id.line_1px:
             return onStrokeThicknessSelection(1);
         case R.id.line_2px:
@@ -640,7 +643,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             return toggleStrokeWidthScaling();
         case R.id.save:
             saveButtonClicked();
-            return true;
+            break;
         case R.id.save_as:
             if (chosenFile.startsWith(autoSaveName)) {
                 input.setText("");
@@ -658,7 +661,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             break;
         case R.id.create_new:
             newSketch();
-            return true;
+            break;
         case R.id.share:
             share();
             break;

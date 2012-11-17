@@ -195,6 +195,19 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     /**
+     * Checks whether the argument <tt>point</tt> is within this stroke's
+     * bounds.
+     * 
+     * @param point
+     *            the point to test
+     * @return <code>true</code> if <tt>point</tt> is within this stroke's
+     *         bounds
+     */
+    public boolean isPointWithinBounds(PointF point) {
+        return bounds.contains(point.x, point.y);
+    }
+
+    /**
      * Returns the vector path for this stroke.
      * 
      * @return the path
@@ -250,7 +263,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     /**
-     * Sets the first point of this stroke.
+     * Sets the first point of this stroke, erasing the previous content of this
+     * stroke.
      * 
      * <p>
      * This method <b>must</b> be called first before any call to
@@ -262,6 +276,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * @return a reference to this object, so calls can be chained
      */
     public Stroke setStart(PointF startPoint) {
+        path.reset();
+        points.clear();
         path.moveTo(startPoint.x, startPoint.y);
         // this is here so that the path is not empty and press and hold relies
         // on that. DO NOT DELETE!
@@ -558,6 +574,43 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         if (point == null)
             return false;
         return boundaries.contains(Math.round(point.x), Math.round(point.y));
+    }
+
+    /**
+     * Returns whethter the argument point is within this stroke's path, which
+     * is created using quadratic bezier curves.
+     * 
+     * <p>
+     * This is an expensive method, use it with caution!
+     * 
+     * @param testPoint
+     *            the point to test
+     * @return <code>true</code> if <tt>testPoint</tt> is within this stroke's
+     *         path
+     */
+    public boolean bezierContains(PointF testPoint) {
+        if (testPoint == null || points.isEmpty())
+            return false;
+        if (points.size() == 1)
+            return points.get(0).equals(testPoint);
+        PointF last = points.get(0);
+        for (int i = 1; i < points.size(); i++) {
+            PointF point = points.get(i);
+            if (isInBezier(last, point, testPoint))
+                return true;
+            last = point;
+        }
+        return last.equals(testPoint);
+    }
+
+    private boolean isInBezier(PointF start, PointF end, PointF test) {
+        PointF control = new PointF((start.x + end.x) / 2,
+                (start.y + end.y) / 2);
+        float x = (test.x - start.x) / (2 * (control.x - start.x));
+        if (x < 0 || x > 1)
+            return false;
+        float y = (test.y - start.y) / (2 * (control.y - start.y));
+        return y > 0 && y <= 1;
     }
 
     /**
