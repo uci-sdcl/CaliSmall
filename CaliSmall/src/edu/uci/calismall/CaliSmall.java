@@ -311,7 +311,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private ScheduledExecutorService autoSaverTimer;
     private MenuItem chosenThickness;
     private int chosenThicknessNonHighlightedIcon;
-    private boolean userPickedANewName;
+    private boolean userPickedANewName, eraserMode;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -622,6 +622,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         switch (item.getItemId()) {
         case R.id.eraser:
             view.toggleEraserMode();
+            eraserMode = !eraserMode;
+            invalidateOptionsMenu();
             break;
         case R.id.color:
             AmbilWarnaDialog dialog = view.getColorPicker();
@@ -707,6 +709,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         MenuItem previous = menu.findItem(R.id.open_previous);
         previous.setEnabled(currentFileListIndex > 0);
         previous.getIcon().setAlpha(currentFileListIndex > 0 ? 255 : 85);
+        MenuItem eraser = menu.findItem(R.id.eraser);
+        eraser.setIcon(eraserMode ? R.drawable.ic_eraser_highlighted
+                : R.drawable.ic_eraser);
         MenuItem next = menu.findItem(R.id.open_next);
         if (currentFileListIndex == fileList.size() - 1) {
             next.setIcon(R.drawable.ic_next_new);

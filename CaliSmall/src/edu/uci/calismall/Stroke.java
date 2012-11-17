@@ -204,6 +204,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      *         bounds
      */
     public boolean isPointWithinBounds(PointF point) {
+        if (bounds == null || point == null)
+            return false;
         return bounds.contains(point.x, point.y);
     }
 
@@ -592,7 +594,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         if (testPoint == null || points.isEmpty())
             return false;
         if (points.size() == 1)
-            return points.get(0).equals(testPoint);
+            return isCloseEnoughToStart(testPoint);
         PointF last = points.get(0);
         for (int i = 1; i < points.size(); i++) {
             PointF point = points.get(i);
@@ -601,6 +603,14 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
             last = point;
         }
         return last.equals(testPoint);
+    }
+
+    private boolean isCloseEnoughToStart(PointF point) {
+        PointF start = getStartPoint();
+        if (start == null)
+            return false;
+        return ((start.x + strokeWidth) * (start.x + strokeWidth)) > (point.x * point.x)
+                && ((start.y + strokeWidth) * (start.y + strokeWidth)) > (point.y * point.y);
     }
 
     private boolean isInBezier(PointF start, PointF end, PointF test) {

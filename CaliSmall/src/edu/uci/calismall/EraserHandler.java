@@ -38,20 +38,7 @@ public class EraserHandler extends GenericTouchHandler {
     public boolean onDown(PointF touchPoint) {
         if (!enabled)
             return false;
-        List<Stroke> candidates = parentView.getIntersectingStrokes(touchPoint);
-        if (!candidates.isEmpty()) {
-            for (Stroke stroke : candidates) {
-                if (stroke.bezierContains(touchPoint)) {
-                    stroke.delete();
-                    CaliSmallElement parent = stroke.getParent();
-                    if (parent instanceof Scrap) {
-                        ((Scrap) parent).forceBitmapRedraw();
-                    }
-                    parentView.forceRedraw();
-                    return true;
-                }
-            }
-        }
+        checkForIntersections(touchPoint);
         return true;
     }
 
@@ -65,6 +52,11 @@ public class EraserHandler extends GenericTouchHandler {
     public boolean onMove(PointF touchPoint) {
         if (!enabled)
             return false;
+        checkForIntersections(touchPoint);
+        return true;
+    }
+
+    private void checkForIntersections(PointF touchPoint) {
         List<Stroke> candidates = parentView.getIntersectingStrokes(touchPoint);
         if (!candidates.isEmpty()) {
             for (Stroke stroke : candidates) {
@@ -75,11 +67,10 @@ public class EraserHandler extends GenericTouchHandler {
                         ((Scrap) parent).forceBitmapRedraw();
                     }
                     parentView.forceRedraw();
-                    return true;
+                    return;
                 }
             }
         }
-        return true;
     }
 
     /*
