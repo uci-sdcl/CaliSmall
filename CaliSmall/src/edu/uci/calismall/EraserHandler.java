@@ -76,16 +76,6 @@ public class EraserHandler extends GenericTouchHandler {
     /*
      * (non-Javadoc)
      * 
-     * @see edu.uci.calismall.GenericTouchHandler#onUp(android.graphics.PointF)
-     */
-    @Override
-    public boolean onUp(PointF touchPoint) {
-        return enabled;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
      * @see edu.uci.calismall.GenericTouchHandler#onCancel()
      */
     @Override

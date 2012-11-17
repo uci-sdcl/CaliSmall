@@ -489,8 +489,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         scaleListener = new ScaleListener(this);
         scaleDetector = new ScaleGestureDetector(parent, scaleListener);
         // order DOES matter! calls are chained, see onTouchEvent
-        handlers = new TouchHandler[] { eraserHandler, ghostHandler,
-                bubbleMenu, scaleListener, drawingHandler };
+        handlers = new TouchHandler[] { bubbleMenu, scaleListener,
+                eraserHandler, ghostHandler, drawingHandler };
         reset();
         committerTimer = new Timer();
         getHolder().addCallback(this);
