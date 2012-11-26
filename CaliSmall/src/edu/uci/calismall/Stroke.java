@@ -630,6 +630,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         return y > 0 && y <= 1;
     }
 
+    /*
+     * Stolen from java.awt.Rectangle.
+     */
     private static int outcode(double pX, double pY, double rectX,
             double rectY, double rectWidth, double rectHeight) {
         int out = 0;
@@ -650,6 +653,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         return out;
     }
 
+    /*
+     * Stolen from java.awt.Rectangle.
+     */
     private static boolean intersectsLine(double lineX1, double lineY1,
             double lineX2, double lineY2, double rectX, double rectY,
             double rectWidth, double rectHeight) {
