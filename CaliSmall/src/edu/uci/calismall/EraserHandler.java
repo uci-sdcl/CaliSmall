@@ -7,6 +7,7 @@ package edu.uci.calismall;
 import java.util.List;
 
 import android.graphics.PointF;
+import android.graphics.RectF;
 
 /**
  * A handler for touch events generated while CaliSmall is in eraser mode.
@@ -16,7 +17,14 @@ import android.graphics.PointF;
  */
 public class EraserHandler extends GenericTouchHandler {
 
+    /**
+     * Absolute size of half the side of a square built around the touch point
+     * to test for intersections when erasing. To be rescaled by the scale
+     * factor retrieved using {@link CaliView#getScaleFactor()}.
+     */
+    public static final float ABS_HALF_ERASER_SIZE = 10f;
     private boolean enabled;
+    private float halfEraserSize;
 
     /**
      * Creates a new handler for touch events when eraser mode is on.
@@ -38,6 +46,7 @@ public class EraserHandler extends GenericTouchHandler {
     public boolean onDown(PointF touchPoint) {
         if (!enabled)
             return false;
+        halfEraserSize = ABS_HALF_ERASER_SIZE / parentView.getScaleFactor();
         checkForIntersections(touchPoint);
         return true;
     }
@@ -57,10 +66,14 @@ public class EraserHandler extends GenericTouchHandler {
     }
 
     private void checkForIntersections(PointF touchPoint) {
-        List<Stroke> candidates = parentView.getIntersectingStrokes(touchPoint);
+        final RectF testRect = new RectF(touchPoint.x - halfEraserSize,
+                touchPoint.y - halfEraserSize, touchPoint.x + halfEraserSize,
+                touchPoint.y + halfEraserSize);
+        List<Stroke> candidates = parentView.getIntersectingStrokes(testRect);
         if (!candidates.isEmpty()) {
             for (Stroke stroke : candidates) {
-                if (stroke.bezierContains(touchPoint)) {
+                if (stroke.rawIntersects(testRect)) {
+                    // if (stroke.bezierContains(touchPoint)) {
                     stroke.delete();
                     CaliSmallElement parent = stroke.getParent();
                     if (parent instanceof Scrap) {

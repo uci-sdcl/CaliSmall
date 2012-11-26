@@ -65,6 +65,10 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * The amount of time it takes for the fadeout animation to complete.
      */
     private static final long GHOST_FADEOUT_TIME = 3000;
+    private static final int OUT_LEFT = 1;
+    private static final int OUT_TOP = 2;
+    private static final int OUT_RIGHT = 4;
+    private static final int OUT_BOTTOM = 8;
 
     /**
      * The list of points that this stroke contains.
@@ -195,18 +199,19 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     }
 
     /**
-     * Checks whether the argument <tt>point</tt> is within this stroke's
-     * bounds.
+     * Checks whether this stroke's bounds intersect or contain the argument
+     * rectangle.
      * 
-     * @param point
-     *            the point to test
-     * @return <code>true</code> if <tt>point</tt> is within this stroke's
-     *         bounds
+     * @param test
+     *            the rectangle to be tested
+     * 
+     * @return <code>true</code> if <tt>test</tt> intersects (or is fully
+     *         contained within) this stroke's bounds
      */
-    public boolean isPointWithinBounds(PointF point) {
-        if (bounds == null || point == null)
+    public boolean isPointWithinBounds(RectF test) {
+        if (bounds == null || test == null)
             return false;
-        return bounds.contains(point.x, point.y);
+        return RectF.intersects(test, bounds);
     }
 
     /**
@@ -583,14 +588,16 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * is created using quadratic bezier curves.
      * 
      * <p>
-     * This is an expensive method, use it with caution!
+     * This is an expensive method, use it with caution! A faster raw
+     * approximation for intersections is {@link #rawIntersects(RectF)}, which
+     * is used by the eraser.
      * 
      * @param testPoint
      *            the point to test
      * @return <code>true</code> if <tt>testPoint</tt> is within this stroke's
      *         path
      */
-    public boolean bezierContains(PointF testPoint) {
+    public boolean bezierIntersects(PointF testPoint) {
         if (testPoint == null || points.isEmpty())
             return false;
         if (points.size() == 1)
@@ -621,6 +628,87 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
             return false;
         float y = (test.y - start.y) / (2 * (control.y - start.y));
         return y > 0 && y <= 1;
+    }
+
+    private static int outcode(double pX, double pY, double rectX,
+            double rectY, double rectWidth, double rectHeight) {
+        int out = 0;
+        if (rectWidth <= 0) {
+            out |= OUT_LEFT | OUT_RIGHT;
+        } else if (pX < rectX) {
+            out |= OUT_LEFT;
+        } else if (pX > rectX + rectWidth) {
+            out |= OUT_RIGHT;
+        }
+        if (rectHeight <= 0) {
+            out |= OUT_TOP | OUT_BOTTOM;
+        } else if (pY < rectY) {
+            out |= OUT_TOP;
+        } else if (pY > rectY + rectHeight) {
+            out |= OUT_BOTTOM;
+        }
+        return out;
+    }
+
+    private static boolean intersectsLine(double lineX1, double lineY1,
+            double lineX2, double lineY2, double rectX, double rectY,
+            double rectWidth, double rectHeight) {
+        int out1, out2;
+        if ((out2 = outcode(lineX2, lineY2, rectX, rectY, rectWidth, rectHeight)) == 0) {
+            return true;
+        }
+        while ((out1 = outcode(lineX1, lineY1, rectX, rectY, rectWidth,
+                rectHeight)) != 0) {
+            if ((out1 & out2) != 0) {
+                return false;
+            }
+            if ((out1 & (OUT_LEFT | OUT_RIGHT)) != 0) {
+                double x = rectX;
+                if ((out1 & OUT_RIGHT) != 0) {
+                    x += rectWidth;
+                }
+                lineY1 = lineY1 + (x - lineX1) * (lineY2 - lineY1)
+                        / (lineX2 - lineX1);
+                lineX1 = x;
+            } else {
+                double y = rectY;
+                if ((out1 & OUT_BOTTOM) != 0) {
+                    y += rectHeight;
+                }
+                lineX1 = lineX1 + (y - lineY1) * (lineX2 - lineX1)
+                        / (lineY2 - lineY1);
+                lineY1 = y;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Tests whether this stroke intersects the argument rectangle using a raw
+     * approximation of this stroke created connecting its points with straight
+     * lines.
+     * 
+     * @param testRect
+     *            the rectangle to be tested
+     * @return <code>true</code> if one or more sides of the argument rectangle
+     *         intersect a "straightened" approximation of this stroke
+     */
+    public boolean rawIntersects(RectF testRect) {
+        if (points.isEmpty())
+            return false;
+        if (points.size() == 1) {
+            PointF start = getStartPoint();
+            return testRect.contains(start.x, start.y);
+        }
+        PointF last = points.get(0);
+        for (int i = 1; i < points.size(); i++) {
+            PointF point = points.get(i);
+            if (intersectsLine(last.x, last.y, point.x, point.y, testRect.left,
+                    testRect.top, testRect.width(), testRect.height()))
+                return true;
+            last = point;
+        }
+        return false;
     }
 
     /**

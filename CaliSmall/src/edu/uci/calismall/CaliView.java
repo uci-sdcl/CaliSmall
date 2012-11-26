@@ -423,8 +423,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private final SpaceOccupationList<Scrap> allScraps;
     private final Handler longPressListener = new Handler();
     private final CaliSmall parent;
-    private Canvas background;
-    private Bitmap snapshot;
+    private Canvas backgroundCanvas;
+    private Bitmap background;
     private LongPressAction longPressAction;
     private Thread worker;
     private Timer committerTimer;
@@ -502,7 +502,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         foregroundStrokes.clear();
         allStrokes.clear();
         allScraps.clear();
-        background = new Canvas();
+        backgroundCanvas = new Canvas();
         newStrokes.clear();
         newScraps.clear();
         pathMeasure = new PathMeasure();
@@ -577,8 +577,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private void drawBackground(Canvas canvas) {
-        if (snapshot != null) {
-            canvas.drawBitmap(snapshot, 0, 0, PAINT);
+        if (background != null) {
+            canvas.drawBitmap(background, 0, 0, PAINT);
         }
     }
 
@@ -658,20 +658,20 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private void updateBackground() {
-        snapshot = Bitmap.createBitmap(screenWidth, screenHeight,
+        background = Bitmap.createBitmap(screenWidth, screenHeight,
                 Config.ARGB_8888);
-        background = new Canvas(snapshot);
-        background.concat(matrix);
-        background.drawColor(Color.WHITE);
+        backgroundCanvas = new Canvas(background);
+        backgroundCanvas.concat(matrix);
+        backgroundCanvas.drawColor(Color.WHITE);
         for (Scrap scrap : scraps) {
             if (scrap.hasToBeDrawnVectorially()) {
-                scrap.draw(this, background, scaleFactor, true);
+                scrap.draw(this, backgroundCanvas, scaleFactor, true);
             }
         }
         for (Stroke stroke : strokes) {
             if (!stroke.hasToBeDeleted() && !stroke.isGhost()
                     && stroke.hasToBeDrawnVectorially())
-                stroke.draw(background, PAINT);
+                stroke.draw(backgroundCanvas, PAINT);
         }
     }
 
@@ -1114,18 +1114,18 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
-     * Returns all strokes that may contain the argument point.
+     * Returns all strokes that may contain the rectangle.
      * 
-     * @param point
-     *            the test point
+     * @param test
+     *            the test rectangle
      * @return a sorted list (from smallest to largest) of strokes whose areas
      *         include the argument point
      */
-    public List<Stroke> getIntersectingStrokes(PointF point) {
+    public List<Stroke> getIntersectingStrokes(RectF test) {
         List<Stroke> candidates = new ArrayList<Stroke>();
         for (int i = 0; i < strokes.size(); i++) {
             Stroke stroke = strokes.get(i);
-            if (stroke.isPointWithinBounds(point))
+            if (stroke.isPointWithinBounds(test))
                 candidates.add(stroke);
         }
         return candidates;
@@ -1212,8 +1212,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
             int height) {
         setBounds(width, height);
-        snapshot = Bitmap.createBitmap(width, height, Config.ARGB_8888);
-        background = new Canvas(snapshot);
+        background = Bitmap.createBitmap(width, height, Config.ARGB_8888);
+        backgroundCanvas = new Canvas(background);
         forceSingleRedraw = true;
     }
 
@@ -1247,6 +1247,15 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public SpaceOccupationList<Scrap> getScrapList() {
         return allScraps;
+    }
+
+    /**
+     * Returns the current canvas' scale factor.
+     * 
+     * @return the scale factor currently in use
+     */
+    public float getScaleFactor() {
+        return scaleFactor;
     }
 
     /**
@@ -1427,14 +1436,15 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                     if (!stroke.isCommitted() && !stroke.isGhost()
                             && !stroke.hasToBeDeleted()
                             && stroke.hasToBeDrawnVectorially()) {
-                        stroke.draw(background, PAINT);
+                        stroke.draw(backgroundCanvas, PAINT);
                         stroke.setCommitted(true);
                     }
                 }
                 for (int i = 0; i < scraps.size(); i++) {
                     Scrap scrap = scraps.get(i);
                     if (!scrap.isCommitted() && scrap.hasToBeDrawnVectorially()) {
-                        scrap.draw(parentView, background, scaleFactor, true);
+                        scrap.draw(parentView, backgroundCanvas, scaleFactor,
+                                true);
                         scrap.setCommitted(true);
                     }
                 }
