@@ -36,6 +36,8 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Point;
+import android.graphics.RectF;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -113,9 +115,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         @Override
         protected void onPostExecute(Void result) {
             dialog.dismiss();
-            setTitle(String.format("CaliSmall - (%d/%d) %s",
-                    currentFileListIndex + 1, fileList.size(),
-                    parent.chosenFile));
+            setTitle(String.format(POS_FORMAT, currentFileListIndex + 1,
+                    fileList.size(), parent.chosenFile));
         }
 
     }
@@ -254,6 +255,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             AUTO_BACKUP_TIME = 3 * 60 * 1000;
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
     private static final int MIN_POINTS_PER_PROGRESSBAR = 1000;
+    private static final String POS_FORMAT = "(%d/%d) %s";
 
     /*************************************************************************
      * DISCLAIMER FOR THE READER
@@ -334,7 +336,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     userPickedANewName = !name.startsWith(autoSaveName)
                             && !name.startsWith("~" + autoSaveName);
                     saveAndMaybeShowProgressBar(name);
-                    setTitle(String.format("CaliSmall - (%d/%d) %s",
+                    setTitle(String.format(POS_FORMAT,
                             currentFileListIndex + 1, fileList.size(),
                             chosenFile));
                     saveDialog.dismiss();
@@ -353,7 +355,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 		                                            String name = input.getText().toString();
 		                                            userPickedANewName = !name.equals(chosenFile);
 		                                            saveAndMaybeShowProgressBar(name);
-		                                            setTitle(String.format("CaliSmall - (%d/%d) %s",
+		                                            setTitle(String.format(POS_FORMAT,
 		                                                    currentFileListIndex + 1, fileList.size(), chosenFile));
 		                                        }
 		                            })
@@ -408,6 +410,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         if (chosenFile == null) {
             newSketch();
         }
+    }
+
+    private RectF getDisplaySize() {
+        Point screenSize = new Point();
+        getWindowManager().getDefaultDisplay().getSize(screenSize);
+        return new RectF(0, 0, screenSize.x, screenSize.y);
     }
 
     /**
@@ -475,6 +483,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             openLock.lock();
             File path = getApplicationContext().getExternalFilesDir(null);
             File newFile = new File(path, input + FILE_EXTENSION);
+            chosenFile = input;
             updateFileList();
             FileWriter writer = new FileWriter(newFile);
             writer.write(jsonData);
@@ -532,11 +541,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void saveAndMaybeShowProgressBar(final String input) {
         fileHasBeenSaved = false;
-        if (view.areThereMoreThanThisPoints(MIN_POINTS_PER_PROGRESSBAR)) {
-            SaveProgressBar progressBar = getSaveProgressBar(input);
-            if (progressBar != null)
-                progressBar.execute(chosenFile);
-        } else {
+        SaveProgressBar progressBar = getSaveProgressBar(input);
+        if (progressBar != null)
+            progressBar.execute(chosenFile);
+        else {
             try {
                 saveLock.lock();
                 save(chosenFile, toJSON().toString());
@@ -683,6 +691,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private boolean onStrokeThicknessSelection(int selectedThickness) {
+        if (eraserMode) {
+            view.toggleEraserMode();
+            eraserMode = !eraserMode;
+        }
         view.currentAbsStrokeWidth = selectedThickness;
         if (view.scaleStrokeWithZoom)
             view.stroke.setStrokeWidth(view.currentAbsStrokeWidth
@@ -694,6 +706,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private boolean toggleStrokeWidthScaling() {
+        if (eraserMode) {
+            view.toggleEraserMode();
+            eraserMode = !eraserMode;
+        }
         view.scaleStrokeWithZoom = !view.scaleStrokeWithZoom;
         invalidateOptionsMenu();
         return true;
@@ -794,14 +810,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             }
         }
         view.clear();
+        view.setDrawableCanvas(getDisplaySize());
         chosenFile = generateAutoSaveName();
         saveAndMaybeShowProgressBar(chosenFile);
         fileList.add(currentFileListIndex, chosenFile);
         invalidateOptionsMenu();
         input.setText("");
-        setTitle(String.format("CaliSmall - (%d/%d) %s",
-                currentFileListIndex + 1, fileList.size(), getResources()
-                        .getString(R.string.unnamed_files)));
+        setTitle(String.format(POS_FORMAT, currentFileListIndex + 1,
+                fileList.size(),
+                getResources().getString(R.string.unnamed_files)));
     }
 
     private void delete() {
@@ -813,10 +830,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 Utils.debug("couldn't delete file");
             newFile = new File(path, "~" + fileName + FILE_EXTENSION);
             if (newFile.exists())
-                if (newFile.delete())
+                if (!newFile.delete())
                     Utils.debug("couldn't delete file");
             fileList.remove(currentFileListIndex);
             updateFileList();
+        } else {
+            Utils.debug("file " + newFile.getAbsolutePath() + " doesn't exist!");
         }
         fileList = initFileList();
         if (fileList.isEmpty()) {
@@ -946,9 +965,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                                 fileName.lastIndexOf(FILE_EXTENSION));
                     }
                     setTitle(String
-                            .format("CaliSmall - (%d/%d) %s",
-                                    currentFileListIndex + 1, fileList.size(),
-                                    fileName));
+                            .format(POS_FORMAT, currentFileListIndex + 1,
+                                    fileList.size(), fileName));
                     restartAutoSaving();
                 }
             }
