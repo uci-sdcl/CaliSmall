@@ -4,8 +4,6 @@
  */
 package edu.uci.calismall;
 
-import java.util.UUID;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -92,7 +90,7 @@ public class RectStroke extends Stroke {
     @Override
     public JSONObject toJSON() throws JSONException {
         JSONObject json = super.toJSON();
-        json.put("rect", true);
+        json.put("r", true);
         return json;
     }
 
@@ -103,10 +101,14 @@ public class RectStroke extends Stroke {
      */
     @Override
     public Stroke fromJSON(JSONObject jsonData) throws JSONException {
-        id = UUID.fromString(jsonData.getString("id"));
-        color = jsonData.getInt("color");
-        strokeWidth = (float) jsonData.getDouble("width");
-        style = Style.valueOf(jsonData.getString("style"));
+        try {
+            id = jsonData.getLong("id");
+        } catch (JSONException e) {
+            Utils.debug("old format!");
+        }
+        color = jsonData.getInt("c");
+        strokeWidth = (float) jsonData.getDouble("w");
+        style = Style.valueOf(jsonData.getString("s"));
         for (PointF point : parsePoints(jsonData))
             points.add(point);
         createPath();

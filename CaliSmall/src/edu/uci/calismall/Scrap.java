@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -290,12 +289,13 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      *            the child scrap to be added to this scrap
      */
     public void add(Scrap scrap) {
-        if (scrap != null && !scraps.contains(scrap))
+        if (scrap != null && !scraps.contains(scrap)) {
             scraps.add(scrap);
-        scrap.parent = this;
-        scrap.previousParent = null;
-        // refresh the snapshot the next time!
-        contentChanged = true;
+            scrap.parent = this;
+            scrap.previousParent = null;
+            // refresh the snapshot the next time!
+            contentChanged = true;
+        }
     }
 
     /**
@@ -1157,21 +1157,21 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     @Override
     public JSONObject toJSON() throws JSONException {
         JSONObject json = new JSONObject();
-        json.put("id", id.toString());
-        json.put("border", outerBorder.toJSON());
+        json.put("id", id);
+        json.put("b", outerBorder.toJSON());
         JSONArray array = new JSONArray();
         if (!strokes.isEmpty()) {
             for (int i = 0; i < strokes.size(); i++) {
-                array.put(strokes.get(i).id.toString());
+                array.put(strokes.get(i).id);
             }
-            json.put("strokes", array);
+            json.put("str", array);
         }
         array = new JSONArray();
         if (!scraps.isEmpty()) {
             for (int i = 0; i < scraps.size(); i++) {
-                array.put(scraps.get(i).id.toString());
+                array.put(scraps.get(i).id);
             }
-            json.put("scraps", array);
+            json.put("scr", array);
         }
         return json;
     }
@@ -1183,12 +1183,16 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      */
     @Override
     public Scrap fromJSON(JSONObject jsonData) throws JSONException {
-        id = UUID.fromString(jsonData.getString("id"));
+        try {
+            id = jsonData.getLong("id");
+        } catch (JSONException e) {
+            Utils.debug("old format!");
+        }
         outerBorder = new Stroke(parentView);
-        outerBorder.fromJSON(jsonData.getJSONObject("border"));
+        outerBorder.fromJSON(jsonData.getJSONObject("b"));
         outerBorder.getPath().close();
         try {
-            JSONArray array = jsonData.getJSONArray("strokes");
+            JSONArray array = jsonData.getJSONArray("str");
             for (int i = 0; i < array.length(); i++) {
                 Stroke stroke = parentView.getStrokeList().getById(
                         array.getString(i));
@@ -1196,7 +1200,7 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
             }
         } catch (JSONException e) { /* it's ok, no strokes */}
         try {
-            JSONArray array = jsonData.getJSONArray("scraps");
+            JSONArray array = jsonData.getJSONArray("scr");
             scrapIDs = new ArrayList<String>(array.length());
             for (int i = 0; i < array.length(); i++) {
                 scrapIDs.add(array.getString(i));

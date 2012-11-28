@@ -9,7 +9,7 @@ import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import android.graphics.Canvas;
 import android.graphics.Path;
@@ -64,7 +64,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
                 return rhs == null ? 0 : 1;
             if (rhs == null)
                 return -1;
-            if (lhs.id.equals(rhs.id))
+            if (lhs.id == rhs.id)
                 return 0;
             int whichFirst = Float.compare(lhs.topLeftPoint.x,
                     rhs.topLeftPoint.x);
@@ -76,6 +76,8 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 
     }
 
+    private static final AtomicLong ID_GENERATOR = new AtomicLong();
+
     /**
      * The region representing the area of this element.
      */
@@ -84,7 +86,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     /**
      * The ID for this element.
      */
-    protected UUID id = UUID.randomUUID();
+    protected long id = ID_GENERATOR.incrementAndGet();
 
     /**
      * The direct parent of this element.
@@ -220,7 +222,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     public int compareTo(CaliSmallElement another) {
         if (another == null)
             return -1;
-        if (id.equals(another.id))
+        if (id == another.id)
             return 0;
         return Float.compare(width + height, another.width + another.height);
     }
@@ -234,7 +236,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     public final boolean equals(Object o) {
         if (o == null || !(o instanceof CaliSmallElement))
             return false;
-        return id.equals(((CaliSmallElement) o).id);
+        return id == ((CaliSmallElement) o).id;
     }
 
     /**
@@ -459,7 +461,7 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
      * 
      * @return the id for this element
      */
-    UUID getID() {
+    long getID() {
         return id;
     }
 
@@ -522,12 +524,10 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 
     public String toString() {
         StringBuilder builder = new StringBuilder(getClass().getSimpleName());
-        builder.append(" ").append(id.toString()).append(" ")
+        builder.append(" ").append(id).append(" ")
                 .append(Utils.pointToString(topLeftPoint)).append(" [")
                 .append(Math.round(width)).append("x")
                 .append(Math.round(height)).append("] ");
-        if (boundaries.isEmpty())
-            builder.append("(empty)");
         return builder.toString();
     }
 }

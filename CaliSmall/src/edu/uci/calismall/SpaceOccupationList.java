@@ -51,7 +51,7 @@ public class SpaceOccupationList<T extends CaliSmallElement> {
      */
     public void add(T element) {
         list.add(element);
-        idMap.put(element.id.toString(), element);
+        idMap.put(String.valueOf(element.id), element);
     }
 
     /**
@@ -65,7 +65,7 @@ public class SpaceOccupationList<T extends CaliSmallElement> {
             return;
         list.addAll(elements);
         for (T element : elements) {
-            idMap.put(element.id.toString(), element);
+            idMap.put(String.valueOf(element.id), element);
         }
     }
 
@@ -89,7 +89,7 @@ public class SpaceOccupationList<T extends CaliSmallElement> {
             CaliSmallElement element) {
         List<CaliSmallElement> candidates = new ArrayList<CaliSmallElement>();
         for (CaliSmallElement candidate : list) {
-            if (candidate.getID().equals(element.getID())) {
+            if (candidate.getID() == element.getID()) {
                 // don't add the element itself
                 continue;
             }
@@ -150,7 +150,7 @@ public class SpaceOccupationList<T extends CaliSmallElement> {
      */
     public void removeAll(List<? extends CaliSmallElement> toBeRemoved) {
         for (CaliSmallElement element : toBeRemoved) {
-            idMap.remove(element.id.toString());
+            idMap.remove(element.id);
         }
         list.removeAll(toBeRemoved);
     }
@@ -163,7 +163,7 @@ public class SpaceOccupationList<T extends CaliSmallElement> {
      * @return <code>true</code> if the element was found and removed
      */
     public boolean remove(CaliSmallElement element) {
-        idMap.remove(element.id.toString());
+        idMap.remove(element.id);
         return list.remove(element);
     }
 

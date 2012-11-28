@@ -7,7 +7,6 @@ package edu.uci.calismall;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -827,11 +826,11 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     @Override
     public JSONObject toJSON() throws JSONException {
         JSONObject json = new JSONObject();
-        json.put("id", id.toString());
-        json.put("color", color);
-        json.put("width", strokeWidth);
-        json.put("style", style.name());
-        json.put("points", pointsToList());
+        json.put("id", id);
+        json.put("c", color);
+        json.put("w", strokeWidth);
+        json.put("s", style.name());
+        json.put("p", pointsToList());
         return json;
     }
 
@@ -844,15 +843,19 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     @Override
     public Stroke fromJSON(JSONObject jsonData) throws JSONException {
         try {
-            jsonData.getBoolean("rect");
+            jsonData.getBoolean("r");
             // a RectStroke
             return new RectStroke(parentView).fromJSON(jsonData);
         } catch (JSONException e) {
             // not a RectStroke
-            id = UUID.fromString(jsonData.getString("id"));
-            color = jsonData.getInt("color");
-            strokeWidth = (float) jsonData.getDouble("width");
-            style = Style.valueOf(jsonData.getString("style"));
+            try {
+                id = jsonData.getLong("id");
+            } catch (JSONException e1) {
+                Utils.debug("old format!");
+            }
+            color = jsonData.getInt("c");
+            strokeWidth = (float) jsonData.getDouble("w");
+            style = Style.valueOf(jsonData.getString("s"));
             for (PointF point : parsePoints(jsonData))
                 addAndDrawPoint(point, -1f);
             setBoundaries();
@@ -872,7 +875,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     protected List<PointF> parsePoints(JSONObject jsonData)
             throws JSONException {
         List<PointF> newPoints = new ArrayList<PointF>();
-        JSONArray array = jsonData.getJSONArray("points");
+        JSONArray array = jsonData.getJSONArray("p");
         if (array.length() > 0) {
             setStart(new PointF((float) array.getJSONArray(0).getDouble(0),
                     (float) array.getJSONArray(0).getDouble(1)));
@@ -891,7 +894,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         JSONArray array = new JSONArray();
         for (int i = 0; i < points.size(); i++) {
             PointF point = points.get(i);
-            array.put(new JSONArray(Arrays.asList(point.x, point.y)));
+            array.put(new JSONArray(Arrays.asList(
+                    (Math.round(point.x * 1000) / 1000.0),
+                    (Math.round(point.y * 1000) / 1000.0))));
         }
         return array;
     }

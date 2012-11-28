@@ -606,10 +606,16 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
-            Toast.makeText(getApplicationContext(), R.string.load_failed,
-                    Toast.LENGTH_SHORT).show();
-            loadPrevious();
             Log.e(TAG, "JSONException", e);
+            // runOnUiThread(new Runnable() {
+            //
+            // @Override
+            // public void run() {
+            // Toast.makeText(getApplicationContext(),
+            // R.string.load_failed, Toast.LENGTH_SHORT).show();
+            // }
+            // });
+            loadPrevious();
         }
     }
 
@@ -1029,7 +1035,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return this;
     }
 
-    private void syncAndLoad(String jsonFilePath) throws JSONException {
+    private void syncAndLoad(String jsonString) throws JSONException {
         try {
             openLock.lock();
             Painter painter = view.getPainter();
@@ -1038,7 +1044,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
                         TimeUnit.MILLISECONDS);
             }
-            fromJSON(new JSONObject(jsonFilePath));
+            fromJSON(new JSONObject(jsonString));
             fileOpened.signalAll();
         } catch (InterruptedException e) {
             e.printStackTrace();

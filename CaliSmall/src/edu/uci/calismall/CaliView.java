@@ -1261,6 +1261,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     private boolean intersectsBounds(Scrap selection) {
+        if (selection == null)
+            return false;
         RectF selectionBounds = new RectF();
         selectionBounds.set(selection.getBounds());
         return selectionBounds.intersect(screenBounds);
@@ -1289,6 +1291,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
             int height) {
         setBounds(width, height);
+        if (!intersectsBounds(selected)) {
+            setSelected(null);
+        }
         background = Bitmap.createBitmap(width, height, Config.ARGB_8888);
         backgroundCanvas = new Canvas(background);
         forceSingleRedraw = true;
@@ -1911,8 +1916,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
         json.put("x", drawableCanvas.width());
         json.put("y", drawableCanvas.height());
-        json.put("strokes", new JSONArray(jsonStrokes));
-        json.put("scraps", new JSONArray(jsonScraps));
+        json.put("str", new JSONArray(jsonStrokes));
+        json.put("scr", new JSONArray(jsonScraps));
         return json;
     }
 
@@ -1937,14 +1942,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         setDrawableCanvas(drawableCanvas);
         zoomOutOfBounds = drawableCanvas.height() < screenHeight
                 || drawableCanvas.width() < screenWidth;
-        JSONArray array = jsonData.getJSONArray("strokes");
+        JSONArray array = jsonData.getJSONArray("str");
         for (int i = 0; i < array.length(); i++) {
             Stroke stroke = new Stroke(this);
             stroke.fromJSON(array.getJSONObject(i));
             strokes.add(stroke);
         }
         allStrokes.addAll(strokes);
-        array = jsonData.getJSONArray("scraps");
+        array = jsonData.getJSONArray("scr");
         for (int i = 0; i < array.length(); i++) {
             Scrap scrap = new Scrap(this);
             scrap.fromJSON(array.getJSONObject(i));
