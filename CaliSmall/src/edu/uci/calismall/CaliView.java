@@ -24,6 +24,7 @@ import org.json.JSONObject;
 import yuku.ambilwarna.AmbilWarnaDialog;
 import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
 import android.graphics.Bitmap;
+import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Bitmap.Config;
 import android.graphics.BlurMaskFilter;
 import android.graphics.BlurMaskFilter.Blur;
@@ -203,7 +204,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The offset applied to the drawable area's shadow, which is the same
      * applied to the blur effect of said shadow.
      */
-    public static final int DRAWABLE_SHADOW_OFFSET = 3;
+    public static final int DRAWABLE_SHADOW_OFFSET = 4;
     /**
      * The amount of time that passes between two consecutive executions of the
      * {@link Committer}.
@@ -427,7 +428,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * Whether a full redraw of the screen must be performed.
      */
-    boolean forceContinuousRedraw;
+    boolean zooming;
     /**
      * Whether a redraw has been requested.
      */
@@ -462,7 +463,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private final Handler longPressListener = new Handler();
     private final CaliSmall parent;
     private Canvas backgroundCanvas;
-    private Bitmap background;
+    private Bitmap background, snapshot;
     private LongPressAction longPressAction;
     private Thread worker;
     private Timer committerTimer;
@@ -602,10 +603,20 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the canvas onto which this view is to be drawn
      */
     public void drawView(Canvas canvas) {
-        if (forceContinuousRedraw || forceSingleRedraw) {
-            forcedRedraw = true;
+        if (zooming || forceSingleRedraw) {
             forceSingleRedraw = false;
-            redrawEverything(canvas);
+            if (!forcedRedraw) {
+                snapshot = takeSnapshot();
+            }
+            forcedRedraw = true;
+            if (zooming) {
+                // draw the raw bitmap so it performs better
+                canvas.concat(matrix);
+                drawDrawableArea(canvas);
+                canvas.drawBitmap(snapshot, 0, 0, PAINT);
+            } else {
+                redrawEverything(canvas);
+            }
             return;
         } else if (forcedRedraw) {
             forcedRedraw = false;
@@ -1101,6 +1112,28 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 : null;
     }
 
+    private void checkDrawableArea() {
+        zoomOutOfBounds = drawableCanvas.height() < screenHeight
+                || drawableCanvas.width() < screenWidth;
+        if (canvasOffsetX > 0) {
+            zoomOutOfBounds = true;
+        } else {
+            final float minOffsetX = (1 - scaleFactor) * drawableCanvas.width();
+            if (canvasOffsetX * scaleFactor < minOffsetX) {
+                zoomOutOfBounds = true;
+            }
+        }
+        if (canvasOffsetY > 0) {
+            zoomOutOfBounds = true;
+        } else {
+            final float minOffsetY = (1 - scaleFactor)
+                    * drawableCanvas.height();
+            if (canvasOffsetY * scaleFactor < minOffsetY) {
+                zoomOutOfBounds = true;
+            }
+        }
+    }
+
     private void createNewStroke() {
         if (stroke == null || !stroke.isEmpty()) {
             // otherwise don't create useless strokes
@@ -1291,6 +1324,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
             int height) {
         setBounds(width, height);
+        checkDrawableArea();
         if (!intersectsBounds(selected)) {
             setSelected(null);
         }
@@ -1382,7 +1416,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            snapshot has been taken
      */
     public void createSnapshot(File tmpImage, Condition signalCondition) {
-        FileOutputStream tmp;
+        FileOutputStream tmp = null;
         try {
             tmp = new FileOutputStream(tmpImage);
             Bitmap bitmap = Bitmap.createBitmap(screenWidth, screenHeight,
@@ -1397,7 +1431,60 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (tmp != null)
+                    tmp.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+    }
+
+    /**
+     * Saves a JPEG thumbnail of this canvas to the argument file.
+     * 
+     * @param dst
+     *            the file to which the thumbnail will be saved
+     */
+    public void createThumbnail(File dst) {
+        if (background != null) {
+            FileOutputStream tmp = null;
+            try {
+                tmp = new FileOutputStream(dst);
+                Bitmap bitmap = takeSnapshot();
+                Bitmap.createScaledBitmap(bitmap, bitmap.getWidth() / 4,
+                        bitmap.getHeight() / 4, false).compress(
+                        CompressFormat.JPEG, 70, tmp);
+                tmp.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (tmp != null)
+                        tmp.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private Bitmap takeSnapshot() {
+        Bitmap bitmap = Bitmap.createBitmap((int) drawableCanvas.width(),
+                (int) drawableCanvas.height(), Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawColor(Color.WHITE);
+        for (int i = 0; i < scraps.size(); i++) {
+            Scrap scrap = scraps.get(i);
+            scrap.draw(this, canvas, 1, true);
+        }
+        for (int i = 0; i < strokes.size(); i++) {
+            Stroke stroke = strokes.get(i);
+            if (!stroke.hasToBeDeleted() && stroke.hasToBeDrawnVectorially())
+                stroke.draw(canvas, PAINT);
+        }
+        return bitmap;
     }
 
     /**
@@ -1607,7 +1694,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 // prevent the border from turning into a ghost
                 previousSelection.outerBorder.setGhost(false, null, null, -1f);
             }
-            forceContinuousRedraw = true;
+            zooming = true;
             return true;
         }
 
@@ -1646,29 +1733,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             previousScaledCenterX = scaledCenterX;
             previousScaledCenterY = scaledCenterY;
             return true;
-        }
-
-        private void checkDrawableArea() {
-            zoomOutOfBounds = drawableCanvas.height() < screenHeight
-                    || drawableCanvas.width() < screenWidth;
-            if (canvasOffsetX > 0) {
-                zoomOutOfBounds = true;
-            } else {
-                final float minOffsetX = (1 - scaleFactor)
-                        * drawableCanvas.width();
-                if (canvasOffsetX * scaleFactor < minOffsetX) {
-                    zoomOutOfBounds = true;
-                }
-            }
-            if (canvasOffsetY > 0) {
-                zoomOutOfBounds = true;
-            } else {
-                final float minOffsetY = (1 - scaleFactor)
-                        * drawableCanvas.height();
-                if (canvasOffsetY * scaleFactor < minOffsetY) {
-                    zoomOutOfBounds = true;
-                }
-            }
         }
 
         // private void enforceBoundConstraints() {
@@ -1736,7 +1800,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             } else {
                 highlighted = null;
             }
-            forceContinuousRedraw = false;
+            zooming = false;
         }
     }
 
@@ -1818,6 +1882,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                     if (selected != null && !stroke.isEmpty()) {
                         selected.add(stroke);
                     }
+                    stroke.filterOutOfBoundsPoints(new RectF(drawableCanvas));
                 }
                 createNewStroke();
             }

@@ -42,7 +42,6 @@ import edu.uci.calismall.Scrap.Temp;
 class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
 
     private static final int DEFAULT_COLOR = Color.BLACK;
-    private static final Paint.Style DEFAULT_STYLE = Paint.Style.STROKE;
     /**
      * The paint object that is used to draw ghost strokes.
      * 
@@ -80,7 +79,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     /**
      * The style used to draw this stroke.
      */
-    protected Paint.Style style = DEFAULT_STYLE;
+    protected Paint.Style style = Style.STROKE;
     /**
      * The stroke width used to draw this stroke.
      */
@@ -557,6 +556,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     public void reset() {
         path.reset();
         points.clear();
+        style = Style.STROKE;
         setBoundaries();
     }
 
@@ -816,6 +816,94 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     @Override
     public List<PointF> getPointsForInclusionTests() {
         return points;
+    }
+
+    /**
+     * Discards all points that are outside of the drawable area, replacing
+     * curves outside of the drawable area with straight lines within the
+     * drawable area.
+     * 
+     * @param drawableArea
+     *            the drawable area on the canvas
+     */
+    public void filterOutOfBoundsPoints(RectF drawableArea) {
+        if (isDot) {
+            PointF center = points.get(0);
+            if (!drawableArea.contains(center.x, center.y)) {
+                reset();
+            }
+            return;
+        }
+        PointF lastIn = null, lastOut = null;
+        List<PointF> newPoints = new ArrayList<PointF>(points.size());
+        for (PointF point : points) {
+            if (drawableArea.contains(point.x, point.y)) {
+                if (lastOut != null) {
+                    // add an "artificial" point on the intercept between the
+                    // segment connecting lastIn with firstOut and the
+                    // drawableArea's edge
+                    newPoints.add(getIntercept(point, lastOut, drawableArea));
+                    lastOut = null;
+                }
+                newPoints.add(point);
+                lastIn = point;
+            } else {
+                if (lastIn != null) {
+                    // add an "artificial" point on the intercept between the
+                    // segment connecting lastIn with firstOut and the
+                    // drawableArea's edge
+                    newPoints.add(getIntercept(lastIn, point, drawableArea));
+                    lastIn = null;
+                }
+                lastOut = point;
+            }
+        }
+        reset();
+        if (!newPoints.isEmpty()) {
+            setStart(newPoints.remove(0));
+            for (PointF point : newPoints) {
+                addAndDrawPoint(point, 0f);
+            }
+        }
+    }
+
+    private PointF getIntercept(PointF lastIn, PointF firstOut,
+            RectF drawableArea) {
+        float x = 0f, y = 0f;
+        if (firstOut.x > drawableArea.right) {
+            // out on the right
+            x = drawableArea.right;
+            y = lastIn.y + ((firstOut.y - lastIn.y) / (firstOut.x - lastIn.x))
+                    * (x - lastIn.x);
+        }
+        if (firstOut.x < drawableArea.left) {
+            // out on the left
+            x = drawableArea.left;
+            y = lastIn.y + ((firstOut.y - lastIn.y) / (firstOut.x - lastIn.x))
+                    * (x - lastIn.x);
+        }
+        if (firstOut.y > drawableArea.bottom) {
+            // out on the bottom (maybe also on left/right)
+            x = lastIn.x + ((firstOut.x - lastIn.x) / (firstOut.y - lastIn.y))
+                    * (drawableArea.bottom - lastIn.y);
+            if (y == 0f) {
+                y = drawableArea.bottom;
+            }
+        }
+        if (firstOut.y < drawableArea.top) {
+            // out on the top (maybe also on left/right)
+            x = lastIn.x + ((firstOut.x - lastIn.x) / (firstOut.y - lastIn.y))
+                    * (drawableArea.top - lastIn.y);
+            if (y == 0f) {
+                y = drawableArea.top;
+            }
+        }
+        PointF returnMe = new PointF(x, y);
+        Utils.debug(String.format("int %s - %s is %s",
+                Utils.pointToString(lastIn), Utils.pointToString(firstOut),
+                Utils.pointToString(returnMe)));
+        return returnMe;
+        // return new PointF(x, y);
     }
 
     /*

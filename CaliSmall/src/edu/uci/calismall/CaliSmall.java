@@ -248,7 +248,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public static final int THREADS_FOR_TIMERS = 2;
 
     private static final String FILE_EXTENSION = ".csf";
+    private static final String THUMBNAIL_EXTENSION = ".thumb";
     private static final String LIST_FILE_NAME = ".file_list";
+    private static final String DISABLE_GALLERY = ".nomedia";
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
             "yyyy-MM-dd HH:mm:ss");
     private static final long AUTO_SAVE_TIME = 20 * 1000,
@@ -489,6 +491,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             writer.write(jsonData);
             writer.flush();
             writer.close();
+            File thumbnail = new File(path, input + THUMBNAIL_EXTENSION);
+            view.createThumbnail(thumbnail);
             view.resetChangeCounter();
         } catch (IOException e) {
             e.printStackTrace();
@@ -563,7 +567,12 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 .getExternalStorageState())) {
             File listFileProject = new File(getApplicationContext()
                     .getExternalFilesDir(null), LIST_FILE_NAME);
+            File noMedia = new File(getApplicationContext()
+                    .getExternalFilesDir(null), DISABLE_GALLERY);
             try {
+                if (!noMedia.exists()) {
+                    noMedia.createNewFile();
+                }
                 PrintStream ps = new PrintStream(listFileProject);
                 for (String file : fileList) {
                     ps.println(file);
@@ -571,6 +580,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 ps.flush();
                 ps.close();
             } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
@@ -1044,6 +1055,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
                         TimeUnit.MILLISECONDS);
             }
+
             fromJSON(new JSONObject(jsonString));
             fileOpened.signalAll();
         } catch (InterruptedException e) {
