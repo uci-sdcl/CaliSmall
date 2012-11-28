@@ -25,6 +25,8 @@ import yuku.ambilwarna.AmbilWarnaDialog;
 import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
+import android.graphics.BlurMaskFilter;
+import android.graphics.BlurMaskFilter.Blur;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
@@ -43,6 +45,10 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import edu.uci.calismall.Scrap.Temp;
 
+/**
+ * @author Michele Bonazza
+ * 
+ */
 /**
  * The {@link SurfaceView} on which the canvas is drawn.
  * 
@@ -75,7 +81,7 @@ import edu.uci.calismall.Scrap.Temp;
  */
 public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         JSONSerializable<CaliView> {
-    private static final int INVALID_POINTER_ID = -1;
+
     /**
      * Absolute {@link Stroke} width (to be rescaled by {@link #scaleFactor}).
      */
@@ -170,12 +176,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public static final Paint PAINT = new Paint();
     /**
-     * The paint object that is used to draw the drawable portion of the canvas
-     * in white when the view is also showing a portion outside of the drawable
-     * area.
-     */
-    public static final Paint DRAWABLE_PORTION_PAINT = new Paint();
-    /**
      * The paint object that is used to draw landing zones with.
      * 
      * <p>
@@ -189,6 +189,22 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public static final Paint LONG_PRESS_CIRCLE_PAINT = new Paint();
     /**
+     * The paint object that is used to draw the drawable portion of the canvas
+     * in white when the view is also showing a portion outside of the drawable
+     * area.
+     */
+    public static final Paint DRAWABLE_PORTION_PAINT = new Paint();
+    /**
+     * The paint object that is used to draw the shadow of the drawable portion
+     * of the canvas.
+     */
+    public static final Paint DRAWABLE_SHADOW_PAINT = new Paint();
+    /**
+     * The offset applied to the drawable area's shadow, which is the same
+     * applied to the blur effect of said shadow.
+     */
+    public static final int DRAWABLE_SHADOW_OFFSET = 3;
+    /**
      * The amount of time that passes between two consecutive executions of the
      * {@link Committer}.
      */
@@ -201,11 +217,17 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * The stroke thickness in use when drawing the long press animation.
      */
     public static final int LONG_PRESS_CIRCLE_THICKNESS = 3;
+    private static final int INVALID_POINTER_ID = -1;
     /**
      * The portion of the canvas that represents paper, so it's colored white
      * and users can draw on top of it.
      */
     RectF drawableCanvas;
+    /**
+     * The area where the shadow of the drawable area will be drawn to (to
+     * simulate a piece of paper).
+     */
+    RectF drawableCanvasShadow;
     /**
      * A rectangle representing the screen boundaries translated to the current
      * metrics (i.e. accounting for the current zoom level).
@@ -468,6 +490,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         PAINT.setStrokeJoin(Paint.Join.ROUND);
         PAINT.setStrokeCap(Paint.Cap.ROUND);
         DRAWABLE_PORTION_PAINT.setColor(Color.WHITE);
+        DRAWABLE_SHADOW_PAINT.setColor(Color.BLACK);
+        DRAWABLE_SHADOW_PAINT.setMaskFilter(new BlurMaskFilter(
+                DRAWABLE_SHADOW_OFFSET, Blur.OUTER));
         LONG_PRESS_CIRCLE_PAINT.setAntiAlias(true);
         LONG_PRESS_CIRCLE_PAINT.setDither(true);
         LONG_PRESS_CIRCLE_PAINT.setStrokeJoin(Paint.Join.ROUND);
@@ -513,7 +538,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         getHolder().addCallback(this);
     }
 
-    private void reset() {
+    /**
+     * Resets the state of this view.
+     */
+    public void reset() {
         strokes.clear();
         scraps.clear();
         foregroundStrokes.clear();
@@ -537,6 +565,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         matrix = new Matrix();
         screenBounds = new RectF();
         longPressCircleBounds = new RectF();
+        zoomOutOfBounds = false;
         actionStart = 0;
         scaleFactor = 1.f;
         dScaleFactor = 1.f;
@@ -589,12 +618,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
 
     private void redrawEverything(Canvas canvas) {
         canvas.concat(matrix);
-        if (zoomOutOfBounds) {
-            canvas.drawColor(Color.GRAY);
-            canvas.drawRect(drawableCanvas, DRAWABLE_PORTION_PAINT);
-        } else {
-            canvas.drawColor(Color.WHITE);
-        }
+        drawDrawableArea(canvas);
         for (Scrap scrap : scraps) {
             scrap.draw(this, canvas, scaleFactor, true);
         }
@@ -692,12 +716,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 Config.ARGB_8888);
         backgroundCanvas = new Canvas(background);
         backgroundCanvas.concat(matrix);
-        if (zoomOutOfBounds) {
-            backgroundCanvas.drawColor(Color.GRAY);
-            backgroundCanvas.drawRect(drawableCanvas, DRAWABLE_PORTION_PAINT);
-        } else {
-            backgroundCanvas.drawColor(Color.WHITE);
-        }
+        drawDrawableArea(backgroundCanvas);
         for (Scrap scrap : scraps) {
             if (scrap.hasToBeDrawnVectorially()) {
                 scrap.draw(this, backgroundCanvas, scaleFactor, true);
@@ -743,6 +762,16 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void forceRedraw() {
         forceSingleRedraw = true;
+    }
+
+    private void drawDrawableArea(Canvas canvas) {
+        if (zoomOutOfBounds) {
+            canvas.drawColor(Color.GRAY);
+            canvas.drawRect(drawableCanvasShadow, DRAWABLE_SHADOW_PAINT);
+            canvas.drawRect(drawableCanvas, DRAWABLE_PORTION_PAINT);
+        } else {
+            canvas.drawColor(Color.WHITE);
+        }
     }
 
     private void clearCanvas() {
@@ -885,6 +914,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void setDrawableCanvas(RectF drawable) {
         drawableCanvas = drawable;
+        drawableCanvasShadow = new RectF(drawable);
+        drawableCanvasShadow.left += DRAWABLE_SHADOW_OFFSET;
+        drawableCanvasShadow.top += DRAWABLE_SHADOW_OFFSET;
     }
 
     /**
@@ -1600,7 +1632,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             translateY = scaledCenterY - previousScaledCenterY;
             canvasOffsetX += translateX;
             canvasOffsetY += translateY;
-            enforceBoundConstraints();
+            checkDrawableArea();
             // translate, move origin to (x,y) to center zooming
             matrix.preTranslate(translateX + dCenterX, translateY + dCenterY);
             // scale and move origin back to (0,0)
@@ -1611,11 +1643,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             return true;
         }
 
-        private void enforceBoundConstraints() {
+        private void checkDrawableArea() {
+            zoomOutOfBounds = drawableCanvas.height() < screenHeight
+                    || drawableCanvas.width() < screenWidth;
             if (canvasOffsetX > 0) {
                 zoomOutOfBounds = true;
             } else {
-                final float minOffsetX = (1 - scaleFactor) * screenWidth;
+                final float minOffsetX = (1 - scaleFactor)
+                        * drawableCanvas.width();
                 if (canvasOffsetX * scaleFactor < minOffsetX) {
                     zoomOutOfBounds = true;
                 }
@@ -1623,7 +1658,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (canvasOffsetY > 0) {
                 zoomOutOfBounds = true;
             } else {
-                final float minOffsetY = (1 - scaleFactor) * screenHeight;
+                final float minOffsetY = (1 - scaleFactor)
+                        * drawableCanvas.height();
                 if (canvasOffsetY * scaleFactor < minOffsetY) {
                     zoomOutOfBounds = true;
                 }
@@ -1898,6 +1934,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                     Math.max(screenHeight, screenWidth), Math.min(screenHeight,
                             screenWidth));
         }
+        setDrawableCanvas(drawableCanvas);
+        zoomOutOfBounds = drawableCanvas.height() < screenHeight
+                || drawableCanvas.width() < screenWidth;
         JSONArray array = jsonData.getJSONArray("strokes");
         for (int i = 0; i < array.length(); i++) {
             Stroke stroke = new Stroke(this);

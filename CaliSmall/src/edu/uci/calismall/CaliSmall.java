@@ -809,7 +809,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 saveLock.unlock();
             }
         }
-        view.clear();
+        // view.clear();
+        view.reset();
+        view.forceRedraw();
         view.setDrawableCanvas(getDisplaySize());
         chosenFile = generateAutoSaveName();
         saveAndMaybeShowProgressBar(chosenFile);
