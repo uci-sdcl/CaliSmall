@@ -557,6 +557,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         landingZoneCenter = new PointF();
         selected = null;
         previousSelection = null;
+        if (bubbleMenu != null) {
+            bubbleMenu.setVisible(false);
+        }
         newSelection = null;
         toBeRemoved = null;
         tempScrap = null;
