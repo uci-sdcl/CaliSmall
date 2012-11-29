@@ -470,7 +470,8 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     private PointF getMostTopLeftPoint() {
         float min = Float.MAX_VALUE;
         PointF topLeft = null;
-        for (PointF point : points) {
+        for (int i = 0; i < points.size(); i++) {
+            PointF point = points.get(i);
             float value = X_WEIGHT_FOR_GHOST_REVIVE * point.x + point.y;
             if (value < min) {
                 min = value;
@@ -825,46 +826,59 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * 
      * @param drawableArea
      *            the drawable area on the canvas
+     * @return true if points were deleted (and/or added) from this stroke
      */
-    public void filterOutOfBoundsPoints(RectF drawableArea) {
+    public boolean filterOutOfBoundsPoints(RectF drawableArea) {
+        boolean changed = false;
         if (isDot) {
             PointF center = points.get(0);
             if (!drawableArea.contains(center.x, center.y)) {
                 reset();
+                changed = true;
             }
-            return;
-        }
-        PointF lastIn = null, lastOut = null;
-        List<PointF> newPoints = new ArrayList<PointF>(points.size());
-        for (PointF point : points) {
-            if (drawableArea.contains(point.x, point.y)) {
-                if (lastOut != null) {
-                    // add an "artificial" point on the intercept between the
-                    // segment connecting lastIn with firstOut and the
-                    // drawableArea's edge
-                    newPoints.add(getIntercept(point, lastOut, drawableArea));
-                    lastOut = null;
+        } else {
+            PointF lastIn = null, lastOut = null;
+            List<PointF> newPoints = new ArrayList<PointF>(points.size());
+            for (int i = 0; i < points.size(); i++) {
+                PointF point = points.get(i);
+                if (drawableArea.contains(point.x, point.y)) {
+                    if (lastOut != null) {
+                        // add an "artificial" point on the intercept between
+                        // the
+                        // segment connecting lastIn with firstOut and the
+                        // drawableArea's edge
+                        newPoints
+                                .add(getIntercept(point, lastOut, drawableArea));
+                        lastOut = null;
+                        changed = true;
+                    }
+                    newPoints.add(point);
+                    lastIn = point;
+                } else {
+                    if (lastIn != null) {
+                        // add an "artificial" point on the intercept between
+                        // the
+                        // segment connecting lastIn with firstOut and the
+                        // drawableArea's edge
+                        newPoints
+                                .add(getIntercept(lastIn, point, drawableArea));
+                        lastIn = null;
+                        changed = true;
+                    }
+                    lastOut = point;
                 }
-                newPoints.add(point);
-                lastIn = point;
+            }
+            reset();
+            if (!newPoints.isEmpty()) {
+                setStart(newPoints.remove(0));
+                for (PointF point : newPoints) {
+                    addAndDrawPoint(point, 0f);
+                }
             } else {
-                if (lastIn != null) {
-                    // add an "artificial" point on the intercept between the
-                    // segment connecting lastIn with firstOut and the
-                    // drawableArea's edge
-                    newPoints.add(getIntercept(lastIn, point, drawableArea));
-                    lastIn = null;
-                }
-                lastOut = point;
+                changed = true;
             }
         }
-        reset();
-        if (!newPoints.isEmpty()) {
-            setStart(newPoints.remove(0));
-            for (PointF point : newPoints) {
-                addAndDrawPoint(point, 0f);
-            }
-        }
+        return changed;
     }
 
     private PointF getIntercept(PointF lastIn, PointF firstOut,

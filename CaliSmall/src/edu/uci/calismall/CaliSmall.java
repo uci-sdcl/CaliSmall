@@ -417,6 +417,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private RectF getDisplaySize() {
         Point screenSize = new Point();
         getWindowManager().getDefaultDisplay().getSize(screenSize);
+        Utils.debug("getScreenSize " + screenSize.x + "x" + screenSize.y);
         return new RectF(0, 0, screenSize.x, screenSize.y);
     }
 
@@ -645,6 +646,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     public boolean onOptionsItemSelected(MenuItem item) {
         boolean knownOption = true;
         switch (item.getItemId()) {
+        case R.id.fit_zoom:
+            view.fitZoom();
+            break;
         case R.id.eraser:
             view.toggleEraserMode();
             eraserMode = !eraserMode;

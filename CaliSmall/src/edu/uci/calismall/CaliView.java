@@ -23,6 +23,7 @@ import org.json.JSONObject;
 
 import yuku.ambilwarna.AmbilWarnaDialog;
 import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
+import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Bitmap.Config;
@@ -42,6 +43,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import edu.uci.calismall.Scrap.Temp;
@@ -156,7 +158,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * The minimum zoom level that users can reach.
      */
-    public static final float MIN_ZOOM = 1f;
+    public static final float MIN_ZOOM = 0.5f;
     /**
      * The maximum zoom level that users can reach
      */
@@ -479,7 +481,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private PathMeasure pathMeasure;
     private boolean running, mustShowLandingZone, mustClearCanvas, longPressed,
             mustShowLongPressCircle, didSomething, forcedRedraw,
-            foregroundRefresh;
+            foregroundRefresh, mustFixCanvasSize;
     private PointF landingZoneCenter;
     private int currentPointerID = INVALID_POINTER_ID, screenWidth,
             screenHeight;
@@ -761,6 +763,26 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
+     * Sets zooming and panning so that the drawable portion of the current
+     * canvas fits the width of the screen.
+     */
+    public void fitZoom() {
+        final float dX = drawableCanvas.width() - screenWidth;
+        final float dY = drawableCanvas.height() - screenHeight;
+        if (dY < dX) {
+            scaleFactor = screenWidth / drawableCanvas.width();
+        } else {
+            scaleFactor = screenHeight / drawableCanvas.height();
+        }
+        canvasOffsetX = 0;
+        canvasOffsetY = 0;
+        matrix.reset();
+        matrix.postScale(scaleFactor, scaleFactor);
+        scaleListener.onScaleEnd(scaleDetector);
+        forceSingleRedraw = true;
+    }
+
+    /**
      * Forces the drawing thread to perform a single redraw of the whole canvas
      * using vector data (skipping the background bitmap redraw).
      * 
@@ -920,14 +942,30 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * Sets the drawable portion of the canvas, the one with a white background.
      * 
+     * <p>
+     * The argument rect used only temporarily, as the view is not already been
+     * laid out and hence {@link #surfaceChanged(SurfaceHolder, int, int, int)}
+     * has not been called. The first call will thus result in a larger canvas
+     * being displayed (since the display size computed from the
+     * {@link Activity} will always be larger than the view size because of the
+     * action bar), but as soon as the view gets notified of the availability of
+     * its {@link Surface} the actual size is used instead. This should happen
+     * within milliseconds, so users will never notice the issue.
+     * 
      * @param drawable
      *            the size of the drawable portion of the canvas
      */
     public void setDrawableCanvas(RectF drawable) {
+        mustFixCanvasSize = true;
+        setDrawableCanvasInternal(drawable);
+    }
+
+    private void setDrawableCanvasInternal(RectF drawable) {
         drawableCanvas = drawable;
         drawableCanvasShadow = new RectF(drawable);
         drawableCanvasShadow.left += DRAWABLE_SHADOW_OFFSET;
         drawableCanvasShadow.top += DRAWABLE_SHADOW_OFFSET;
+        mustFixCanvasSize = false;
     }
 
     /**
@@ -1003,6 +1041,16 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             if (stroke == selectionStroke)
                 selectionStroke = null;
         }
+    }
+
+    /**
+     * Returns a rectangle containing the current sketch's canvas width and
+     * height.
+     * 
+     * @return the area onto which strokes can be drawn
+     */
+    public RectF getDrawableArea() {
+        return new RectF(drawableCanvas);
     }
 
     /**
@@ -1324,6 +1372,11 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
             int height) {
         setBounds(width, height);
+        if (mustFixCanvasSize) {
+            // this will only be called after CaliSmall.newSketch() is called,
+            // see setDrawableCanvas' javadoc for details
+            setDrawableCanvasInternal(new RectF(0, 0, screenWidth, screenHeight));
+        }
         checkDrawableArea();
         if (!intersectsBounds(selected)) {
             setSelected(null);
@@ -1704,15 +1757,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             dCenterY = detector.getFocusY();
             // don't let the canvas get too small or too large
             final float newScale = scaleFactor * detector.getScaleFactor();
-            if (newScale > MAX_ZOOM) {
+            if (newScale > MAX_ZOOM || newScale < MIN_ZOOM) {
                 dScaleFactor = 1.f;
-            } else if (newScale < MIN_ZOOM) {
+            } else if (newScale < 1) {
                 zoomOutOfBounds = true;
                 scaleFactor *= detector.getScaleFactor();
                 dScaleFactor = detector.getScaleFactor();
-                // scaleFactor = Math.max(MIN_ZOOM,
-                // Math.min(scaleFactor, MAX_ZOOM));
-                // dScaleFactor = 1.f;
             } else {
                 zoomOutOfBounds = false;
                 scaleFactor *= detector.getScaleFactor();
@@ -1725,6 +1775,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             canvasOffsetX += translateX;
             canvasOffsetY += translateY;
             checkDrawableArea();
+            // enforceBoundConstraints();
             // translate, move origin to (x,y) to center zooming
             matrix.preTranslate(translateX + dCenterX, translateY + dCenterY);
             // scale and move origin back to (0,0)
@@ -1736,13 +1787,16 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
 
         // private void enforceBoundConstraints() {
+        // if (scaleFactor > 1f) {
         // if (canvasOffsetX > 0) {
         // translateX -= canvasOffsetX;
         // canvasOffsetX = 0;
         // } else {
-        // final float minOffsetX = (1 - scaleFactor) * screenWidth;
+        // final float minOffsetX = (1 - scaleFactor)
+        // * drawableCanvas.width();
         // if (canvasOffsetX * scaleFactor < minOffsetX) {
-        // float difference = canvasOffsetX * scaleFactor - minOffsetX;
+        // float difference = canvasOffsetX * scaleFactor
+        // - minOffsetX;
         // canvasOffsetX -= translateX;
         // translateX -= difference;
         // canvasOffsetX += translateX;
@@ -1752,12 +1806,15 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         // translateY -= canvasOffsetY;
         // canvasOffsetY = 0;
         // } else {
-        // final float minOffsetY = (1 - scaleFactor) * screenHeight;
+        // final float minOffsetY = (1 - scaleFactor)
+        // * drawableCanvas.height();
         // if (canvasOffsetY * scaleFactor < minOffsetY) {
-        // float difference = canvasOffsetY * scaleFactor - minOffsetY;
+        // float difference = canvasOffsetY * scaleFactor
+        // - minOffsetY;
         // canvasOffsetY -= translateY;
         // translateY -= difference;
         // canvasOffsetY += translateY;
+        // }
         // }
         // }
         // }
@@ -2004,7 +2061,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                     Math.max(screenHeight, screenWidth), Math.min(screenHeight,
                             screenWidth));
         }
-        setDrawableCanvas(drawableCanvas);
+        setDrawableCanvasInternal(drawableCanvas);
         zoomOutOfBounds = drawableCanvas.height() < screenHeight
                 || drawableCanvas.width() < screenWidth;
         JSONArray array = jsonData.getJSONArray("str");

@@ -1104,15 +1104,30 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         @Override
         public Stroke deselect() {
             super.deselect();
+            // boolean mustUpdate = false;
             // remove link to child scraps, rollback
             for (Scrap scrap : scraps) {
                 if (scrap.previousParent != null)
                     ((Scrap) scrap.previousParent).add(scrap);
             }
+            // RectF drawableArea = parentView.getDrawableArea();
+            // final List<Stroke> toBeDeleted = new ArrayList<Stroke>(
+            // strokes.size());
             for (Stroke stroke : strokes) {
                 if (stroke.previousParent != null)
                     ((Scrap) stroke.previousParent).add(stroke);
+                // // delete strokes outside of the drawable area
+                // if (stroke.filterOutOfBoundsPoints(drawableArea))
+                // mustUpdate = true;
+                // if (stroke.isEmpty())
+                // toBeDeleted.add(stroke);
             }
+            // for (Stroke stroke : toBeDeleted)
+            // stroke.delete();
+            // if (outerBorder.filterOutOfBoundsPoints(drawableArea))
+            // mustUpdate = true;
+            // if (mustUpdate)
+            // parentView.forceRedraw();
             if (dontTurnIntoGhost)
                 return null;
             return outerBorder;
