@@ -913,9 +913,6 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
             }
         }
         PointF returnMe = new PointF(x, y);
-        Utils.debug(String.format("int %s - %s is %s",
-                Utils.pointToString(lastIn), Utils.pointToString(firstOut),
-                Utils.pointToString(returnMe)));
         return returnMe;
         // return new PointF(x, y);
     }

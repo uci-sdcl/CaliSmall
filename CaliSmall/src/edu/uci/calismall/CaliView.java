@@ -769,14 +769,24 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void fitZoom() {
         final float dX = drawableCanvas.width() - screenWidth;
         final float dY = drawableCanvas.height() - screenHeight;
-        if (dY < dX) {
-            scaleFactor = screenWidth / drawableCanvas.width();
-        } else {
-            scaleFactor = screenHeight / drawableCanvas.height();
-        }
         canvasOffsetX = 0;
         canvasOffsetY = 0;
+        scaleFactor = 1f;
+        if (dX != 0 || dY != 0) {
+            if (dY < dX) {
+                scaleFactor = screenWidth / drawableCanvas.width();
+                canvasOffsetY = screenHeight / 2;
+            } else {
+                scaleFactor = screenHeight / drawableCanvas.height();
+                canvasOffsetX = screenWidth / 2;
+            }
+            if (scaleFactor >= 1) {
+                canvasOffsetX = 0;
+                canvasOffsetY = 0;
+            }
+        }
         matrix.reset();
+        matrix.preTranslate(canvasOffsetX, canvasOffsetY);
         matrix.postScale(scaleFactor, scaleFactor);
         scaleListener.onScaleEnd(scaleDetector);
         forceSingleRedraw = true;
@@ -943,21 +953,33 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * Sets the drawable portion of the canvas, the one with a white background.
      * 
      * <p>
-     * The argument rect used only temporarily, as the view is not already been
-     * laid out and hence {@link #surfaceChanged(SurfaceHolder, int, int, int)}
-     * has not been called. The first call will thus result in a larger canvas
-     * being displayed (since the display size computed from the
-     * {@link Activity} will always be larger than the view size because of the
-     * action bar), but as soon as the view gets notified of the availability of
-     * its {@link Surface} the actual size is used instead. This should happen
-     * within milliseconds, so users will never notice the issue.
+     * The argument rect is used only temporarily and only the first time this
+     * method is called, as the view is not already been laid out and hence
+     * {@link #surfaceChanged(SurfaceHolder, int, int, int)} has not been
+     * called. The first call will thus result in a larger canvas being
+     * displayed (since the display size computed from the {@link Activity} will
+     * always be larger than the view size because of the action bar), but as
+     * soon as the view gets notified of the availability of its {@link Surface}
+     * the actual size is used instead. This should happen within milliseconds,
+     * so users will never notice the issue.
+     * 
+     * <p>
+     * After the view has been laid out, the actual display size will be used
+     * and the argument rectangle ignored.
      * 
      * @param drawable
      *            the size of the drawable portion of the canvas
      */
     public void setDrawableCanvas(RectF drawable) {
-        mustFixCanvasSize = true;
-        setDrawableCanvasInternal(drawable);
+        if (screenWidth == 0) {
+            mustFixCanvasSize = true;
+            drawableCanvas = drawable;
+        } else {
+            drawableCanvas = new RectF(0, 0, screenWidth, screenHeight);
+        }
+        drawableCanvasShadow = new RectF(drawableCanvas);
+        drawableCanvasShadow.left += DRAWABLE_SHADOW_OFFSET;
+        drawableCanvasShadow.top += DRAWABLE_SHADOW_OFFSET;
     }
 
     private void setDrawableCanvasInternal(RectF drawable) {
@@ -2057,6 +2079,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                     (float) jsonData.getDouble("y"));
         } catch (JSONException e) {
             // old format, assume it's in portrait mode
+            Utils.debug("old format, no size given");
             drawableCanvas = new RectF(0, 0,
                     Math.max(screenHeight, screenWidth), Math.min(screenHeight,
                             screenWidth));
