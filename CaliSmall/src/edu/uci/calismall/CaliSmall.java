@@ -417,7 +417,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private RectF getDisplaySize() {
         Point screenSize = new Point();
         getWindowManager().getDefaultDisplay().getSize(screenSize);
-        Utils.debug("getScreenSize " + screenSize.x + "x" + screenSize.y);
         return new RectF(0, 0, screenSize.x, screenSize.y);
     }
 
