@@ -18,7 +18,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
 import android.util.FloatMath;
-import edu.uci.calismall.Scrap.Temp;
 
 /**
  * A graphical item used in CaliSmall.
@@ -114,8 +113,8 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     protected PointF previousTopLeftPoint = topLeftPoint;
     /**
      * Whether this element has already been added to the list of elements
-     * within a {@link Temp} and should therefore be ignored when testing for
-     * elements within the newly created {@link Temp}.
+     * within a {@link TempScrap} and should therefore be ignored when testing
+     * for elements within the newly created {@link TempScrap}.
      */
     protected boolean addedToSelection;
     /**

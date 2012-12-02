@@ -46,7 +46,6 @@ import android.view.ScaleGestureDetector;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import edu.uci.calismall.Scrap.Temp;
 
 /**
  * @author Michele Bonazza
@@ -371,7 +370,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * The minimum length that a {@link Stroke} must reach before the landing
      * zone is displayed over it (letting that <tt>Stroke</tt> be used to create
-     * a {@link Temp}). The value is squared to speed up comparison with
+     * a {@link TempScrap}). The value is squared to speed up comparison with
      * Euclidean distances.
      */
     float minPathLengthForLandingZone;
@@ -636,7 +635,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         canvas.concat(matrix);
         drawDrawableArea(canvas);
         for (Scrap scrap : scraps) {
-            scrap.draw(this, canvas, scaleFactor, true);
+            if (scrap.getParent() == null)
+                scrap.draw(this, canvas, scaleFactor, true);
         }
         for (Stroke stroke : strokes) {
             if (!stroke.hasToBeDeleted() && stroke.hasToBeDrawnVectorially())
@@ -842,7 +842,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     private boolean createTempScrap() {
         if (selectionStroke != null) {
             selectionStroke.delete();
-            changeTempScrap(new Scrap.Temp(selectionStroke, scaleFactor));
+            changeTempScrap(new TempScrap(selectionStroke, scaleFactor));
             bubbleMenu.setVisible(true);
             selectionStroke = null;
             return true;
@@ -1037,7 +1037,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void addScrap(Scrap scrap, boolean addContent) {
         newSelection = scrap;
-        if (!(scrap instanceof Scrap.Temp))
+        if (!(scrap instanceof TempScrap))
             newScraps.add(scrap);
         if (addContent) {
             newStrokes.addAll(scrap.getAllStrokes());
@@ -1255,6 +1255,24 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void resetChangeCounter() {
         didSomething = false;
+    }
+
+    /**
+     * Returns the current size of this view.
+     * 
+     * @return the size of the view as it's been laid out
+     */
+    public PointF getSize() {
+        return new PointF(screenWidth, screenHeight);
+    }
+
+    /**
+     * Returns the current size of the drawable portion of this view.
+     * 
+     * @return the size of the portion of the view that can be drawn
+     */
+    public PointF getDrawableSize() {
+        return new PointF(drawableCanvas.width(), drawableCanvas.height());
     }
 
     /**

@@ -43,6 +43,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
@@ -246,6 +247,21 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      * The number of threads used to execute timer tasks with.
      */
     public static final int THREADS_FOR_TIMERS = 2;
+    /**
+     * The result code to be passed back to this activity when an image was
+     * loaded from the gallery app.
+     */
+    public static final int IMAGE_LOADED_FROM_GALLERY = 0;
+    /**
+     * The result code to be passed back to this activity when an image was
+     * loaded from the camera app.
+     */
+    public static final int IMAGE_LOADED_FROM_CAMERA = 1;
+    /**
+     * The result code to be passed back to this activity when a CaliSmall file
+     * (or a snapshot) was successfully shared.
+     */
+    public static final int CONTENT_SHARED = 2;
 
     private static final String FILE_EXTENSION = ".csf";
     private static final String THUMBNAIL_EXTENSION = ".thumb";
@@ -314,6 +330,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private TimerTask autoSaver, autoBackupSaver;
     private ScheduledExecutorService autoSaverTimer;
     private MenuItem chosenThickness;
+    private Uri imageURI;
     private int chosenThicknessNonHighlightedIcon;
     private boolean userPickedANewName, eraserMode;
 
@@ -671,6 +688,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             return onStrokeThicknessSelection(9);
         case R.id.line_zoom:
             return toggleStrokeWidthScaling();
+        case R.id.image:
+            loadImage();
+            break;
         case R.id.save:
             saveButtonClicked();
             break;
@@ -926,7 +946,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 getResources().getString(R.string.share_message_text));
         startActivityForResult(
                 Intent.createChooser(intent,
-                        getResources().getString(R.string.share_message)), 1);
+                        getResources().getString(R.string.share_message)),
+                CONTENT_SHARED);
     }
 
     /*
@@ -938,10 +959,20 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     @Override
     protected void
             onActivityResult(int requestCode, int resultCode, Intent data) {
-        File path = getApplicationContext().getExternalFilesDir(null);
-        File tmpImage = new File(path, tmpSnapshotName);
-        if (tmpImage.exists())
-            tmpImage.delete();
+        switch (requestCode) {
+        case IMAGE_LOADED_FROM_CAMERA:
+            if (resultCode == RESULT_OK)
+                view.addScrap(new ImageScrap(view, imageURI), false);
+            break;
+        case IMAGE_LOADED_FROM_GALLERY:
+            break;
+        case CONTENT_SHARED:
+            File path = getApplicationContext().getExternalFilesDir(null);
+            File tmpImage = new File(path, tmpSnapshotName);
+            if (tmpImage.exists())
+                tmpImage.delete();
+            break;
+        }
     }
 
     private String generateAutoSaveName() {
@@ -1008,6 +1039,19 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void loadAndMaybeShowProgressBar(InputStream input) {
         new LoadProgressBar(this).execute(input);
+    }
+
+    private void loadImage() {
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        File path = getApplicationContext().getExternalFilesDir(null);
+        File picture;
+        picture = new File(path, "tmp_image.jpg");
+        picture.delete();
+        imageURI = Uri.fromFile(picture);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageURI);
+        // start camera intent
+        startActivityForResult(intent, IMAGE_LOADED_FROM_CAMERA);
+
     }
 
     private void loadNext() {

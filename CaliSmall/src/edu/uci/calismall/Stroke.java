@@ -26,7 +26,6 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.view.View;
-import edu.uci.calismall.Scrap.Temp;
 
 /**
  * Contains a {@link Path} and all of the style attributes to be set to the
@@ -46,9 +45,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
      * The paint object that is used to draw ghost strokes.
      * 
      * <p>
-     * Whenever a new {@link Temp} is created, its outer border is drawn to the
-     * canvas as a "ghost" stroke, whose aim is to let users get their stroke
-     * back if they hit the landing zone accidentally.
+     * Whenever a new {@link TempScrap} is created, its outer border is drawn to
+     * the canvas as a "ghost" stroke, whose aim is to let users get their
+     * stroke back if they hit the landing zone accidentally.
      */
     private static final Paint GHOST_PAINT = new Paint();
     private static final int GHOST_PAINT_OPACITY_PERCENTAGE = 25;
@@ -490,22 +489,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     public void transform(Matrix matrix) {
         path.transform(matrix);
         matrix.getValues(matrixValues);
-        // variable names are the same used by Skia library
-        final float tx = matrixValues[Matrix.MTRANS_X];
-        final float ty = matrixValues[Matrix.MTRANS_Y];
-        final float mx = matrixValues[Matrix.MSCALE_X];
-        final float my = matrixValues[Matrix.MSCALE_Y];
-        final float kx = matrixValues[Matrix.MSKEW_X];
-        final float ky = matrixValues[Matrix.MSKEW_Y];
-        /*
-         * if rotation: skia messes up with the matrix, so sx and sy actually
-         * store cosV, rx and ry store -sinV and sinV
-         */
-        for (PointF point : points) {
-            final float originalY = point.y;
-            point.y = point.x * ky + (point.y * my) + ty;
-            point.x = point.x * mx + (originalY * kx) + tx;
-        }
+        Utils.applyMatrix(matrixValues, points);
         setBoundaries();
     }
 
@@ -944,7 +928,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         try {
             jsonData.getBoolean("r");
             // a RectStroke
-            return new RectStroke(parentView).fromJSON(jsonData);
+            return new RoundRectStroke(parentView).fromJSON(jsonData);
         } catch (JSONException e) {
             // not a RectStroke
             try {

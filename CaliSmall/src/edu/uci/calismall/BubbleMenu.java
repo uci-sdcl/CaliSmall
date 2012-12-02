@@ -14,8 +14,6 @@ import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.util.FloatMath;
 import android.view.MotionEvent;
-import edu.uci.calismall.Scrap.Temp;
-import edu.uci.calismall.Scrap.Transformation;
 
 /**
  * A pop-up menu shown when the user "closes" a path creating a scrap selection.
@@ -308,11 +306,11 @@ public class BubbleMenu extends GenericTouchHandler {
     }
 
     private boolean scrap(int action, PointF touchPoint, Scrap selected) {
-        if (selected instanceof Scrap.Temp) {
+        if (selected instanceof TempScrap) {
             // FIXME control should be moved outside
             Scrap newScrap = new Scrap(selected, false);
             parentView.addScrap(newScrap, false);
-            ((Scrap.Temp) selected).setGhostEffect(false);
+            ((TempScrap) selected).setGhostEffect(false);
             touched = null;
         }
         return true;
@@ -320,8 +318,8 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private boolean scrapCopy(int action, PointF touchPoint, Scrap selected) {
         if (action == MotionEvent.ACTION_DOWN) {
-            if (selected instanceof Scrap.Temp) {
-                selected = new Scrap.Temp(selected, scaleFactor);
+            if (selected instanceof TempScrap) {
+                selected = new TempScrap(selected, scaleFactor);
                 parentView.addScrap(selected, true);
                 parentView.changeTempScrap(selected);
             } else {
@@ -342,13 +340,13 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private boolean scrapMove(int action, PointF touchPoint, Scrap selected) {
         if (action == MotionEvent.ACTION_DOWN) {
-            selected.startEditing(scaleFactor, Transformation.TRANSLATION);
+            selected.startEditing(scaleFactor);
             referencePoint = touchPoint;
         }
         selected.translate(touchPoint.x - referencePoint.x, touchPoint.y
                 - referencePoint.y);
         updateMenu(selected);
-        if (!(selected instanceof Scrap.Temp)) {
+        if (!(selected instanceof TempScrap)) {
             // FIXME soooo not OOP!
             updateHighlighted(selected);
         }
@@ -362,7 +360,7 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private boolean scrapResize(int action, PointF touchPoint, Scrap selected) {
         if (action == MotionEvent.ACTION_DOWN) {
-            selected.startEditing(scaleFactor, Transformation.RESIZE);
+            selected.startEditing(scaleFactor);
             Rect bounds = selected.getBounds();
             pivot = new PointF(bounds.left, bounds.top);
             initialDistanceToPivot = calculateDistanceToPivot(touchPoint,
@@ -385,7 +383,7 @@ public class BubbleMenu extends GenericTouchHandler {
         }
         selected.scale(scaleX, scaleY, pivot, initialDistanceToPivot);
         updateMenu(selected);
-        if (!(selected instanceof Scrap.Temp)) {
+        if (!(selected instanceof TempScrap)) {
             // FIXME soooo not OOP!
             updateHighlighted(selected);
         }
@@ -400,7 +398,7 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private boolean scrapRotate(int action, PointF touchPoint, Scrap selected) {
         if (action == MotionEvent.ACTION_DOWN) {
-            selected.startEditing(scaleFactor, Transformation.RESIZE);
+            selected.startEditing(scaleFactor);
             Rect bounds = selected.getBounds();
             pivot = new PointF(bounds.centerX(), bounds.centerY());
             compensationForRotateButtonPos = (float) Math.toDegrees(Math.atan2(
@@ -411,7 +409,7 @@ public class BubbleMenu extends GenericTouchHandler {
                 - compensationForRotateButtonPos;
         selected.rotate(rotation, pivot);
         updateMenu(selected);
-        if (!(selected instanceof Scrap.Temp)) {
+        if (!(selected instanceof TempScrap)) {
             // FIXME soooo not OOP!
             updateHighlighted(selected);
         }
@@ -451,9 +449,9 @@ public class BubbleMenu extends GenericTouchHandler {
     }
 
     private void fixParenting(Scrap selected) {
-        if (selected instanceof Scrap.Temp) {
+        if (selected instanceof TempScrap) {
             // FIXME sooo not OOP!
-            fixParenting((Scrap.Temp) selected);
+            fixParenting((TempScrap) selected);
         } else {
             if (selected.parent != highlighted) {
                 // parent must be changed
@@ -475,7 +473,7 @@ public class BubbleMenu extends GenericTouchHandler {
 
     }
 
-    private void fixParenting(Scrap.Temp tempScrap) {
+    private void fixParenting(TempScrap tempScrap) {
         for (Stroke stroke : tempScrap.getStrokes()) {
             CaliSmallElement newParent = parentView.getSelectedScrap(stroke);
             CaliSmallElement previousParent = stroke.getPreviousParent();
@@ -638,7 +636,7 @@ public class BubbleMenu extends GenericTouchHandler {
     void setBounds(Scrap selection, float scaleFactor, RectF bounds) {
         this.scaleFactor = scaleFactor;
         this.bounds.set(bounds);
-        if (selection instanceof Temp) {
+        if (selection instanceof TempScrap) {
             scrap.enabled = true;
         } else {
             scrap.enabled = false;

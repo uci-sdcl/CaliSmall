@@ -61,11 +61,20 @@
         </menu>
     </item>
     <item
+        android:id="@+id/image"
+        android:alphabeticShortcut="i"
+        android:icon="@drawable/ic_image"
+        android:menuCategory="container"
+        android:orderInCategory="4"
+        android:showAsAction="always"
+        android:title="Color">
+    </item>
+    <item
         android:id="@+id/open_previous"
         android:alphabeticShortcut="p"
         android:icon="@drawable/ic_previous"
         android:menuCategory="container"
-        android:orderInCategory="4"
+        android:orderInCategory="5"
         android:showAsAction="always"
         android:title="Open Previous"
         android:titleCondensed="Previous">
@@ -75,7 +84,7 @@
         android:alphabeticShortcut="a"
         android:icon="@drawable/ic_new"
         android:menuCategory="container"
-        android:orderInCategory="5"
+        android:orderInCategory="6"
         android:showAsAction="always"
         android:title="New">
     </item>
@@ -84,7 +93,7 @@
         android:alphabeticShortcut="n"
         android:icon="@drawable/ic_next"
         android:menuCategory="container"
-        android:orderInCategory="6"
+        android:orderInCategory="7"
         android:showAsAction="always"
         android:title="Open Next"
         android:titleCondensed="Next">
