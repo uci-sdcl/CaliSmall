@@ -1,7 +1,30 @@
-/**
- * CaliSmall.java Created on July 11, 2012 Copyright 2012 Michele Bonazza
- * <michele.bonazza@gmail.com>
- */
+/*******************************************************************************
+* Copyright (c) 2013, Regents of the University of California
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without modification, are permitted provided
+* that the following conditions are met:
+*
+* Redistributions of source code must retain the above copyright notice, this list of conditions
+* and the following disclaimer.
+*
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+* and the following disclaimer in the documentation and/or other materials provided with the
+* distribution.
+*
+* None of the name of the Regents of the University of California, or the names of its
+* contributors may be used to endorse or promote products derived from this software without specific
+* prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+* PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+* TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+* ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+******************************************************************************/
 package edu.uci.calismall;
 
 import java.io.BufferedReader;
@@ -29,13 +52,16 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import yuku.ambilwarna.AmbilWarnaDialog;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnDismissListener;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.database.Cursor;
+import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.net.Uri;
@@ -44,14 +70,23 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
+import android.provider.MediaStore.Images;
 import android.util.Log;
+import android.util.SparseIntArray;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.SubMenu;
+import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
@@ -120,6 +155,10 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                     fileList.size(), parent.chosenFile));
         }
 
+    }
+    
+    private final class StyleWrapper {
+        public int color = Color.BLACK, thickness = 2;
     }
 
     private final class SaveProgressBar extends AsyncTask<String, Void, Void> {
@@ -258,13 +297,25 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     public static final int IMAGE_LOADED_FROM_CAMERA = 1;
     /**
+     * The file extension used when saving thumbnail snapshots of sketches.
+     */
+    public static final String THUMBNAIL_EXTENSION = ".thumb";
+    /**
      * The result code to be passed back to this activity when a CaliSmall file
      * (or a snapshot) was successfully shared.
      */
     public static final int CONTENT_SHARED = 2;
 
+    private static final SparseIntArray COLOR_SWATCHES = new SparseIntArray();
+    private static final SparseIntArray LINE_THICKNESSES = new SparseIntArray();
+    private static final int[] COLOR_SWATCHES_IDS = { R.id.black, R.id.gray,
+        R.id.light_gray, R.id.purple, R.id.blue, R.id.green, R.id.red,
+        R.id.orange, R.id.yellow };
+    private static final int[] LINE_THICKNESS_IDS = { R.id.line_1px,
+        R.id.line_2px, R.id.line_3px, R.id.line_5px, R.id.line_7px,
+        R.id.line_9px };
     private static final String FILE_EXTENSION = ".csf";
-    private static final String THUMBNAIL_EXTENSION = ".thumb";
+//    private static final String THUMBNAIL_EXTENSION = ".thumb";
     private static final String LIST_FILE_NAME = ".file_list";
     private static final String DISABLE_GALLERY = ".nomedia";
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
@@ -274,6 +325,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
     private static final int MIN_POINTS_PER_PROGRESSBAR = 1000;
     private static final String POS_FORMAT = "(%d/%d) %s";
+    private final List<ImageButton> colorSwatches = new ArrayList<ImageButton>(),
+            lineThicknesses = new ArrayList<ImageButton>();
+    private final StyleWrapper styleWrapper = new StyleWrapper();
 
     /*************************************************************************
      * DISCLAIMER FOR THE READER
@@ -324,12 +378,15 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     boolean fileHasBeenSaved;
     private List<String> fileList = new ArrayList<String>();
     private String chosenFile, autoSaveName, tmpSnapshotName;
+    private File homeFolder;
     private int currentFileListIndex = 0;
     private EditText input;
-    private AlertDialog saveDialog, loadDialog, deleteDialog;
+    private Dialog styleDialog, loadDialog, outOfMemoryDialog;
+    private AlertDialog saveDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
     private ScheduledExecutorService autoSaverTimer;
     private MenuItem chosenThickness;
+    private CheckBox resizeWithZoom;
     private Uri imageURI;
     private int chosenThicknessNonHighlightedIcon;
     private boolean userPickedANewName, eraserMode;
@@ -338,6 +395,13 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         view = new CaliView(this);
+        initSwatches();
+        if (Environment.MEDIA_MOUNTED.equals(Environment
+                .getExternalStorageState())) {
+            homeFolder = getApplicationContext().getExternalFilesDir(null);
+        } else {
+            // FIXME use internal memory?
+        }
         setContentView(view);
         autoSaveName = getResources().getString(R.string.unnamed_files);
         autoSaver = new AutoSaveTask(this, false);
@@ -426,9 +490,106 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 }, Painter.SCREEN_REFRESH_TIME * 2);
             }
         }
+        createStyleDialog();
+        createOutOfMemoryDialog();
         if (chosenFile == null) {
             newSketch();
         }
+    }
+    
+    private void initSwatches() {
+        Resources rez = getResources();
+        COLOR_SWATCHES.put(R.id.black, rez.getColor(R.color.black));
+        COLOR_SWATCHES.put(R.id.gray, rez.getColor(R.color.gray));
+        COLOR_SWATCHES.put(R.id.light_gray, rez.getColor(R.color.light_gray));
+        COLOR_SWATCHES.put(R.id.purple, rez.getColor(R.color.purple));
+        COLOR_SWATCHES.put(R.id.green, rez.getColor(R.color.green));
+        COLOR_SWATCHES.put(R.id.blue, rez.getColor(R.color.blue));
+        COLOR_SWATCHES.put(R.id.red, rez.getColor(R.color.red));
+        COLOR_SWATCHES.put(R.id.orange, rez.getColor(R.color.orange));
+        COLOR_SWATCHES.put(R.id.yellow, rez.getColor(R.color.yellow));
+        LINE_THICKNESSES.put(R.id.line_1px, 1);
+        LINE_THICKNESSES.put(R.id.line_2px, 2);
+        LINE_THICKNESSES.put(R.id.line_3px, 3);
+        LINE_THICKNESSES.put(R.id.line_5px, 5);
+        LINE_THICKNESSES.put(R.id.line_7px, 7);
+        LINE_THICKNESSES.put(R.id.line_9px, 9);
+    }
+    
+    private void createStyleDialog() {
+        styleDialog = new Dialog(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View swatchesView = inflater.inflate(R.layout.color_swatches, null);
+        styleDialog.setContentView(swatchesView);
+        styleDialog.setOnDismissListener(new OnDismissListener() {
+
+            @Override
+            public void onDismiss(DialogInterface dialog) {
+                view.styleChanged(styleWrapper.color,
+                        resizeWithZoom.isChecked(), styleWrapper.thickness);
+            }
+        });
+        colorSwatches.clear();
+        for (int id : COLOR_SWATCHES_IDS) {
+            ImageButton button = (ImageButton) (swatchesView.findViewById(id));
+            colorSwatches.add(button);
+            button.setOnClickListener(new OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    for (ImageButton button : colorSwatches) {
+                        button.setSelected(false);
+                    }
+                    v.setSelected(true);
+                    styleWrapper.color = COLOR_SWATCHES.get(v.getId());
+                }
+            });
+        }
+        colorSwatches.get(0).setSelected(true);
+        lineThicknesses.clear();
+        for (int id : LINE_THICKNESS_IDS) {
+            ImageButton button = (ImageButton) (swatchesView.findViewById(id));
+            lineThicknesses.add(button);
+            button.setOnClickListener(new OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    for (ImageButton button : lineThicknesses) {
+                        button.setSelected(false);
+                    }
+                    v.setSelected(true);
+                    styleWrapper.thickness = LINE_THICKNESSES.get(v.getId());
+                }
+            });
+        }
+        lineThicknesses.get(1).setSelected(true);
+        resizeWithZoom = (CheckBox) (swatchesView
+                .findViewById(R.id.resize_with_zoom));
+        Button close = (Button) (swatchesView
+                .findViewById(R.id.close_style_dialog));
+        close.setOnClickListener(new OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                styleDialog.dismiss();
+            }
+        });
+        styleDialog.setTitle(R.string.style_dialog_title);
+    }
+    
+    private void createOutOfMemoryDialog() {
+        // @formatter:off
+        outOfMemoryDialog = new AlertDialog.Builder(this)
+            .setTitle(R.string.out_of_memory_dialog_title)
+            .setMessage(R.string.out_of_memory_dialog_message)
+            .setCancelable(false)
+            .setPositiveButton(getResources().getText(android.R.string.ok), new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                     outOfMemoryDialog.dismiss();
+                }
+            })               
+            .create();
+        // @formatter:on
     }
 
     private RectF getDisplaySize() {
@@ -461,8 +622,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         List<String> files = new ArrayList<String>();
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-            File listFileProject = new File(getApplicationContext()
-                    .getExternalFilesDir(null), LIST_FILE_NAME);
+            File listFileProject = new File(homeFolder, LIST_FILE_NAME);
             try {
                 if (!listFileProject.exists())
                     listFileProject.createNewFile();
@@ -500,15 +660,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void save(final String input, final String jsonData) {
         try {
             openLock.lock();
-            File path = getApplicationContext().getExternalFilesDir(null);
-            File newFile = new File(path, input + FILE_EXTENSION);
+            File newFile = new File(homeFolder, input + FILE_EXTENSION);
             chosenFile = input;
             updateFileList();
             FileWriter writer = new FileWriter(newFile);
             writer.write(jsonData);
             writer.flush();
             writer.close();
-            File thumbnail = new File(path, input + THUMBNAIL_EXTENSION);
+            File thumbnail = new File(homeFolder, input + THUMBNAIL_EXTENSION);
             view.createThumbnail(thumbnail);
             view.resetChangeCounter();
         } catch (IOException e) {
@@ -521,10 +680,9 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private SaveProgressBar getSaveProgressBar(final String input) {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-            File path = getApplicationContext().getExternalFilesDir(null);
             if (userPickedANewName) {
-                new File(path, chosenFile + FILE_EXTENSION).delete();
-                new File(path, "~" + chosenFile + FILE_EXTENSION).delete();
+                new File(homeFolder, chosenFile + FILE_EXTENSION).delete();
+                new File(homeFolder, "~" + chosenFile + FILE_EXTENSION).delete();
                 fileList.remove(currentFileListIndex);
                 chosenFile = input;
                 fileList.add(currentFileListIndex, input);
@@ -582,10 +740,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private void updateFileList() {
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
-            File listFileProject = new File(getApplicationContext()
-                    .getExternalFilesDir(null), LIST_FILE_NAME);
-            File noMedia = new File(getApplicationContext()
-                    .getExternalFilesDir(null), DISABLE_GALLERY);
+            File listFileProject = new File(homeFolder, LIST_FILE_NAME);
+            File noMedia = new File(homeFolder, DISABLE_GALLERY);
             try {
                 if (!noMedia.exists()) {
                     noMedia.createNewFile();
@@ -670,26 +826,19 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             eraserMode = !eraserMode;
             invalidateOptionsMenu();
             break;
-        case R.id.color:
-            AmbilWarnaDialog dialog = view.getColorPicker();
-            dialog.show();
+        case R.id.line_style:
+            if (eraserMode) {
+                view.toggleEraserMode();
+                eraserMode = !eraserMode;
+                invalidateOptionsMenu();
+            }
+            styleDialog.show();
             break;
-        case R.id.line_1px:
-            return onStrokeThicknessSelection(1);
-        case R.id.line_2px:
-            return onStrokeThicknessSelection(2);
-        case R.id.line_3px:
-            return onStrokeThicknessSelection(3);
-        case R.id.line_5px:
-            return onStrokeThicknessSelection(5);
-        case R.id.line_7px:
-            return onStrokeThicknessSelection(7);
-        case R.id.line_9px:
-            return onStrokeThicknessSelection(9);
-        case R.id.line_zoom:
-            return toggleStrokeWidthScaling();
-        case R.id.image:
-            loadImage();
+        case R.id.camera:
+            loadImage(true);
+            break;
+        case R.id.gallery:
+            loadImage(false);
             break;
         case R.id.save:
             saveButtonClicked();
@@ -702,12 +851,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             break;
         case R.id.open:
             showLoadDialog();
-            break;
-        case R.id.open_next:
-            loadNext();
-            break;
-        case R.id.open_previous:
-            loadPrevious();
             break;
         case R.id.create_new:
             newSketch();
@@ -762,75 +905,57 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
      */
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        MenuItem previous = menu.findItem(R.id.open_previous);
-        previous.setEnabled(currentFileListIndex > 0);
-        previous.getIcon().setAlpha(currentFileListIndex > 0 ? 255 : 85);
         MenuItem eraser = menu.findItem(R.id.eraser);
         eraser.setIcon(eraserMode ? R.drawable.ic_eraser_highlighted
                 : R.drawable.ic_eraser);
-        MenuItem next = menu.findItem(R.id.open_next);
-        if (currentFileListIndex == fileList.size() - 1) {
-            next.setIcon(R.drawable.ic_next_new);
-        } else {
-            next.setIcon(R.drawable.ic_next);
-        }
-        SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
-        MenuItem toggle = lineStyleMenu.findItem(R.id.line_zoom);
-        updateStrokeThicknessSelection(lineStyleMenu);
-        if (!view.scaleStrokeWithZoom) {
-            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth);
-            toggle.setIcon(android.R.drawable.checkbox_off_background);
-        } else {
-            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth
-                    / view.scaleFactor);
-            toggle.setIcon(android.R.drawable.checkbox_on_background);
-        }
+//        SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
+//        updateStrokeThicknessSelection(lineStyleMenu);
         return super.onPrepareOptionsMenu(menu);
     }
 
-    private void updateStrokeThicknessSelection(SubMenu lineStyleMenu) {
-        if (chosenThickness == null) {
-            chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
-            chosenThicknessNonHighlightedIcon = R.drawable.line_2px;
-            chosenThickness.setIcon(R.drawable.line_2px_highlighted);
-        } else {
-            chosenThickness.setIcon(chosenThicknessNonHighlightedIcon);
-            int nonHighlighted = 0;
-            switch (view.currentAbsStrokeWidth) {
-            case 1:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_1px);
-                nonHighlighted = R.drawable.line_1px;
-                chosenThickness.setIcon(R.drawable.line_1px_highlighted);
-                break;
-            case 2:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
-                nonHighlighted = R.drawable.line_2px;
-                chosenThickness.setIcon(R.drawable.line_2px_highlighted);
-                break;
-            case 3:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_3px);
-                nonHighlighted = R.drawable.line_3px;
-                chosenThickness.setIcon(R.drawable.line_3px_highlighted);
-                break;
-            case 5:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_5px);
-                nonHighlighted = R.drawable.line_5px;
-                chosenThickness.setIcon(R.drawable.line_5px_highlighted);
-                break;
-            case 7:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
-                nonHighlighted = R.drawable.line_7px;
-                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
-                break;
-            case 9:
-                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
-                nonHighlighted = R.drawable.line_7px;
-                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
-                break;
-            }
-            chosenThicknessNonHighlightedIcon = nonHighlighted;
-        }
-    }
+//    private void updateStrokeThicknessSelection(SubMenu lineStyleMenu) {
+//        if (chosenThickness == null) {
+//            chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
+//            chosenThicknessNonHighlightedIcon = R.drawable.line_2px;
+//            chosenThickness.setIcon(R.drawable.line_2px_highlighted);
+//        } else {
+//            chosenThickness.setIcon(chosenThicknessNonHighlightedIcon);
+//            int nonHighlighted = 0;
+//            switch (view.currentAbsStrokeWidth) {
+//            case 1:
+//                chosenThickness = lineStyleMenu.findItem(R.id.line_1px);
+//                nonHighlighted = R.drawable.line_1px;
+//                chosenThickness.setIcon(R.drawable.line_1px_highlighted);
+//                break;
+//            case 2:
+//                chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
+//                nonHighlighted = R.drawable.line_2px;
+//                chosenThickness.setIcon(R.drawable.line_2px_highlighted);
+//                break;
+//            case 3:
+//                chosenThickness = lineStyleMenu.findItem(R.id.line_3px);
+//                nonHighlighted = R.drawable.line_3px;
+//                chosenThickness.setIcon(R.drawable.line_3px_highlighted);
+//                break;
+//            case 5:
+//                chosenThickness = lineStyleMenu.findItem(R.id.line_5px);
+//                nonHighlighted = R.drawable.line_5px;
+//                chosenThickness.setIcon(R.drawable.line_5px_highlighted);
+//                break;
+//            case 7:
+//                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
+//                nonHighlighted = R.drawable.line_7px;
+//                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
+//                break;
+//            case 9:
+//                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
+//                nonHighlighted = R.drawable.line_7px;
+//                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
+//                break;
+//            }
+//            chosenThicknessNonHighlightedIcon = nonHighlighted;
+//        }
+//    }
 
     private void newSketch() {
         userPickedANewName = false;
@@ -865,12 +990,11 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void delete() {
         String fileName = chosenFile;
-        File path = getApplicationContext().getExternalFilesDir(null);
-        File newFile = new File(path, fileName + FILE_EXTENSION);
+        File newFile = new File(homeFolder, fileName + FILE_EXTENSION);
         if (newFile.exists()) {
             if (!newFile.delete())
                 Utils.debug("couldn't delete file");
-            newFile = new File(path, "~" + fileName + FILE_EXTENSION);
+            newFile = new File(homeFolder, "~" + fileName + FILE_EXTENSION);
             if (newFile.exists())
                 if (!newFile.delete())
                     Utils.debug("couldn't delete file");
@@ -905,8 +1029,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private void share() {
         saveAndMaybeShowProgressBar(chosenFile);
-        File path = getApplicationContext().getExternalFilesDir(null);
-        File newFile = new File(path, chosenFile + FILE_EXTENSION);
+        File newFile = new File(homeFolder, chosenFile + FILE_EXTENSION);
         Intent intent = new Intent(android.content.Intent.ACTION_SEND);
         intent.setType("application/octet-stream");
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
@@ -919,8 +1042,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     }
 
     private void shareSnapshot() {
-        File path = getApplicationContext().getExternalFilesDir(null);
-        File tmpImage = new File(path, chosenFile + ".png");
+        File tmpImage = new File(homeFolder, chosenFile + ".png");
         tmpSnapshotName = chosenFile + ".png";
         try {
             openLock.lock();
@@ -962,25 +1084,69 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         switch (requestCode) {
         case IMAGE_LOADED_FROM_CAMERA:
             if (resultCode == RESULT_OK)
-                view.addScrap(new ImageScrap(view, imageURI), false);
+            	if (resultCode == RESULT_OK)
+                    view.addScrap(new ImageScrap(view).setImage(ImageScrap
+                            .copyImage(homeFolder.getAbsolutePath(),
+                                    imageURI.getPath())), false);
             break;
         case IMAGE_LOADED_FROM_GALLERY:
+            if (resultCode == RESULT_OK) {
+                String imagePath = getGalleryImagePath(data.getData());
+                if (imagePath != null)
+                    view.addScrap(
+                            new ImageScrap(view).setImage(ImageScrap.copyImage(
+                                    homeFolder.getAbsolutePath(), imagePath)),
+                            false);
+            }
             break;
         case CONTENT_SHARED:
-            File path = getApplicationContext().getExternalFilesDir(null);
-            File tmpImage = new File(path, tmpSnapshotName);
+            File tmpImage = new File(homeFolder, tmpSnapshotName);
             if (tmpImage.exists())
                 tmpImage.delete();
             break;
         }
     }
+    
+    /**
+     * Returns a reference to the home directory for the app.
+     * 
+     * @return a file pointing to the home folder for the app
+     */
+    public File getHomeFolder() {
+        return homeFolder;
+    }
 
+    private String getGalleryImagePath(Uri path) {
+        if (path.getScheme().equals("content")) {
+            Cursor cursor = getContentResolver().query(path, null, null, null,
+                    null);
+            cursor.moveToFirst();
+            return cursor.getString(cursor
+                    .getColumnIndexOrThrow(Images.Media.DATA));
+        }
+        return null;
+    }
+    
     private String generateAutoSaveName() {
         return autoSaveName + " created on "
                 + DATE_FORMATTER.format(new Date());
     }
+    
+    /**
+     * Displays an error dialog informing the user that there's not enough
+     * memory to load the image that she tried to import to the sketch.
+     */
+    public void showOutOfMemoryError() {
+        runOnUiThread(new Runnable() {
 
-    private void showLoadDialog() {
+            @Override
+            public void run() {
+                outOfMemoryDialog.show();
+            }
+        });
+    }
+
+/*    private void showLoadDialog() {
         loadDialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.load_dialog_message)
                 .setItems(fileList.toArray(new String[fileList.size()]),
@@ -992,6 +1158,42 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                             }
                         }).create();
         loadDialog.show();
+    }*/
+    
+    private void showLoadDialog() {
+        loadDialog = new Dialog(this);
+        if (chosenFile == null) {
+            // no escape from Arkham City
+            loadDialog.setCancelable(false);
+            loadDialog.setCanceledOnTouchOutside(false);
+        }
+        ListView fileList = new ListView(getApplicationContext());
+        fileList.setAdapter(new FileListAdapter(this, homeFolder,
+                this.fileList, currentFileListIndex));
+        fileList.setSelection(currentFileListIndex / FileListAdapter.COLUMNS);
+        loadDialog.setContentView(fileList);
+        loadDialog.setTitle(R.string.load_dialog_message);
+        loadDialog.show();
+    }
+    
+    /**
+     * Callback called by {@link FileListAdapter} when an item is selected from
+     * the list.
+     * 
+     * @param index
+     *            the selection index
+     */
+    public void sketchSelected(int index) {
+        // first slot is occupied by "create new"
+        index--;
+        loadDialog.dismiss();
+        if (index < 0) {
+            currentFileListIndex = fileList.size() - 1;
+            newSketch();
+        } else if (index < fileList.size()) {
+            currentFileListIndex = index;
+            loadAndMaybeShowProgressBar(fileList.get(index));
+        }
     }
 
     private void loadAndMaybeShowProgressBar(final String file) {
@@ -1041,17 +1243,37 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         new LoadProgressBar(this).execute(input);
     }
 
-    private void loadImage() {
+/*    private void loadImage() {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        File path = getApplicationContext().getExternalFilesDir(null);
         File picture;
-        picture = new File(path, "tmp_image.jpg");
+        picture = new File(homeFolder, "tmp_image.jpg");
         picture.delete();
         imageURI = Uri.fromFile(picture);
         intent.putExtra(MediaStore.EXTRA_OUTPUT, imageURI);
         // start camera intent
         startActivityForResult(intent, IMAGE_LOADED_FROM_CAMERA);
 
+    }*/
+    
+    private void loadImage(boolean fromCamera) {
+        File picture;
+        picture = new File(homeFolder, "tmp_image.jpg");
+        picture.delete();
+        imageURI = Uri.fromFile(picture);
+        int returnCode;
+        Intent intent;
+        if (fromCamera) {
+            intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, imageURI);
+            returnCode = IMAGE_LOADED_FROM_CAMERA;
+        } else {
+            intent = new Intent(
+                    Intent.ACTION_PICK,
+                    android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+            intent.setType("image/*");
+            returnCode = IMAGE_LOADED_FROM_GALLERY;
+        }
+        startActivityForResult(intent, returnCode);
     }
 
     private void loadNext() {

@@ -1,7 +1,30 @@
-/**
- * CaliView.java Created on Oct 19, 2012 Copyright 2012 Michele Bonazza
- * <michele.bonazza@gmail.com>
- */
+/*******************************************************************************
+* Copyright (c) 2013, Regents of the University of California
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without modification, are permitted provided
+* that the following conditions are met:
+*
+* Redistributions of source code must retain the above copyright notice, this list of conditions
+* and the following disclaimer.
+*
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+* and the following disclaimer in the documentation and/or other materials provided with the
+* distribution.
+*
+* None of the name of the Regents of the University of California, or the names of its
+* contributors may be used to endorse or promote products derived from this software without specific
+* prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+* PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+* TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+* ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+******************************************************************************/
 package edu.uci.calismall;
 
 import java.io.File;
@@ -21,9 +44,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import yuku.ambilwarna.AmbilWarnaDialog;
-import yuku.ambilwarna.AmbilWarnaDialog.OnAmbilWarnaListener;
-import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Bitmap.Config;
@@ -421,7 +441,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     /**
      * The stroke width chosen by the user.
      */
-    int currentAbsStrokeWidth = DEFAULT_STROKE_THICKNESS;
+    float currentAbsStrokeWidth = DEFAULT_STROKE_THICKNESS;
     /**
      * Whether stroke size should be rescaled according to the zoom level.
      */
@@ -925,6 +945,14 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             newSelection = null;
         }
     }
+    
+    /**
+     * Displays an error dialog informing the user that there's not enough
+     * memory to load the image that she tried to import to the sketch.
+     */
+    public void showOutOfMemoryError() {
+        parent.showOutOfMemoryError();
+    }
 
     /**
      * Sets the argument scrap as the selected one, unselecting the scrap that
@@ -1079,26 +1107,31 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
-     * Returns a new color picker whose initial color is set to math the current
-     * stroke's.
+     * <<<<<<< HEAD ======= Called whenever a new combination of color,
+     * thickness and value for the "scale with zoom" flag has been chosen by the
+     * user. >>>>>>> refs/heads/new_drawing
      * 
-     * @return a newly created color picker dialog ready to be shown
+     * @param color
+     *            the new color
+     * @param scaleWithZoom
+     *            whether stroke thickness should change together with the zoom
+     *            value
+     * @param strokeThickness
+     *            the new stroke thickness
      */
-    public AmbilWarnaDialog getColorPicker() {
-        return new AmbilWarnaDialog(parent, stroke.getColor(),
-                new OnAmbilWarnaListener() {
-                    @Override
-                    public void onOk(AmbilWarnaDialog dialog, int color) {
-                        createNewStroke();
-                        stroke.setColor(color);
-                    }
-
-                    @Override
-                    public void onCancel(AmbilWarnaDialog dialog) {
-                    }
-                });
+    public void styleChanged(int color, boolean scaleWithZoom,
+            float strokeThickness) {
+//        createNewStroke();
+        stroke.setColor(color);
+        scaleStrokeWithZoom = scaleWithZoom;	
+        currentAbsStrokeWidth = strokeThickness;
+        if (scaleWithZoom) {
+            stroke.setStrokeWidth(currentAbsStrokeWidth / scaleFactor);
+        } else {
+            stroke.setStrokeWidth(currentAbsStrokeWidth);
+        }
     }
-
+    
     /**
      * Returns a reference to the scrap that is currently selected.
      * 

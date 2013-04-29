@@ -5,8 +5,12 @@
     <string name="title_activity_cali_small">CaliSmall</string>
     <string name="save_dialog_title">Save</string>
     <string name="save_dialog_message">Choose a file name for your sketch</string>
+    <string name="text_dialog_title">Create text scrap</string>
+    <string name="text_dialog_message">Type the content for a new text scrap</string>
     <string name="delete_dialog_title">Delete file</string>
     <string name="delete_dialog_message">Really delete file \""%1$s\""?</string>
+    <string name="out_of_memory_dialog_title">Not enough memory</string>
+    <string name="out_of_memory_dialog_message">The image you tried to load is too large to be added to the sketch. Please delete other images first, if possible.</string>
     <string name="delete_done">Sketch \"%1$s\" was deleted</string>
     <string name="file_saved">Sketch \"%1$s\" was saved</string>
     <string name="unnamed_files">Unnamed Sketch</string>
@@ -24,11 +28,10 @@
     <string name="share_message_subject">My Calico sketch</string>
     <string name="share_message_text">Check out this new sketch I made with CaliSmall&#153;!</string>
     <string name="share_message">Share via</string>
-    <string name="line_1px">Stroke - 1px</string>
-    <string name="line_2px">Stroke - 2px</string>
-    <string name="line_3px">Stroke - 3px</string>
-    <string name="line_5px">Stroke - 5px</string>
-    <string name="line_7px">Stroke - 7px</string>
-    <string name="line_9px">Stroke - 9px</string>
     <string name="line_resize">Resize with zoom</string>
+    <string name="gallery">Insert image from Gallery</string>
+    <string name="camera">Insert image from Camera</string>
+    <string name="label">label</string>
+    <string name="style_dialog_title">Line style</string>
+    <string name="close">Close</string>
 </resources>

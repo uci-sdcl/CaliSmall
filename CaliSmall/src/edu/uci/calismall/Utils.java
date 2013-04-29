@@ -1,10 +1,36 @@
-/**
- * Utils.java Created on Oct 19, 2012 Copyright 2012 Michele Bonazza
- * <michele.bonazza@gmail.com>
- */
+/*******************************************************************************
+* Copyright (c) 2013, Regents of the University of California
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without modification, are permitted provided
+* that the following conditions are met:
+*
+* Redistributions of source code must retain the above copyright notice, this list of conditions
+* and the following disclaimer.
+*
+* Redistributions in binary form must reproduce the above copyright notice, this list of conditions
+* and the following disclaimer in the documentation and/or other materials provided with the
+* distribution.
+*
+* None of the name of the Regents of the University of California, or the names of its
+* contributors may be used to endorse or promote products derived from this software without specific
+* prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+* PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+* LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+* TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+* ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+******************************************************************************/
 package edu.uci.calismall;
 
 import java.util.List;
+
+import org.json.JSONArray;
+import org.json.JSONException;
 
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -155,6 +181,65 @@ public final class Utils {
             point.y = point.x * ky + (point.y * my) + ty;
             point.x = point.x * mx + (originalY * kx) + tx;
         }
+    }
+    
+    /**
+     * Encodes the argument <tt>matrix</tt> into a JSON array.
+     * 
+     * <p>
+     * Values are cast to <tt>double</tt> because of JSON lack for a primitive
+     * <tt>float</tt> value.
+     * 
+     * @param matrix
+     *            the matrix to be encoded
+     * @return the matrix encoded into a JSON array, or <code>null</code> if
+     *         <tt>matrix</tt> is <code>null</code> or inconsistent (i.e. it
+     *         doesn't contain <tt>float</tt>'s)
+     */
+    public static JSONArray matrixToJson(Matrix matrix) {
+        if (matrix == null)
+            return null;
+        JSONArray array = new JSONArray();
+        float[] values = new float[9];
+        matrix.getValues(values);
+        for (float value : values) {
+            try {
+                array.put(value);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+        return array;
+    }
+
+    /**
+     * Decodes a matrix encoded using {@link #matrixToJson(Matrix)} from JSON
+     * format to a {@link Matrix} object.
+     * 
+     * @param array
+     *            the encoded matrix
+     * @return a matrix containing values from the JSON string (probably not
+     *         100% equal to the original because of the
+     *         <tt>float --&gt; double --&gt; float</tt> conversion) or
+     *         <code>null</code> if <tt>array</tt> is <code>null</code> or
+     *         doesn't contain a matrix
+     */
+    public static Matrix jsonToMatrix(JSONArray array) {
+        if (array == null)
+            return null;
+        float[] values = new float[9];
+        Matrix matrix = new Matrix();
+        for (int i = 0; i < array.length(); i++) {
+            try {
+                values[i] = (float) array.getDouble(i);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+        matrix.setValues(values);
+        return matrix;
     }
 
     /**
