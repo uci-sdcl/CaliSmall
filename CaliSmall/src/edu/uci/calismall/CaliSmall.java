@@ -41,6 +41,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimerTask;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -78,7 +79,6 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.SubMenu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.inputmethod.EditorInfo;
@@ -319,7 +319,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private static final String LIST_FILE_NAME = ".file_list";
     private static final String DISABLE_GALLERY = ".nomedia";
     private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat(
-            "yyyy-MM-dd HH:mm:ss");
+            "yyyy-MM-dd HH:mm:ss", Locale.US);
     private static final long AUTO_SAVE_TIME = 20 * 1000,
             AUTO_BACKUP_TIME = 3 * 60 * 1000;
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
@@ -385,10 +385,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private AlertDialog saveDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
     private ScheduledExecutorService autoSaverTimer;
-    private MenuItem chosenThickness;
     private CheckBox resizeWithZoom;
     private Uri imageURI;
-    private int chosenThicknessNonHighlightedIcon;
     private boolean userPickedANewName, eraserMode;
 
     @Override
@@ -620,13 +618,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private List<String> initFileList() {
         List<String> files = new ArrayList<String>();
+        BufferedReader reader = null;
         if (Environment.MEDIA_MOUNTED.equals(Environment
                 .getExternalStorageState())) {
             File listFileProject = new File(homeFolder, LIST_FILE_NAME);
             try {
                 if (!listFileProject.exists())
                     listFileProject.createNewFile();
-                BufferedReader reader = new BufferedReader(new FileReader(
+                reader = new BufferedReader(new FileReader(
                         listFileProject));
                 String line = null;
                 while ((line = reader.readLine()) != null) {
@@ -643,6 +642,14 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+            	if (reader != null)
+					try {
+						reader.close();
+					} catch (IOException e) {
+						// can't do much more than that, really...
+						e.printStackTrace();
+					}
             }
         }
         return files;
@@ -873,31 +880,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         return knownOption || super.onOptionsItemSelected(item);
     }
 
-    private boolean onStrokeThicknessSelection(int selectedThickness) {
-        if (eraserMode) {
-            view.toggleEraserMode();
-            eraserMode = !eraserMode;
-        }
-        view.currentAbsStrokeWidth = selectedThickness;
-        if (view.scaleStrokeWithZoom)
-            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth
-                    / view.scaleFactor);
-        else
-            view.stroke.setStrokeWidth(view.currentAbsStrokeWidth);
-        invalidateOptionsMenu();
-        return true;
-    }
-
-    private boolean toggleStrokeWidthScaling() {
-        if (eraserMode) {
-            view.toggleEraserMode();
-            eraserMode = !eraserMode;
-        }
-        view.scaleStrokeWithZoom = !view.scaleStrokeWithZoom;
-        invalidateOptionsMenu();
-        return true;
-    }
-
     /*
      * (non-Javadoc)
      * 
@@ -908,54 +890,8 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         MenuItem eraser = menu.findItem(R.id.eraser);
         eraser.setIcon(eraserMode ? R.drawable.ic_eraser_highlighted
                 : R.drawable.ic_eraser);
-//        SubMenu lineStyleMenu = menu.findItem(R.id.line_style).getSubMenu();
-//        updateStrokeThicknessSelection(lineStyleMenu);
         return super.onPrepareOptionsMenu(menu);
     }
-
-//    private void updateStrokeThicknessSelection(SubMenu lineStyleMenu) {
-//        if (chosenThickness == null) {
-//            chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
-//            chosenThicknessNonHighlightedIcon = R.drawable.line_2px;
-//            chosenThickness.setIcon(R.drawable.line_2px_highlighted);
-//        } else {
-//            chosenThickness.setIcon(chosenThicknessNonHighlightedIcon);
-//            int nonHighlighted = 0;
-//            switch (view.currentAbsStrokeWidth) {
-//            case 1:
-//                chosenThickness = lineStyleMenu.findItem(R.id.line_1px);
-//                nonHighlighted = R.drawable.line_1px;
-//                chosenThickness.setIcon(R.drawable.line_1px_highlighted);
-//                break;
-//            case 2:
-//                chosenThickness = lineStyleMenu.findItem(R.id.line_2px);
-//                nonHighlighted = R.drawable.line_2px;
-//                chosenThickness.setIcon(R.drawable.line_2px_highlighted);
-//                break;
-//            case 3:
-//                chosenThickness = lineStyleMenu.findItem(R.id.line_3px);
-//                nonHighlighted = R.drawable.line_3px;
-//                chosenThickness.setIcon(R.drawable.line_3px_highlighted);
-//                break;
-//            case 5:
-//                chosenThickness = lineStyleMenu.findItem(R.id.line_5px);
-//                nonHighlighted = R.drawable.line_5px;
-//                chosenThickness.setIcon(R.drawable.line_5px_highlighted);
-//                break;
-//            case 7:
-//                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
-//                nonHighlighted = R.drawable.line_7px;
-//                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
-//                break;
-//            case 9:
-//                chosenThickness = lineStyleMenu.findItem(R.id.line_7px);
-//                nonHighlighted = R.drawable.line_7px;
-//                chosenThickness.setIcon(R.drawable.line_7px_highlighted);
-//                break;
-//            }
-//            chosenThicknessNonHighlightedIcon = nonHighlighted;
-//        }
-//    }
 
     private void newSketch() {
         userPickedANewName = false;
@@ -974,7 +910,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 saveLock.unlock();
             }
         }
-        // view.clear();
         view.reset();
         view.forceRedraw();
         view.setDrawableCanvas(getDisplaySize());
@@ -1274,16 +1209,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             returnCode = IMAGE_LOADED_FROM_GALLERY;
         }
         startActivityForResult(intent, returnCode);
-    }
-
-    private void loadNext() {
-        userPickedANewName = false;
-        currentFileListIndex++;
-        if (currentFileListIndex == fileList.size()) {
-            newSketch();
-        } else {
-            loadAndMaybeShowProgressBar(fileList.get(currentFileListIndex));
-        }
     }
 
     private void loadPrevious() {

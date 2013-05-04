@@ -33,7 +33,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -49,8 +48,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.media.ExifInterface;
-import android.net.Uri;
-import android.util.FloatMath;
 
 /**
  * @author Michele Bonazza
@@ -61,7 +58,6 @@ public class ImageScrap extends Scrap {
     private int initialRotation, sampleSize, scaledWidth, scaledHeight;
 
     private static final String IMAGES_FOLDER_NAME = "images";
-    private static final int ABS_SCREEN_TO_IMG_RATIO = 3;
     private String srcImage;
     private Matrix bitmapMatrix;
     private Bitmap scaled;
@@ -76,51 +72,6 @@ public class ImageScrap extends Scrap {
         super(parentView);
         bitmapMatrix = new Matrix();
     }
-    
-    /**
-     * @param parentView
-     * @param imageUri
-     *//*
-    public ImageScrap(CaliView parentView, Uri imageUri) {
-        super(parentView);
-        File src = new File(imageUri.getPath());
-        File imagesFolder = new File(src.getParent(), IMAGES_FOLDER_NAME);
-        if (!imagesFolder.exists()) {
-            imagesFolder.mkdir();
-        }
-        File dst = new File(imagesFolder, System.currentTimeMillis() + ".jpg");
-        srcImage = dst.getAbsolutePath();
-        src.renameTo(dst);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(srcImage, options);
-        int imageHeight = options.outHeight;
-        int imageWidth = options.outWidth;
-        PointF viewSize = parentView.getDrawableSize();
-        float scale;
-        if (imageWidth < imageHeight) {
-            // img in portrait mode, fit height
-            scale = imageHeight / (viewSize.y / (ABS_SCREEN_TO_IMG_RATIO));
-        } else {
-            // img in landscape or square, fit width
-            scale = imageWidth / (viewSize.x / (ABS_SCREEN_TO_IMG_RATIO));
-        }
-        options.inJustDecodeBounds = false;
-        options.inSampleSize = (int) FloatMath.floor(scale);
-        scaled = BitmapFactory.decodeFile(srcImage, options);
-        Utils.debug("original size: " + imageWidth + "x" + imageHeight
-                + ", new: " + scaled.getWidth() + "x" + scaled.getHeight()
-                + " scale is " + scale);
-        bitmapMatrix = new Matrix();
-        PointF topLeft = new PointF(viewSize.x / 2 - scaled.getWidth() / 2,
-                viewSize.y / 2 - scaled.getHeight() / 2);
-        PointF topRight = new PointF(topLeft.x + scaled.getWidth(), topLeft.y);
-        PointF bottomLeft = new PointF(topLeft.x, topLeft.y
-                + scaled.getHeight());
-        outerBorder = new RectStroke(parentView, new RectF(topLeft.x,
-                topLeft.y, topRight.x, bottomLeft.y));
-        bitmapMatrix.postTranslate(topLeft.x, topLeft.y);
-    }*/
     
     /**
      * Clones the argument image.
