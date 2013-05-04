@@ -91,7 +91,7 @@ public class EraserHandler extends GenericTouchHandler {
         eraserArea.set(touchPoint.x - halfEraserSize, touchPoint.y
                 - halfEraserSize, touchPoint.x + halfEraserSize, touchPoint.y
                 + halfEraserSize);
-        checkForIntersections(touchPoint);
+        checkForIntersections();
         return true;
     }
 
@@ -114,7 +114,7 @@ public class EraserHandler extends GenericTouchHandler {
         eraserArea.set(touchPoint.x - halfEraserSize, touchPoint.y
                 - halfEraserSize, touchPoint.x + halfEraserSize, touchPoint.y
                 + halfEraserSize);
-        checkForIntersections(touchPoint);
+        checkForIntersections();
         return true;
     }
 
@@ -127,7 +127,8 @@ public class EraserHandler extends GenericTouchHandler {
      */
     public void draw(Canvas canvas) {
         if (drawIt) {
-            canvas.drawRect(eraserArea, ERASER_PAINT);
+            canvas.drawCircle(eraserArea.centerX(), eraserArea.centerY(),
+                    halfEraserSize, ERASER_PAINT);
         }
     }
 
@@ -137,7 +138,7 @@ public class EraserHandler extends GenericTouchHandler {
         return false;
     }
 
-    private void checkForIntersections(PointF touchPoint) {
+    private void checkForIntersections() {
         List<Stroke> candidates = parentView.getIntersectingStrokes(eraserArea);
         if (!candidates.isEmpty()) {
             for (Stroke stroke : candidates) {
