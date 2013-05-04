@@ -1154,6 +1154,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getAction() & MotionEvent.ACTION_MASK;
+        // Log.d("MotionEvent", Utils.actionToString(action));
         try {
             PointF touchPoint = getTouchPoint(action, event);
             boolean redirected = false;

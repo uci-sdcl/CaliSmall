@@ -739,7 +739,10 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
             paint.setColor(color);
             paint.setStrokeWidth(strokeWidth);
             paint.setStyle(style);
-            canvas.drawPath(path, paint);
+            // TODO this is a quick and dirty solution to
+            // https://github.com/uci-sdcl/CaliSmall/issues/2, we're wasting a
+            // lot of performance though!
+            canvas.drawPath(new Path(path), paint);
         }
     }
 
@@ -851,8 +854,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
                 if (drawableArea.contains(point.x, point.y)) {
                     if (lastOut != null) {
                         // add an "artificial" point on the intercept between
-                        // the
-                        // segment connecting lastIn with firstOut and the
+                        // the segment connecting lastIn with firstOut and the
                         // drawableArea's edge
                         newPoints
                                 .add(getIntercept(point, lastOut, drawableArea));
@@ -864,8 +866,7 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
                 } else {
                     if (lastIn != null) {
                         // add an "artificial" point on the intercept between
-                        // the
-                        // segment connecting lastIn with firstOut and the
+                        // the segment connecting lastIn with firstOut and the
                         // drawableArea's edge
                         newPoints
                                 .add(getIntercept(lastIn, point, drawableArea));
@@ -875,14 +876,23 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
                     lastOut = point;
                 }
             }
-            reset();
-            if (!newPoints.isEmpty()) {
-                setStart(newPoints.remove(0));
-                for (PointF point : newPoints) {
-                    addAndDrawPoint(point, 0f);
+            if (changed || newPoints.isEmpty()) {
+                Path newPath = new Path();
+                if (!newPoints.isEmpty()) {
+                    PointF start = newPoints.get(0);
+                    newPath.moveTo(start.x, start.y);
+                    newPath.lineTo(start.x, start.y);
+                    for (int i = 1; i < newPoints.size(); i++) {
+                        PointF end = newPoints.get(i);
+                        newPath.quadTo(start.x, start.y, (end.x + start.x) / 2,
+                                (end.y + start.y) / 2);
+                        start = end;
+                    }
                 }
-            } else {
-                changed = true;
+                reset();
+                path.set(newPath);
+                points.addAll(newPoints);
+                setBoundaries();
             }
         }
         return changed;
