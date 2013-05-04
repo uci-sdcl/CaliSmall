@@ -89,7 +89,7 @@ import android.view.SurfaceView;
  * Input (touch) events are handles by the
  * {@link CaliView#onTouchEvent(MotionEvent)} method, which is called by the
  * Android Event Dispatcher Thread (or whatever they call it for Android, it's
- * the equivalente of Java's good ol' EDT).
+ * the equivalent of Java's good ol' EDT).
  * 
  * <p>
  * To simplify code, and to avoid conflicts, all drawing operations are
@@ -827,6 +827,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
                 canvasOffsetY = 0;
             }
         }
+        Utils.debug(
+                "fitZoom, file is [%.2fx%.2f], canvas is [%dx%d] new zoom: %.2f new offsetX: %.2f new offsetY: %.2f",
+                drawableCanvas.width(), drawableCanvas.height(), screenWidth,
+                screenHeight, scaleFactor, canvasOffsetX, canvasOffsetY);
         matrix.reset();
         matrix.preTranslate(canvasOffsetX, canvasOffsetY);
         matrix.postScale(scaleFactor, scaleFactor);
@@ -1410,7 +1414,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the previousSelection to set
      */
     public void setPreviousSelection(Scrap previousSelection) {
-        Utils.debug("setPreviousSelection(%s)", previousSelection);
         this.previousSelection = previousSelection;
     }
 

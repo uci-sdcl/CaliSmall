@@ -798,14 +798,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             e.printStackTrace();
         } catch (JSONException e) {
             Log.e(TAG, "JSONException", e);
-            // runOnUiThread(new Runnable() {
-            //
-            // @Override
-            // public void run() {
-            // Toast.makeText(getApplicationContext(),
-            // R.string.load_failed, Toast.LENGTH_SHORT).show();
-            // }
-            // });
             loadPrevious();
         }
     }
@@ -1080,20 +1072,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             }
         });
     }
-
-/*    private void showLoadDialog() {
-        loadDialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.load_dialog_message)
-                .setItems(fileList.toArray(new String[fileList.size()]),
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog,
-                                    int which) {
-                                currentFileListIndex = which;
-                                loadAndMaybeShowProgressBar(fileList.get(which));
-                            }
-                        }).create();
-        loadDialog.show();
-    }*/
     
     private void showLoadDialog() {
         loadDialog = new Dialog(this);

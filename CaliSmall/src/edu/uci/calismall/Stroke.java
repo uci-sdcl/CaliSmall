@@ -961,7 +961,9 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
         try {
             jsonData.getBoolean("r");
             // a RoundRectStroke
-            return new RoundRectStroke(parentView).fromJSON(jsonData);
+            RoundRectStroke rrs = new RoundRectStroke(parentView)
+                    .fromJSON(jsonData);
+            return rrs;
         } catch (JSONException e) {
             // not a RoundRectStroke
             try {

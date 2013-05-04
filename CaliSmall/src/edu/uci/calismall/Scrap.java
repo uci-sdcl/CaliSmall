@@ -192,7 +192,11 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         snapshotMatrix = new Matrix();
         matrix = new Matrix();
         rollbackMatrix = new Matrix();
-        this.outerBorder = new Stroke(outerBorder);
+        if (outerBorder instanceof RoundRectStroke)
+            this.outerBorder = new RoundRectStroke(
+                    (RoundRectStroke) outerBorder);
+        else
+            this.outerBorder = new Stroke(outerBorder);
         this.scraps = scraps;
         this.strokes = strokes;
         outerBorder.getPath().close();
@@ -215,7 +219,11 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         snapshotMatrix = new Matrix();
         matrix = new Matrix();
         rollbackMatrix = new Matrix();
-        outerBorder = new Stroke(copy.outerBorder);
+        if (copy.outerBorder instanceof RoundRectStroke)
+            this.outerBorder = new RoundRectStroke(
+                    (RoundRectStroke) copy.outerBorder);
+        else
+            this.outerBorder = new Stroke(copy.outerBorder);
         if (deepCopy) {
             this.scraps = new ArrayList<Scrap>(copy.scraps.size());
             this.strokes = new ArrayList<Stroke>(copy.strokes.size());
@@ -507,9 +515,8 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         collage.reset();
         final float radius = ABS_SHRINK_BORDER_RADIUS / scaleFactor;
         final float margin = ABS_SHRINK_BORDER_MARGIN / scaleFactor;
-        area.set(area.left - margin, area.top - margin, area.right + margin,
-                area.bottom + margin);
-        outerBorder = new RoundRectStroke(outerBorder, area, radius);
+        area.set(area.left, area.top, area.right, area.bottom);
+        outerBorder = new RoundRectStroke(outerBorder, area, radius, margin);
         setBoundaries();
         contentChanged = true;
     }
@@ -980,8 +987,11 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         } catch (JSONException e) {
             // not an ImageStroke
             id = jsonData.getLong("id");
-            outerBorder = new Stroke(parentView);
-            outerBorder.fromJSON(jsonData.getJSONObject("b"));
+            JSONObject border = jsonData.getJSONObject("b");
+            if (border.has("r")) {
+                outerBorder = new RoundRectStroke(parentView).fromJSON(border);
+            } else
+                outerBorder = new Stroke(parentView).fromJSON(border);
             try {
                 JSONArray array = jsonData.getJSONArray("str");
                 for (int i = 0; i < array.length(); i++) {

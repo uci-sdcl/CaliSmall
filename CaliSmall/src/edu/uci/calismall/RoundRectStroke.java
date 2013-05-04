@@ -71,29 +71,49 @@ public class RoundRectStroke extends Stroke {
      *            the radius (as would be used in
      *            {@link Path#addRoundRect(RectF, float, float, android.graphics.Path.Direction)}
      *            ) for the corners
+     * @param padding
+     *            the padding to be added to every side of the rectangle
      */
-    public RoundRectStroke(Stroke copyStyleFrom, RectF borders, float radius) {
+    public RoundRectStroke(Stroke copyStyleFrom, RectF borders, float radius,
+            float padding) {
         super(copyStyleFrom.parentView, new Path(), copyStyleFrom);
+        final float left = borders.left - padding;
+        final float top = borders.top - padding;
+        final float right = borders.right + padding;
+        final float bottom = borders.bottom + padding;
         // points are arranged starting from top-left corner clockwise
-        setStart(new PointF(borders.left, borders.top + radius));
-        points.add(new PointF(borders.left, borders.top));
-        points.add(new PointF(borders.left + radius, borders.top));
+        setStart(new PointF(left, top + radius));
+        points.add(new PointF(left, top));
+        points.add(new PointF(left + radius, top));
         // top right corner
-        points.add(new PointF(borders.right - radius, borders.top));
-        points.add(new PointF(borders.right, borders.top));
-        points.add(new PointF(borders.right, borders.top + radius));
+        points.add(new PointF(right - radius, top));
+        points.add(new PointF(right, top));
+        points.add(new PointF(right, top + radius));
         // bottom right corner
-        points.add(new PointF(borders.right, borders.bottom - radius));
-        points.add(new PointF(borders.right, borders.bottom));
-        points.add(new PointF(borders.right - radius, borders.bottom));
+        points.add(new PointF(right, bottom - radius));
+        points.add(new PointF(right, bottom));
+        points.add(new PointF(right - radius, bottom));
         // bottom left corner
-        points.add(new PointF(borders.left + radius, borders.bottom));
-        points.add(new PointF(borders.left, borders.bottom));
-        points.add(new PointF(borders.left, borders.bottom - radius));
+        points.add(new PointF(left + radius, bottom));
+        points.add(new PointF(left, bottom));
+        points.add(new PointF(left, bottom - radius));
+        createPath();
+    }
+
+    /**
+     * Creates a clone of the argument RoundRectStroke.
+     * 
+     * @param copyFrom
+     *            the stroke to be cloned
+     */
+    public RoundRectStroke(RoundRectStroke copyFrom) {
+        super(copyFrom.parentView, new Path(), copyFrom);
+        points.addAll(copyFrom.points);
         createPath();
     }
 
     private void createPath() {
+        path.moveTo(points.get(0).x, points.get(0).y);
         // 4 as in, the sides of a rectangle...
         for (int i = 0; i < 4; i++) {
             PointF firstAnchor = points.get(i * 3);
@@ -123,7 +143,7 @@ public class RoundRectStroke extends Stroke {
      * @see edu.uci.calismall.Stroke#fromJSON(org.json.JSONObject)
      */
     @Override
-    public Stroke fromJSON(JSONObject jsonData) throws JSONException {
+    public RoundRectStroke fromJSON(JSONObject jsonData) throws JSONException {
         try {
             id = jsonData.getLong("id");
         } catch (JSONException e) {

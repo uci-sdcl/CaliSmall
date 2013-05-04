@@ -72,6 +72,7 @@ public class RectStroke extends Stroke {
         points.add(new PointF(borders.right, borders.bottom));
         points.add(new PointF(borders.left, borders.bottom));
         createPath();
+        setBoundaries();
     }
     
     /**
