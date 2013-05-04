@@ -358,6 +358,7 @@ public class BubbleMenu extends GenericTouchHandler {
         selected.outerBorder.delete();
         parentView.removeScrap(selected);
         parentView.setSelected(null);
+        parentView.setPreviousSelection(null);
         return false;
     }
 

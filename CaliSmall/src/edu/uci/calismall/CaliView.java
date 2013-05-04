@@ -1410,6 +1410,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      *            the previousSelection to set
      */
     public void setPreviousSelection(Scrap previousSelection) {
+        Utils.debug("setPreviousSelection(%s)", previousSelection);
         this.previousSelection = previousSelection;
     }
 
