@@ -970,29 +970,33 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
     @Override
     public Scrap fromJSON(JSONObject jsonData) throws JSONException {
         try {
-            id = jsonData.getLong("id");
+            jsonData.getBoolean("i");
+            // an ImageStroke, update its boundaries once image is loaded
+            return new ImageScrap(parentView).fromJSON(jsonData);
         } catch (JSONException e) {
-            Utils.debug("old format!");
+            // not an ImageStroke
+            id = jsonData.getLong("id");
+            outerBorder = new Stroke(parentView);
+            outerBorder.fromJSON(jsonData.getJSONObject("b"));
+            try {
+                JSONArray array = jsonData.getJSONArray("str");
+                for (int i = 0; i < array.length(); i++) {
+                    Stroke stroke = parentView.getStrokeList().getById(
+                            array.getString(i));
+                    add(stroke);
+                }
+            } catch (JSONException e1) { /* it's ok, no strokes */
+            }
+            try {
+                JSONArray array = jsonData.getJSONArray("scr");
+                scrapIDs = new ArrayList<String>(array.length());
+                for (int i = 0; i < array.length(); i++) {
+                    scrapIDs.add(array.getString(i));
+                }
+            } catch (JSONException e1) { /* it's ok, no scraps */
+            }
+            setBoundaries();
         }
-        outerBorder = new Stroke(parentView);
-        outerBorder.fromJSON(jsonData.getJSONObject("b"));
-        outerBorder.getPath().close();
-        try {
-            JSONArray array = jsonData.getJSONArray("str");
-            for (int i = 0; i < array.length(); i++) {
-                Stroke stroke = parentView.getStrokeList().getById(
-                        array.getString(i));
-                add(stroke);
-            }
-        } catch (JSONException e) { /* it's ok, no strokes */}
-        try {
-            JSONArray array = jsonData.getJSONArray("scr");
-            scrapIDs = new ArrayList<String>(array.length());
-            for (int i = 0; i < array.length(); i++) {
-                scrapIDs.add(array.getString(i));
-            }
-        } catch (JSONException e) { /* it's ok, no scraps */}
-        setBoundaries();
         return this;
     }
 

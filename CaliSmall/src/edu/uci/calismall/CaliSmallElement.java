@@ -40,7 +40,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
-import android.util.FloatMath;
 
 /**
  * A graphical item used in CaliSmall.
@@ -98,7 +97,10 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
 
     }
 
-    private static final AtomicLong ID_GENERATOR = new AtomicLong();
+    /**
+     * The generator used to assign id's to elements.
+     */
+    protected static final AtomicLong ID_GENERATOR = new AtomicLong();
 
     /**
      * The region representing the area of this element.
@@ -226,6 +228,17 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
                 + height >= other.topLeftPoint.y)
                 || (topLeftPoint.y >= other.topLeftPoint.y && other.topLeftPoint.y
                         + other.height >= topLeftPoint.y);
+    }
+
+    /**
+     * Sets the ID for this element to the largest ID of all elements in the
+     * current canvas.
+     * 
+     * <p>
+     * This method should only be used after a new sketch is loaded!
+     */
+    void refreshID() {
+        id = ID_GENERATOR.incrementAndGet();
     }
 
     /**
@@ -467,10 +480,9 @@ public abstract class CaliSmallElement implements Comparable<CaliSmallElement> {
     protected void setBoundaries(Path path) {
         path.computeBounds(bounds, true);
         setArea(bounds);
-        Rect intRegion = new Rect((int) FloatMath.floor(bounds.left),
-                (int) FloatMath.floor(bounds.top),
-                (int) FloatMath.ceil(bounds.right),
-                (int) FloatMath.ceil(bounds.bottom));
+        Rect intRegion = new Rect((int) Math.floor(bounds.left),
+                (int) Math.floor(bounds.top), (int) Math.ceil(bounds.right),
+                (int) Math.ceil(bounds.bottom));
         boundaries.setPath(path, new Region(intRegion));
     }
 

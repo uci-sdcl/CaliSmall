@@ -960,21 +960,24 @@ class Stroke extends CaliSmallElement implements JSONSerializable<Stroke> {
     public Stroke fromJSON(JSONObject jsonData) throws JSONException {
         try {
             jsonData.getBoolean("r");
-            // a RectStroke
+            // a RoundRectStroke
             return new RoundRectStroke(parentView).fromJSON(jsonData);
         } catch (JSONException e) {
-            // not a RectStroke
+            // not a RoundRectStroke
             try {
-                id = jsonData.getLong("id");
+                jsonData.getBoolean("rect");
+                // a RectStroke
+                return new RectStroke(parentView).fromJSON(jsonData);
             } catch (JSONException e1) {
-                Utils.debug("old format!");
+                // not even a RectStroke
+                id = jsonData.getLong("id");
+                color = jsonData.getInt("c");
+                strokeWidth = (float) jsonData.getDouble("w");
+                style = Style.valueOf(jsonData.getString("s"));
+                for (PointF point : parsePoints(jsonData))
+                    addAndDrawPoint(point, -1f);
+                setBoundaries();
             }
-            color = jsonData.getInt("c");
-            strokeWidth = (float) jsonData.getDouble("w");
-            style = Style.valueOf(jsonData.getString("s"));
-            for (PointF point : parsePoints(jsonData))
-                addAndDrawPoint(point, -1f);
-            setBoundaries();
             return this;
         }
     }

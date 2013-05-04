@@ -27,6 +27,10 @@
 ******************************************************************************/
 package edu.uci.calismall;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
 
@@ -96,6 +100,36 @@ public class RectStroke extends Stroke {
         path.lineTo(points.get(3).x, points.get(3).y);
         path.lineTo(points.get(0).x, points.get(0).y);
         path.close();
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.Stroke#toJSON()
+     */
+    @Override
+    public JSONObject toJSON() throws JSONException {
+        JSONObject json = super.toJSON();
+        json.put("rect", true);
+        return json;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.Stroke#fromJSON(org.json.JSONObject)
+     */
+    @Override
+    public RectStroke fromJSON(JSONObject jsonData) throws JSONException {
+        id = jsonData.getLong("id");
+        color = jsonData.getInt("c");
+        strokeWidth = (float) jsonData.getDouble("w");
+        style = Paint.Style.valueOf(jsonData.getString("s"));
+        for (PointF point : parsePoints(jsonData))
+            points.add(point);
+        createPath();
+        setBoundaries();
+        return this;
     }
 
 }

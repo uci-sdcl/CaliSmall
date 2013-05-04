@@ -2108,24 +2108,33 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         zoomOutOfBounds = drawableCanvas.height() < screenHeight
                 || drawableCanvas.width() < screenWidth;
         JSONArray array = jsonData.getJSONArray("str");
+        long maxId = -1;
         for (int i = 0; i < array.length(); i++) {
             Stroke stroke = new Stroke(this);
-            stroke.fromJSON(array.getJSONObject(i));
+            stroke = stroke.fromJSON(array.getJSONObject(i));
+            if (stroke.getID() > maxId)
+                maxId = stroke.getID();
             strokes.add(stroke);
+            allStrokes.add(stroke);
         }
-        allStrokes.addAll(strokes);
         array = jsonData.getJSONArray("scr");
         for (int i = 0; i < array.length(); i++) {
             Scrap scrap = new Scrap(this);
-            scrap.fromJSON(array.getJSONObject(i));
+            scrap = scrap.fromJSON(array.getJSONObject(i));
+            if (scrap.getID() > maxId)
+                maxId = scrap.getID();
             scraps.add(scrap);
+            allScraps.add(scrap);
         }
-        allScraps.addAll(scraps);
         for (Scrap scrap : scraps) {
             scrap.addChildrenFromJSON();
         }
+        // avoid collisions in ID's!
+        CaliSmallElement.ID_GENERATOR.set(++maxId);
+        Utils.debug("element IDs will start from " + maxId);
         // this lets the new stroke be added to fg
         activeStroke = restore;
+        activeStroke.refreshID();
         // let android flip the buffer twice... weird, I know..
         foregroundRefresh = true;
         return this;
