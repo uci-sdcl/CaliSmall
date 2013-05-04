@@ -787,6 +787,18 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
+     * Called by {@link CaliSmall} when loading a new sketch, so memory can be
+     * freed.
+     */
+    public void close() {
+        for (Scrap scrap : allScraps.list) {
+            if (scrap instanceof ImageScrap) {
+                ((ImageScrap) scrap).close();
+            }
+        }
+    }
+
+    /**
      * Sets zooming and panning so that the drawable portion of the current
      * canvas fits the width of the screen.
      */

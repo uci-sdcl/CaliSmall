@@ -1249,6 +1249,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
                 drawingThreadWaiting.await(Painter.SCREEN_REFRESH_TIME,
                         TimeUnit.MILLISECONDS);
             }
+            view.close();
             fromJSON(new JSONObject(jsonString));
             view.fitZoom();
             fileOpened.signalAll();

@@ -257,6 +257,14 @@ public class ImageScrap extends Scrap {
         return dst.getAbsolutePath();
     }
 
+    /**
+     * Called when changing sketch, so memory can be freed.
+     */
+    public void close() {
+        if (scaled != null && !scaled.isRecycled())
+            scaled.recycle();
+    }
+
     /*
      * (non-Javadoc)
      * 
