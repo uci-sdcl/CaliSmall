@@ -107,6 +107,10 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
      */
     protected final List<Stroke> strokes;
 
+    /**
+     * IDs of all scraps children of this scrap. Only used when creating a Scrap
+     * from a JSON file.
+     */
     protected List<String> scrapIDs;
 
     /**

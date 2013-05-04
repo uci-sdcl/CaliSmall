@@ -665,6 +665,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         }
         if (bubbleMenu.isVisible())
             bubbleMenu.draw(canvas);
+        if (eraserHandler.isEnabled()) {
+            eraserHandler.draw(canvas);
+        }
     }
 
     private void drawBackground(Canvas canvas) {
@@ -692,6 +695,9 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             drawForegroundStrokes(canvas);
             if (bubbleMenu.isVisible()) {
                 bubbleMenu.draw(canvas);
+            }
+            if (eraserHandler.isEnabled()) {
+                eraserHandler.draw(canvas);
             }
             activeStroke.draw(canvas, PAINT);
             ghostHandler.drawGhosts(canvas, PAINT);

@@ -29,8 +29,12 @@ package edu.uci.calismall;
 
 import java.util.List;
 
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Paint.Style;
 import android.graphics.PointF;
 import android.graphics.RectF;
+import android.view.MotionEvent;
 
 /**
  * A handler for touch events generated while CaliSmall is in eraser mode.
@@ -46,7 +50,17 @@ public class EraserHandler extends GenericTouchHandler {
      * factor retrieved using {@link CaliView#getScaleFactor()}.
      */
     public static final float ABS_HALF_ERASER_SIZE = 10f;
-    private boolean enabled;
+    private static final Paint ERASER_PAINT = new Paint();
+    private static final float ABS_STROKE_WIDTH = 2.5f;
+
+    static {
+        ERASER_PAINT.setAntiAlias(true);
+        ERASER_PAINT.setStyle(Style.STROKE);
+        ERASER_PAINT.setStrokeWidth(ABS_STROKE_WIDTH);
+    }
+
+    private final RectF eraserArea;
+    private boolean enabled, drawIt;
     private float halfEraserSize;
 
     /**
@@ -57,6 +71,7 @@ public class EraserHandler extends GenericTouchHandler {
      */
     public EraserHandler(CaliView parent) {
         super("EraserHandler", parent);
+        eraserArea = new RectF();
     }
 
     /*
@@ -69,8 +84,20 @@ public class EraserHandler extends GenericTouchHandler {
     public boolean onDown(PointF touchPoint) {
         if (!enabled)
             return false;
+        drawIt = true;
         halfEraserSize = ABS_HALF_ERASER_SIZE / parentView.getScaleFactor();
+        ERASER_PAINT.setStrokeWidth(ABS_STROKE_WIDTH
+                / parentView.getScaleFactor());
+        eraserArea.set(touchPoint.x - halfEraserSize, touchPoint.y
+                - halfEraserSize, touchPoint.x + halfEraserSize, touchPoint.y
+                + halfEraserSize);
         checkForIntersections(touchPoint);
+        return true;
+    }
+
+    @Override
+    public boolean onUp(PointF touchPoint) {
+        drawIt = false;
         return true;
     }
 
@@ -84,18 +111,37 @@ public class EraserHandler extends GenericTouchHandler {
     public boolean onMove(PointF touchPoint) {
         if (!enabled)
             return false;
+        eraserArea.set(touchPoint.x - halfEraserSize, touchPoint.y
+                - halfEraserSize, touchPoint.x + halfEraserSize, touchPoint.y
+                + halfEraserSize);
         checkForIntersections(touchPoint);
         return true;
     }
 
+    /**
+     * Draws a small square representing the eraser's touch area to the argument
+     * <tt>canvas</tt>.
+     * 
+     * @param canvas
+     *            the canvas onto which the eraser must be drawn
+     */
+    public void draw(Canvas canvas) {
+        if (drawIt) {
+            canvas.drawRect(eraserArea, ERASER_PAINT);
+        }
+    }
+
+    @Override
+    public boolean onPointerDown(PointF touchPoint, MotionEvent event) {
+        drawIt = false;
+        return false;
+    }
+
     private void checkForIntersections(PointF touchPoint) {
-        final RectF testRect = new RectF(touchPoint.x - halfEraserSize,
-                touchPoint.y - halfEraserSize, touchPoint.x + halfEraserSize,
-                touchPoint.y + halfEraserSize);
-        List<Stroke> candidates = parentView.getIntersectingStrokes(testRect);
+        List<Stroke> candidates = parentView.getIntersectingStrokes(eraserArea);
         if (!candidates.isEmpty()) {
             for (Stroke stroke : candidates) {
-                if (stroke.rawIntersects(testRect)) {
+                if (stroke.rawIntersects(eraserArea)) {
                     // if (stroke.bezierContains(touchPoint)) {
                     stroke.delete();
                     CaliSmallElement parent = stroke.getParent();
@@ -127,6 +173,15 @@ public class EraserHandler extends GenericTouchHandler {
         enabled = !enabled;
         if (enabled)
             parentView.setSelected(null);
+    }
+
+    /**
+     * Returns whether the eraser is currently enabled.
+     * 
+     * @return <code>true</code> if the eraser is currently enabled
+     */
+    public boolean isEnabled() {
+        return enabled;
     }
 
 }

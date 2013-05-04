@@ -84,7 +84,7 @@ public final class Utils {
      * parameters passed to this method.
      * 
      * <p>
-     * Messages logged with this method will have {@link #TAG} as tag.
+     * Messages logged with this method will have {@link CaliSmall#TAG} as tag.
      * 
      * @param message
      *            the message to be logged
