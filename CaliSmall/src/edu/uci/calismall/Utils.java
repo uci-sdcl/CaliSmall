@@ -28,6 +28,7 @@
 package edu.uci.calismall;
 
 import java.util.List;
+import java.util.Set;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -35,7 +36,6 @@ import org.json.JSONException;
 import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.PointF;
-import android.util.FloatMath;
 import android.util.Log;
 import android.view.MotionEvent;
 
@@ -69,6 +69,227 @@ public final class Utils {
                                     message.length())));
             offset += MAX_MESSAGE_LENGTH;
         }
+    }
+
+    /**
+     * Logs the argument message as a debug string.
+     * 
+     * <p>
+     * This method splits the message into several in case the message is larger
+     * than the largest String that LogCat can handle for a single print call.
+     * 
+     * <p>
+     * The argument <tt>message</tt> can be a format string, in which case
+     * {@link String#format(String, Object...)} is called with the same
+     * parameters passed to this method.
+     * 
+     * <p>
+     * Messages logged with this method will have {@link #TAG} as tag.
+     * 
+     * @param message
+     *            the message to be logged
+     * @param formatParms
+     *            zero or more arguments to fill the format string with, in case
+     *            <tt>message</tt> is a format string
+     */
+    public static void debug(String message, Object... formatParms) {
+        int offset = 0;
+        if (formatParms != null && formatParms.length > 0) {
+            swapNullsWithStrings(formatParms);
+            message = String.format(message, formatParms);
+        }
+        while (offset < message.length()) {
+            Log.d(CaliSmall.TAG,
+                    message.substring(
+                            offset,
+                            Math.min(offset + MAX_MESSAGE_LENGTH,
+                                    message.length())));
+            offset += MAX_MESSAGE_LENGTH;
+        }
+    }
+
+    /**
+     * Logs the output of {@link #listToString(String, List)} in case it's not
+     * <code>null</code>.
+     * 
+     * @param listName
+     *            the name of the list to be logged
+     * @param list
+     *            the list to be logged
+     */
+    public static void debugList(String listName, List<?> list) {
+        String out = listToString(listName, list);
+        if (out != null)
+            debug(out);
+    }
+
+    /**
+     * Iterates through all elements in the argument <tt>array</tt>, switching
+     * each <code>null</code> item with a String containing "<tt>null</tt>" as
+     * text.
+     * 
+     * @param array
+     *            a non-<code>null</code> array that may contain
+     *            <code>null</code> items
+     */
+    public static void swapNullsWithStrings(final Object[] array) {
+        if (array != null) {
+            for (int i = 0; i < array.length; i++) {
+                if (array[i] == null)
+                    array[i] = "null";
+            }
+        }
+    }
+
+    /**
+     * Returns a string structured as such: <blockquote>
+     * 
+     * <pre>
+     * listName: item1, item2, item3, ..., itemN
+     * </pre>
+     * 
+     * </blockquote> where each <tt>item</tt> is the string returned by calling
+     * {@link Object#toString()} on elements in the list.
+     * 
+     * <p>
+     * If <tt>list</tt> is empty, <code>null</code> is returned.
+     * 
+     * @param listName
+     *            the name of the argument list
+     * @param list
+     *            the list to be examined
+     * @return a String as reported above or <code>null</code> if <tt>list</tt>
+     *         is empty or any of the arguments are <code>null</code>
+     */
+    public static String listToString(String listName, List<?> list) {
+        if (isAnyNull(listName, list))
+            return null;
+        return list.isEmpty() ? null : listName + ": " + join(", ", list);
+    }
+
+    /**
+     * Returns a String that is empty in case the argument <tt>string</tt> is
+     * <code>null</code>, the unmodified <tt>string</tt> otherwise.
+     * 
+     * @param string
+     *            the string to be checked against <code>null</code>
+     * @return the empty String if <tt>string</tt> is <code>null</code>, the
+     *         argument <tt>string</tt> unmodified otherwise
+     */
+    public static String nonNull(final String string) {
+        return string == null ? "" : string;
+    }
+
+    /**
+     * Returns a String containing "<tt>null</tt>" as text if <tt>object</tt> is
+     * <code>null</code>, the value returned by {@link Object#toString()} called
+     * on <tt>object</tt> if it's not.
+     * 
+     * @param object
+     *            the object to check
+     * @return the value returned by <tt>toString()</tt> called on the object if
+     *         it's not <code>null</code>, a <tt>"null"</tt> String otherwise
+     */
+    public static String nonNullString(Object object) {
+        if (object == null)
+            return "null";
+        return object.toString();
+    }
+
+    /**
+     * An equivalent of Python's <code>str.join()</code> function on lists: it
+     * returns a String which is the concatenation of the strings in the
+     * argument array. The separator between elements is the string providing
+     * this method. The separator is appended after the first element and it is
+     * not after the last element.
+     * 
+     * @param toJoin
+     *            the separator
+     * @param list
+     *            a list of <code>Object</code>s on which
+     *            {@link Object#toString()} will be called
+     * @return the concatenation of String representations of the objects in the
+     *         list
+     */
+    public static String join(String toJoin, Object[] list) {
+        if (list == null || list.length == 0)
+            return "";
+        StringBuilder builder = new StringBuilder();
+        String delimiter = nonNull(toJoin);
+        int i = 0;
+        for (; i < (list.length - 1); i++) {
+            if (list[i] != null)
+                builder.append(list[i]);
+            builder.append(delimiter);
+        }
+        builder.append(getLast(list));
+        return builder.toString();
+    }
+
+    /**
+     * An equivalent of Python's <code>str.join()</code> function on lists: it
+     * returns a String which is the concatenation of the strings in the
+     * argument list. The separator between elements is the string providing
+     * this method. The separator is appended after the first element and it is
+     * not after the last element.
+     * 
+     * @param toJoin
+     *            the separator
+     * @param list
+     *            a list of <code>Object</code>s on which
+     *            {@link Object#toString()} will be called
+     * @return the concatenation of String representations of the objects in the
+     *         list
+     */
+    public static String join(String toJoin, List<?> list) {
+        if (list == null || list.isEmpty())
+            return "";
+        StringBuilder builder = new StringBuilder();
+        String delimiter = nonNull(toJoin);
+        int i = 0;
+        for (; i < list.size() - 1; i++) {
+            if (list.get(i) != null)
+                builder.append(list.get(i));
+            builder.append(delimiter);
+        }
+        builder.append(getLast(list));
+        return builder.toString();
+    }
+
+    /**
+     * An equivalent of Python's <code>str.join()</code> function on lists: it
+     * returns a String which is the concatenation of the strings in the
+     * argument list. The separator between elements is the string providing
+     * this method. The separator is appended after the first element and it is
+     * not after the last element.
+     * 
+     * @param toJoin
+     *            the separator
+     * @param set
+     *            a set of <code>Object</code>s on which
+     *            {@link Object#toString()} will be called
+     * @return the concatenation of String representations of the objects in the
+     *         set
+     */
+    public static String join(String toJoin, Set<?> set) {
+        return join(toJoin, set.toArray());
+    }
+
+    /**
+     * Checks whether <b>any</b> of the provided objects is <code>null</code>.
+     * 
+     * @param objects
+     *            a number of objects of any kind of which a check against
+     *            <code>null</code> values is performed.
+     * @return <code>true</code> if at least one of the arguments is
+     *         <code>null</code>.
+     */
+    public static boolean isAnyNull(Object... objects) {
+        for (Object o : objects) {
+            if (o == null)
+                return true;
+        }
+        return false;
     }
 
     /**
@@ -158,6 +379,10 @@ public final class Utils {
      * 
      * </blockquote>
      * 
+     * This method works the same way that
+     * {@link Matrix#mapPoints(float[], float[])} does, except it accepts a list
+     * of points and executes in-place on those.
+     * 
      * @param matrixValues
      *            the values to apply to all points in the list
      * @param points
@@ -177,6 +402,7 @@ public final class Utils {
          * store cosV, rx and ry store -sinV and sinV
          */
         for (PointF point : points) {
+
             final float originalY = point.y;
             point.y = point.x * ky + (point.y * my) + ty;
             point.x = point.x * mx + (originalY * kx) + tx;
@@ -258,8 +484,8 @@ public final class Utils {
             return Math.abs(point2.y - point1.y);
         if (point1.y == point2.y)
             return Math.abs(point2.x - point1.x);
-        return FloatMath.sqrt((float) (Math.pow(point2.x - point1.x, 2) + Math
-                .pow(point2.y - point1.y, 2)));
+        return (float) Math.sqrt(((Math.pow(point2.x - point1.x, 2) + Math.pow(
+                point2.y - point1.y, 2))));
     }
 
     /**
