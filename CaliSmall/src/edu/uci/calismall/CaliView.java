@@ -44,6 +44,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.app.Activity;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Bitmap.Config;
@@ -67,10 +69,6 @@ import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-/**
- * @author Michele Bonazza
- * 
- */
 /**
  * The {@link SurfaceView} on which the canvas is drawn.
  * 
@@ -535,9 +533,12 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * @param c
      *            the new CaliSmall instance
      */
-    public CaliView(CaliSmall c) {
+    public CaliView(Context c) {
         super(c);
-        parent = c;
+        if (!(c instanceof CaliSmall))
+            throw new IllegalArgumentException(
+                    "CaliView can only be placed within a CaliSmall Activity");
+        parent = (CaliSmall) c;
         strokes = new ArrayList<Stroke>();
         scraps = new ArrayList<Scrap>();
         foregroundStrokes = new ArrayList<Stroke>();
@@ -955,7 +956,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
-     * Sets the argument scrap as the selected one, unselecting the scrap that
+     * Sets the argument scrap as the selected one, deselecting the scrap that
      * was previously selected (if any was).
      * 
      * @param selected
@@ -1107,9 +1108,8 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
-     * <<<<<<< HEAD ======= Called whenever a new combination of color,
-     * thickness and value for the "scale with zoom" flag has been chosen by the
-     * user. >>>>>>> refs/heads/new_drawing
+     * Called whenever a new combination of color, thickness and value for the
+     * "scale with zoom" flag has been chosen by the user.
      * 
      * @param color
      *            the new color
@@ -1121,7 +1121,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void styleChanged(int color, boolean scaleWithZoom,
             float strokeThickness) {
-//        createNewStroke();
         stroke.setColor(color);
         scaleStrokeWithZoom = scaleWithZoom;	
         currentAbsStrokeWidth = strokeThickness;
@@ -1851,7 +1850,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             canvasOffsetX += translateX;
             canvasOffsetY += translateY;
             checkDrawableArea();
-            // enforceBoundConstraints();
             // translate, move origin to (x,y) to center zooming
             matrix.preTranslate(translateX + dCenterX, translateY + dCenterY);
             // scale and move origin back to (0,0)
@@ -1861,39 +1859,6 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             previousScaledCenterY = scaledCenterY;
             return true;
         }
-
-        // private void enforceBoundConstraints() {
-        // if (scaleFactor > 1f) {
-        // if (canvasOffsetX > 0) {
-        // translateX -= canvasOffsetX;
-        // canvasOffsetX = 0;
-        // } else {
-        // final float minOffsetX = (1 - scaleFactor)
-        // * drawableCanvas.width();
-        // if (canvasOffsetX * scaleFactor < minOffsetX) {
-        // float difference = canvasOffsetX * scaleFactor
-        // - minOffsetX;
-        // canvasOffsetX -= translateX;
-        // translateX -= difference;
-        // canvasOffsetX += translateX;
-        // }
-        // }
-        // if (canvasOffsetY > 0) {
-        // translateY -= canvasOffsetY;
-        // canvasOffsetY = 0;
-        // } else {
-        // final float minOffsetY = (1 - scaleFactor)
-        // * drawableCanvas.height();
-        // if (canvasOffsetY * scaleFactor < minOffsetY) {
-        // float difference = canvasOffsetY * scaleFactor
-        // - minOffsetY;
-        // canvasOffsetY -= translateY;
-        // translateY -= difference;
-        // canvasOffsetY += translateY;
-        // }
-        // }
-        // }
-        // }
 
         /*
          * (non-Javadoc)
