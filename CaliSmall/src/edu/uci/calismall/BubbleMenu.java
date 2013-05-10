@@ -35,7 +35,6 @@ import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
-import android.util.FloatMath;
 import android.view.MotionEvent;
 
 /**
@@ -219,7 +218,7 @@ public class BubbleMenu extends GenericTouchHandler {
      * The ratio used to make buttons have the same physical size regardless of
      * the actual pixel density of the device.
      */
-    public static final float BUTTON_SIZE_TO_SCREEN_WIDTH_RATIO = 48f / 1280;
+    public static final float BUTTON_ABS_SIZE = 48f;
     private static final int BUTTONS_PER_SIDE = 4;
     private static final float PADDING_TO_BUTTON_SIZE_RATIO = 0.5f;
     private static final int MINIMUM_SIDE_LENGTH_FOR_SCALE = 4;
@@ -679,8 +678,7 @@ public class BubbleMenu extends GenericTouchHandler {
      *            the portion of the canvas currently displayed
      */
     public void setBounds(float scaleFactor, RectF bounds) {
-        bSize = Math.max(bounds.width(), bounds.height())
-                * BUTTON_SIZE_TO_SCREEN_WIDTH_RATIO;
+        bSize = BUTTON_ABS_SIZE * parentView.displayDensity / scaleFactor;
         setBounds(null, scaleFactor, bounds);
     }
 
@@ -698,30 +696,31 @@ public class BubbleMenu extends GenericTouchHandler {
     private void updatePivotButtonsPosition() {
         // use floor() and ceil() according to what's closest to the screen
         // margins
-        topRight.position.left = (int) FloatMath.floor(sel.right);
-        topRight.position.top = (int) FloatMath.ceil(sel.top - bSize);
-        topRight.position.right = (int) FloatMath.floor(topRight.position.left
+        topRight.position.left = (int) Math.floor(sel.right);
+        topRight.position.top = (int) Math.ceil(sel.top - bSize);
+        topRight.position.right = (int) Math.floor(topRight.position.left
                 + bSize);
-        topRight.position.bottom = (int) FloatMath.ceil(topRight.position.top
+        topRight.position.bottom = (int) Math.ceil(topRight.position.top
                 + bSize);
-        topLeft.position.left = (int) FloatMath.floor(sel.left - bSize);
+        topLeft.position.left = (int) Math.floor(sel.left - bSize);
         topLeft.position.top = topRight.position.top;
-        topLeft.position.right = (int) FloatMath.floor(topLeft.position.left
+        topLeft.position.right = (int) Math
+                .floor(topLeft.position.left
                 + bSize);
         topLeft.position.bottom = topRight.position.bottom;
         bottomRight.position.left = topRight.position.left;
-        bottomRight.position.top = (int) FloatMath.floor(sel.bottom);
+        bottomRight.position.top = (int) Math.floor(sel.bottom);
         bottomRight.position.right = topRight.position.right;
-        bottomRight.position.bottom = (int) FloatMath
+        bottomRight.position.bottom = (int) Math
                 .floor(bottomRight.position.top + bSize);
     }
 
     private void updateNonPivotButtonsPosition() {
         scrap.position.left = topLeft.position.left;
         scrap.position.right = topLeft.position.right;
-        scrap.position.top = (int) FloatMath.floor(topRight.position.bottom
+        scrap.position.top = (int) Math.floor(topRight.position.bottom
                 + padding);
-        scrap.position.bottom = (int) FloatMath.floor(scrap.position.top
+        scrap.position.bottom = (int) Math.floor(scrap.position.top
                 + bSize);
         copy.position.left = topRight.position.left;
         copy.position.right = topRight.position.right;
@@ -729,9 +728,9 @@ public class BubbleMenu extends GenericTouchHandler {
         copy.position.bottom = scrap.position.bottom;
         rotate.position.left = topRight.position.left;
         rotate.position.right = topRight.position.right;
-        rotate.position.bottom = (int) FloatMath.floor(bottomRight.position.top
+        rotate.position.bottom = (int) Math.floor(bottomRight.position.top
                 - padding);
-        rotate.position.top = (int) FloatMath.floor(rotate.position.bottom
+        rotate.position.top = (int) Math.floor(rotate.position.bottom
                 - bSize);
         // TODO add scrap_palette here
         erase.position.left = topLeft.position.left;
@@ -771,27 +770,28 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private void fixTooNarrow() {
         if (!topLeftPinned) {
-            topLeft.position.left = (int) FloatMath.ceil(sel.centerX()
+            topLeft.position.left = (int) Math
+                    .ceil(sel.centerX()
                     - minSize / 2);
-            topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+            topLeft.position.right = (int) Math.ceil(topLeft.position.left
                     + bSize);
         }
-        topRight.position.right = (int) FloatMath.floor(topLeft.position.left
+        topRight.position.right = (int) Math.floor(topLeft.position.left
                 + minSize);
-        topRight.position.left = (int) FloatMath.ceil(topRight.position.right
+        topRight.position.left = (int) Math.ceil(topRight.position.right
                 - bSize);
         bottomRight.position.left = topRight.position.left;
         bottomRight.position.right = topRight.position.right;
     }
 
     private void fixTooWide() {
-        topLeft.position.left = (int) Math.max(FloatMath.floor(bounds.left),
+        topLeft.position.left = (int) Math.max(Math.floor(bounds.left),
                 topLeft.position.left);
-        topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+        topLeft.position.right = (int) Math.ceil(topLeft.position.left
                 + bSize);
-        topRight.position.right = (int) Math.min(FloatMath.floor(bounds.right),
+        topRight.position.right = (int) Math.min(Math.floor(bounds.right),
                 topRight.position.right);
-        topRight.position.left = (int) FloatMath.ceil(topRight.position.right
+        topRight.position.left = (int) Math.ceil(topRight.position.right
                 - bSize);
         bottomRight.position.left = topRight.position.left;
         bottomRight.position.right = topRight.position.right;
@@ -799,27 +799,28 @@ public class BubbleMenu extends GenericTouchHandler {
 
     private void fixTooShort() {
         if (!topLeftPinned) {
-            topLeft.position.top = (int) FloatMath.ceil(sel.centerY() - minSize
+            topLeft.position.top = (int) Math.ceil(sel.centerY() - minSize
                     / 2);
-            topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+            topLeft.position.bottom = (int) Math.ceil(topLeft.position.top
                     + bSize);
         }
-        bottomRight.position.bottom = (int) FloatMath
+        bottomRight.position.bottom = (int) Math
                 .floor(topLeft.position.top + minSize);
-        bottomRight.position.top = (int) FloatMath
+        bottomRight.position.top = (int) Math
                 .floor(bottomRight.position.bottom - bSize);
         topRight.position.top = topLeft.position.top;
         topRight.position.bottom = topLeft.position.bottom;
     }
 
     private void fixTooHigh() {
-        topLeft.position.top = (int) Math.max(FloatMath.ceil(bounds.top),
+        topLeft.position.top = (int) Math.max(Math.ceil(bounds.top),
                 topLeft.position.top);
-        topLeft.position.bottom = (int) FloatMath.ceil(topLeft.position.top
+        topLeft.position.bottom = (int) Math.ceil(topLeft.position.top
                 + bSize);
         bottomRight.position.bottom = (int) Math.min(
-                FloatMath.floor(bounds.bottom), bottomRight.position.bottom);
-        bottomRight.position.top = (int) FloatMath
+Math.floor(bounds.bottom),
+                bottomRight.position.bottom);
+        bottomRight.position.top = (int) Math
                 .floor(bottomRight.position.bottom - bSize);
         topRight.position.top = topLeft.position.top;
         topRight.position.bottom = topLeft.position.bottom;
@@ -828,25 +829,25 @@ public class BubbleMenu extends GenericTouchHandler {
     private void applySpaceContraints() {
         if (topLeft.position.left <= bounds.left) {
             // make it appear on screen
-            topLeft.position.left = (int) FloatMath.ceil(bounds.left);
-            topLeft.position.right = (int) FloatMath.ceil(topLeft.position.left
+            topLeft.position.left = (int) Math.ceil(bounds.left);
+            topLeft.position.right = (int) Math.ceil(topLeft.position.left
                     + bSize);
         }
         if (topRight.position.right >= bounds.right) {
-            topRight.position.right = (int) FloatMath.floor(bounds.right);
-            topRight.position.left = (int) FloatMath
+            topRight.position.right = (int) Math.floor(bounds.right);
+            topRight.position.left = (int) Math
                     .floor(topRight.position.right - bSize);
             bottomRight.position.right = topRight.position.right;
             bottomRight.position.left = topRight.position.left;
         }
         if (bottomRight.position.bottom >= bounds.bottom) {
-            bottomRight.position.bottom = (int) FloatMath.floor(bounds.bottom);
-            bottomRight.position.top = (int) FloatMath
+            bottomRight.position.bottom = (int) Math.floor(bounds.bottom);
+            bottomRight.position.top = (int) Math
                     .floor(bottomRight.position.bottom - bSize);
         }
         if (topRight.position.top <= bounds.top) {
-            topRight.position.top = (int) FloatMath.ceil(bounds.top);
-            topRight.position.bottom = (int) FloatMath
+            topRight.position.top = (int) Math.ceil(bounds.top);
+            topRight.position.bottom = (int) Math
                     .ceil(topRight.position.top + bSize);
             topLeft.position.top = topRight.position.top;
             topLeft.position.bottom = topRight.position.bottom;
@@ -863,14 +864,14 @@ public class BubbleMenu extends GenericTouchHandler {
             if (Math.abs(topLeft.position.left - bounds.left) < Math
                     .abs(bounds.right - topRight.position.right)) {
                 // scrap is near the left border of the screen
-                topRight.position.right = (int) FloatMath
+                topRight.position.right = (int) Math
                         .floor(topLeft.position.left + minSize);
-                topRight.position.left = (int) FloatMath
+                topRight.position.left = (int) Math
                         .floor(topRight.position.right - bSize);
             } else {
-                topLeft.position.left = (int) FloatMath
+                topLeft.position.left = (int) Math
                         .ceil(topRight.position.right - minSize);
-                topLeft.position.right = (int) FloatMath
+                topLeft.position.right = (int) Math
                         .ceil(topLeft.position.left + bSize);
             }
             bottomRight.position.left = topRight.position.left;
@@ -880,14 +881,14 @@ public class BubbleMenu extends GenericTouchHandler {
             if (Math.abs(topRight.position.top - bounds.top) < Math
                     .abs(bounds.bottom - bottomRight.position.bottom)) {
                 // scrap is near the top border of the screen
-                bottomRight.position.bottom = (int) FloatMath
+                bottomRight.position.bottom = (int) Math
                         .floor(topLeft.position.top + minSize);
-                bottomRight.position.top = (int) FloatMath
+                bottomRight.position.top = (int) Math
                         .floor(bottomRight.position.bottom - bSize);
             } else {
-                topLeft.position.top = (int) FloatMath
+                topLeft.position.top = (int) Math
                         .ceil(bottomRight.position.bottom - minSize);
-                topLeft.position.bottom = (int) FloatMath
+                topLeft.position.bottom = (int) Math
                         .ceil(topLeft.position.top + bSize);
             }
             topRight.position.top = topLeft.position.top;

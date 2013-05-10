@@ -181,10 +181,10 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public static final float MAX_ZOOM = 4f;
     /**
-     * The ratio used to make the landing zone the same physical size regardless
-     * of the device that is currently being used.
+     * The absolute radius of landing zones, to be rescaled by the scale factor
+     * and the device screen's pixel density.
      */
-    public static final float LANDING_ZONE_RADIUS_TO_WIDTH_RATIO = 30f / 1280;
+    public static final float LANDING_ZONE_ABS_RADIUS = 30f;
     /**
      * The paint object that is used to draw all strokes with.
      * 
@@ -381,6 +381,11 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
      * physical size across devices.
      */
     float scaledLandingZoneAbsRadius;
+    /**
+     * This device screen's density in pixel (used to make everything look the
+     * same physical size regardless of the screen size and density).
+     */
+    float displayDensity = getResources().getDisplayMetrics().density;
     /**
      * The radius of the circle that represents the landing zone.
      */
@@ -1492,8 +1497,7 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
             bubbleMenu.setBounds(selected, scaleFactor, screenBounds);
         } else {
             bubbleMenu.setBounds(scaleFactor, screenBounds);
-            scaledLandingZoneAbsRadius = Math.max(width, height)
-                    * LANDING_ZONE_RADIUS_TO_WIDTH_RATIO;
+            scaledLandingZoneAbsRadius = LANDING_ZONE_ABS_RADIUS * displayDensity;
             landingZoneRadius = scaledLandingZoneAbsRadius / scaleFactor;
         }
     }
