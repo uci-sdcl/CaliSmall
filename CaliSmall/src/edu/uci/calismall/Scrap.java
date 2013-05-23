@@ -245,6 +245,10 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         }
         setBoundaries();
     }
+    
+    public Scrap copy (boolean deepCopy) {
+    	return new Scrap(this, deepCopy);
+    }
 
     /**
      * Adds the argument <tt>stroke</tt> to this scrap.

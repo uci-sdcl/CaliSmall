@@ -345,7 +345,7 @@ public class BubbleMenu extends GenericTouchHandler {
                 parentView.addScrap(selected, true);
                 parentView.changeTempScrap(selected);
             } else {
-                selected = new Scrap(selected, true);
+                selected = selected.copy(true);
                 parentView.addScrap(selected, true);
                 parentView.setSelected(selected);
             }

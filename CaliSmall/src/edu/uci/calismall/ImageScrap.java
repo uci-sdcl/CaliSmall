@@ -99,6 +99,11 @@ public class ImageScrap extends Scrap {
         copyContent(clone);
     }
     
+    @Override
+    public Scrap copy (boolean deepCopy) {
+    	return new ImageScrap(this);
+    }
+    
     /**
      * Sets the path to the image that has to be loaded within this scrap.
      * 
