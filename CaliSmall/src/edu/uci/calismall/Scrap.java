@@ -246,6 +246,17 @@ public class Scrap extends CaliSmallElement implements JSONSerializable<Scrap> {
         setBoundaries();
     }
     
+    /**
+     * Creates a copy of this scrap. Override for classes that extend Scrap.
+     * 
+     * @param deepCopy
+     * 		whether content should be copied using new objects, if
+     *      <code>false</code> the same objects inside the copy are used
+     *      by this scrap
+     *      
+     * @return a reference to a copy of this scrap
+     * @see #Scrap(Scrap copy, boolean deepCopy)
+     */
     public Scrap copy (boolean deepCopy) {
     	return new Scrap(this, deepCopy);
     }

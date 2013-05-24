@@ -99,8 +99,17 @@ public class ImageScrap extends Scrap {
         copyContent(clone);
     }
     
+    /**
+     * Creates a copy of this image scrap
+     * 
+     * @param deepCopy
+     * 		does not affect anything, but must have a boolean value since it
+     * 		overrides Scrap.copy(boolean)
+     * @return a reference to a clone of this image scrap
+     * @see #ImageScrap(ImageScrap)
+     */
     @Override
-    public Scrap copy (boolean deepCopy) {
+    public Scrap copy(boolean deepCopy) {
     	return new ImageScrap(this);
     }
     
