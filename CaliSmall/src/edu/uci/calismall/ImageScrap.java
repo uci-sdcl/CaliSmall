@@ -105,12 +105,23 @@ public class ImageScrap extends Scrap {
      * @param deepCopy
      * 		does not affect anything, but must have a boolean value since it
      * 		overrides Scrap.copy(boolean)
-     * @return a reference to a clone of this image scrap
+     * @return a reference to a clone of this image scrap or null if the available
+     * 		   memory is low
      * @see #ImageScrap(ImageScrap)
      */
     @Override
     public Scrap copy(boolean deepCopy) {
-    	return new ImageScrap(this);
+    	//**experimental low memory warning**
+    	//seems to work on a nexus 7, but not on a galaxy nexus
+    	
+    	/*Runtime runtime = Runtime.getRuntime();
+    	if (runtime.totalMemory() / (double) runtime.maxMemory() >= .9d) {
+    		parentView.showLowMemoryWarning();
+    		return null;
+    	}
+    		else */
+    	
+    	return clone();
     }
     
     /**
@@ -278,7 +289,18 @@ public class ImageScrap extends Scrap {
         if (scaled != null && !scaled.isRecycled())
             scaled.recycle();
     }
-
+    
+    /*
+     * (non-Javadoc)
+     * 
+     * @see edu.uci.calismall.Scrap#erase()
+     */
+    @Override
+    public void erase() {
+    	super.erase();
+    	close();
+    }
+    
     /*
      * (non-Javadoc)
      * 

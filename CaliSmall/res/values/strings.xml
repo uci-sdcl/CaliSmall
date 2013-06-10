@@ -34,4 +34,6 @@
     <string name="label">label</string>
     <string name="style_dialog_title">Line style</string>
     <string name="close">Close</string>
+    <string name="low_memory_dialog_title">Low memory</string>
+    <string name="low_memory_dialog_message">The creation of a scrap was prevented due to low memory. Delete other scraps to free up memory, especially images.</string>
 </resources>

@@ -981,6 +981,13 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
     public void showOutOfMemoryError() {
         parent.showOutOfMemoryError();
     }
+    
+    /**
+     * Displays a warning dialog informing the user that there is little memory left.
+     */
+    public void showLowMemoryWarning() {
+        parent.showLowMemoryWarning();
+    }
 
     /**
      * Sets the argument scrap as the selected one, deselecting the scrap that
@@ -2165,5 +2172,5 @@ public class CaliView extends SurfaceView implements SurfaceHolder.Callback,
         foregroundRefresh = true;
         return this;
     }
-
+    
 }

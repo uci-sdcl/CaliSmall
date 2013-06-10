@@ -381,7 +381,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private File homeFolder;
     private int currentFileListIndex = 0;
     private EditText input;
-    private Dialog styleDialog, loadDialog, outOfMemoryDialog;
+    private Dialog styleDialog, loadDialog, outOfMemoryDialog, lowMemoryDialog;
     private AlertDialog saveDialog, deleteDialog;
     private TimerTask autoSaver, autoBackupSaver;
     private ScheduledExecutorService autoSaverTimer;
@@ -490,6 +490,7 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
         }
         createStyleDialog();
         createOutOfMemoryDialog();
+        createLowMemoryDialog();
         if (chosenFile == null) {
             newSketch();
         }
@@ -584,6 +585,21 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             .setPositiveButton(getResources().getText(android.R.string.ok), new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int id) {
                      outOfMemoryDialog.dismiss();
+                }
+            })               
+            .create();
+        // @formatter:on
+    }
+    
+    private void createLowMemoryDialog() {
+        // @formatter:off
+        lowMemoryDialog = new AlertDialog.Builder(this)
+            .setTitle(R.string.low_memory_dialog_title)
+            .setMessage(R.string.low_memory_dialog_message)
+            .setCancelable(false)
+            .setPositiveButton(getResources().getText(android.R.string.ok), new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int id) {
+                     lowMemoryDialog.dismiss();
                 }
             })               
             .create();
@@ -1069,6 +1085,20 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
             @Override
             public void run() {
                 outOfMemoryDialog.show();
+            }
+        });
+    }
+    
+    /**
+     * Displays a warning dialog informing the user that there is little memory left.
+     */
+    public void showLowMemoryWarning() {
+    	this.
+        runOnUiThread(new Runnable() {
+
+            @Override
+            public void run() {
+                lowMemoryDialog.show();
             }
         });
     }
