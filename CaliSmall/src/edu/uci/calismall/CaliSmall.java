@@ -85,6 +85,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -308,12 +309,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
 
     private static final SparseIntArray COLOR_SWATCHES = new SparseIntArray();
     private static final SparseIntArray LINE_THICKNESSES = new SparseIntArray();
-    private static final int[] COLOR_SWATCHES_IDS = { R.id.black, R.id.gray,
-        R.id.light_gray, R.id.purple, R.id.blue, R.id.green, R.id.red,
-        R.id.orange, R.id.yellow };
-    private static final int[] LINE_THICKNESS_IDS = { R.id.line_1px,
-        R.id.line_2px, R.id.line_3px, R.id.line_5px, R.id.line_7px,
-        R.id.line_9px };
     private static final String FILE_EXTENSION = ".csf";
 //    private static final String THUMBNAIL_EXTENSION = ".thumb";
     private static final String LIST_FILE_NAME = ".file_list";
@@ -325,8 +320,6 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     private static final long MIN_FILE_SIZE_FOR_PROGRESSBAR = 100 * 1024;
     private static final int MIN_POINTS_PER_PROGRESSBAR = 1000;
     private static final String POS_FORMAT = "(%d/%d) %s";
-    private final List<ImageButton> colorSwatches = new ArrayList<ImageButton>(),
-            lineThicknesses = new ArrayList<ImageButton>();
     private final StyleWrapper styleWrapper = new StyleWrapper();
 
     /*************************************************************************
@@ -497,70 +490,47 @@ public class CaliSmall extends Activity implements JSONSerializable<CaliSmall> {
     
     private void initSwatches() {
         Resources rez = getResources();
-        COLOR_SWATCHES.put(R.id.black, rez.getColor(R.color.black));
-        COLOR_SWATCHES.put(R.id.gray, rez.getColor(R.color.gray));
-        COLOR_SWATCHES.put(R.id.light_gray, rez.getColor(R.color.light_gray));
-        COLOR_SWATCHES.put(R.id.purple, rez.getColor(R.color.purple));
-        COLOR_SWATCHES.put(R.id.green, rez.getColor(R.color.green));
-        COLOR_SWATCHES.put(R.id.blue, rez.getColor(R.color.blue));
-        COLOR_SWATCHES.put(R.id.red, rez.getColor(R.color.red));
-        COLOR_SWATCHES.put(R.id.orange, rez.getColor(R.color.orange));
-        COLOR_SWATCHES.put(R.id.yellow, rez.getColor(R.color.yellow));
-        LINE_THICKNESSES.put(R.id.line_1px, 1);
-        LINE_THICKNESSES.put(R.id.line_2px, 2);
-        LINE_THICKNESSES.put(R.id.line_3px, 3);
-        LINE_THICKNESSES.put(R.id.line_5px, 5);
-        LINE_THICKNESSES.put(R.id.line_7px, 7);
-        LINE_THICKNESSES.put(R.id.line_9px, 9);
+        COLOR_SWATCHES.put(R.drawable.swatch_black, rez.getColor(R.color.black));
+        COLOR_SWATCHES.put(R.drawable.swatch_gray, rez.getColor(R.color.gray));
+        COLOR_SWATCHES.put(R.drawable.swatch_light_gray, rez.getColor(R.color.light_gray));
+        COLOR_SWATCHES.put(R.drawable.swatch_purple, rez.getColor(R.color.purple));
+        COLOR_SWATCHES.put(R.drawable.swatch_green, rez.getColor(R.color.green));
+        COLOR_SWATCHES.put(R.drawable.swatch_blue, rez.getColor(R.color.blue));
+        COLOR_SWATCHES.put(R.drawable.swatch_red, rez.getColor(R.color.red));
+        COLOR_SWATCHES.put(R.drawable.swatch_orange, rez.getColor(R.color.orange));
+        COLOR_SWATCHES.put(R.drawable.swatch_yellow, rez.getColor(R.color.yellow));
+        LINE_THICKNESSES.put(R.drawable.line_1px, 1);
+        LINE_THICKNESSES.put(R.drawable.line_2px, 2);
+        LINE_THICKNESSES.put(R.drawable.line_3px, 3);
+        LINE_THICKNESSES.put(R.drawable.line_5px, 5);
+        LINE_THICKNESSES.put(R.drawable.line_7px, 7);
+        LINE_THICKNESSES.put(R.drawable.line_9px, 9);
     }
     
     private void createStyleDialog() {
         styleDialog = new Dialog(this);
         LayoutInflater inflater = getLayoutInflater();
         View swatchesView = inflater.inflate(R.layout.color_swatches, null);
+        
+        final GridView colorsGrid = (GridView) swatchesView.findViewById(R.id.colors_grid);
+        final GridAdapter colorsAdapter = new GridAdapter(this, COLOR_SWATCHES, 0);
+        colorsGrid.setAdapter(colorsAdapter);
+        
+        final GridView linesGrid = (GridView) swatchesView.findViewById(R.id.lines_grid);
+        final GridAdapter linesAdapter = new GridAdapter(this, LINE_THICKNESSES, 1);
+        linesGrid.setAdapter(linesAdapter);
+
         styleDialog.setContentView(swatchesView);
-        styleDialog.setOnDismissListener(new OnDismissListener() {
+        styleDialog.setOnDismissListener(new OnDismissListener(){
 
-            @Override
-            public void onDismiss(DialogInterface dialog) {
-                view.styleChanged(styleWrapper.color,
-                        resizeWithZoom.isChecked(), styleWrapper.thickness);
-            }
+			@Override
+			public void onDismiss(DialogInterface arg0) {
+
+				view.styleChanged(colorsAdapter.getStyle(),
+						resizeWithZoom.isChecked(), linesAdapter.getStyle());	
+			}
+        	
         });
-        colorSwatches.clear();
-        for (int id : COLOR_SWATCHES_IDS) {
-            ImageButton button = (ImageButton) (swatchesView.findViewById(id));
-            colorSwatches.add(button);
-            button.setOnClickListener(new OnClickListener() {
-
-                @Override
-                public void onClick(View v) {
-                    for (ImageButton button : colorSwatches) {
-                        button.setSelected(false);
-                    }
-                    v.setSelected(true);
-                    styleWrapper.color = COLOR_SWATCHES.get(v.getId());
-                }
-            });
-        }
-        colorSwatches.get(0).setSelected(true);
-        lineThicknesses.clear();
-        for (int id : LINE_THICKNESS_IDS) {
-            ImageButton button = (ImageButton) (swatchesView.findViewById(id));
-            lineThicknesses.add(button);
-            button.setOnClickListener(new OnClickListener() {
-
-                @Override
-                public void onClick(View v) {
-                    for (ImageButton button : lineThicknesses) {
-                        button.setSelected(false);
-                    }
-                    v.setSelected(true);
-                    styleWrapper.thickness = LINE_THICKNESSES.get(v.getId());
-                }
-            });
-        }
-        lineThicknesses.get(1).setSelected(true);
         resizeWithZoom = (CheckBox) (swatchesView
                 .findViewById(R.id.resize_with_zoom));
         Button close = (Button) (swatchesView
